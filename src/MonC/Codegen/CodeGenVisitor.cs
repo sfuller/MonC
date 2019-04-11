@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using MonC.Bytecode;
 using MonC.SyntaxTree;
 
@@ -7,6 +8,18 @@ namespace MonC.Codegen
 {
     public class CodeGenVisitor : IASTLeafVisitor
     {
+//        struct IdentifierContext
+//        {
+//            public IdentifierType Type;
+//        }
+
+        enum IdentifierType
+        {
+            NONE,
+            VALUE,
+            FUNCTION
+        }
+        
         struct StackEntry
         {
             public string Name;
@@ -14,8 +27,12 @@ namespace MonC.Codegen
         }
         
         private readonly List<IInstruction> _instructions = new List<IInstruction>();
-        private readonly Stack<StackEntry> _currentStack = new Stack<StackEntry>();
+        private readonly Stack<LocalVariableContext> _localVariableContexts = new Stack<LocalVariableContext>();
         private readonly StaticStringManager _strings = new StaticStringManager();
+        
+        private IdentifierType _currentIdentifier;
+
+        private bool _expectingFunctionCall;
         
 
         private int AddInstruction(IInstruction instruction)
@@ -24,9 +41,24 @@ namespace MonC.Codegen
             _instructions.Add(instruction);
             return index;
         }
+
+        private LocalVariableContext GetCurrentLocalVariableContext()
+        {
+            return _localVariableContexts.Peek();
+        }
+        
+        
        
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
+
+            if (leaf.Op.Value == "(") {
+                
+            }
+            
+            
+            
+            
             // Evaluate left hand side
             leaf.LHS.Accept(this);
             
@@ -36,9 +68,13 @@ namespace MonC.Codegen
 
             switch (leaf.Op.Value) {
                 case ">":
-                    
-                    
-                    
+                case "<":
+                case ">=":
+                case "<=":
+                    GenerateRelationalComparison(leaf.Op);
+                    break;
+                case "==":
+                    AddInstruction(new CompareEqualityInstruction());
                     break;
                 default:
                     throw new NotImplementedException();
@@ -58,11 +94,31 @@ namespace MonC.Codegen
                 AddInstruction(new NotInstruction());
             }
         }
-        
+
+        public void VisitBody(BodyLeaf leaf)
+        {
+            throw new NotImplementedException();
+        }
 
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
-            throw new NotImplementedException();
+            LocalVariableContext context = GetCurrentLocalVariableContext();
+            LocalVariable var;
+            if (context.GetVariable(leaf.Name, out var)) {
+                // TODO: Add an error!
+                throw new NotImplementedException(); 
+            }
+            
+            context.AddVariable(leaf.Name, var);
+
+            if (leaf.Assignment != null) {
+                // Evaluate assignment expression
+                leaf.Assignment.Accept(this);
+
+                // Store the result of the expression
+                AddInstruction(new PushLocalInstruction());
+                AddInstruction(new StoreInstruction());
+            }
         }
 
         public void VisitFor(ForLeaf leaf)
@@ -91,7 +147,14 @@ namespace MonC.Codegen
             _instructions[initialJumpLocation] = new BranchInstruction(conditionLocation - initialJumpLocation);
         }
 
-        public void VisitFunction(FunctionLeaf leaf)
+        public void VisitFunctionCall(FunctionCallLeaf leaf)
+        {
+            CallVisitor visitor = new CallVisitor();
+            leaf.LHS.Accept(visitor);
+            throw new NotImplementedException();
+        }
+        
+        public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
         {
             throw new InvalidOperationException("Not expecting a function here!");
         }
@@ -128,10 +191,6 @@ namespace MonC.Codegen
         {
             int value = Int32.Parse(leaf.Value);
             AddInstruction(new PushImmediateInstruction(value));
-        }
-
-        public void VisitPlaceholder(PlaceholderLeaf leaf)
-        {
         }
 
         public void VisitStringLiteral(StringLIteralLeaf leaf)

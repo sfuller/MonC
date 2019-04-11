@@ -20,6 +20,22 @@ namespace MonC.Bytecode
         
         
         //
+        // Memory
+        //
+        STORE,
+        
+        
+        //
+        // Locals
+        //
+        
+        ALLOC_LOCAL,
+        
+        
+        PUSH_LOCAL,
+        
+        
+        //
         // Math
         //
         
@@ -60,7 +76,7 @@ namespace MonC.Bytecode
         /// Pops two values off of the stack. If the first popped value is less than or equal the second value popped,
         /// 1 is pushed onto the stack. Otherwise, 0 is pushed onto the stack.
         /// </summary>
-        COMPARE_LTE.
+        COMPARE_LTE,
         
         
         //

@@ -3,9 +3,9 @@ namespace MonC.SyntaxTree
 {
     public class DeclarationLeaf : IASTLeaf
     {
-        private readonly string Type;
-        private readonly string Name;
-        private readonly IASTLeaf Assignment;
+        public readonly string Type;
+        public readonly string Name;
+        public readonly IASTLeaf Assignment;
 
         public DeclarationLeaf(string type, string name, IASTLeaf assignment)
         {

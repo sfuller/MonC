@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace MonC.SyntaxTree
 {
-    public class FunctionLeaf : IASTLeaf
+    public class FunctionDefinitionLeaf : IASTLeaf
     {
         public struct Parameter
         {
@@ -14,19 +14,19 @@ namespace MonC.SyntaxTree
         public readonly string Name;
         public readonly string ReturnType;
         public readonly Parameter[] Parameters;
-        public readonly IASTLeaf[] Statements;
+        public readonly IASTLeaf Body;
 
-        public FunctionLeaf(string name, string returnType, IEnumerable<Parameter> parameters, IEnumerable<IASTLeaf> statements)
+        public FunctionDefinitionLeaf(string name, string returnType, IEnumerable<Parameter> parameters, IASTLeaf body)
         {
             Name = name;
             ReturnType = returnType;
             Parameters = parameters.ToArray();
-            Statements = statements.ToArray();
+            Body = body;
         }
         
         public void Accept(IASTLeafVisitor visitor)
         {
-            visitor.VisitFunction(this);
+            visitor.VisitFunctionDefinition(this);
         }
     }
 }

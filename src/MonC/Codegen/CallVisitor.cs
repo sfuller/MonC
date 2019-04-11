@@ -2,16 +2,14 @@ using MonC.SyntaxTree;
 
 namespace MonC.Codegen
 {
-    public class ScopeVisitor : IASTLeafVisitor
+    public class CallVisitor : IASTLeafVisitor
     {
-       
-        
-        
-        
-        
-        
-        
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void VisitBody(BodyLeaf leaf)
         {
             throw new System.NotImplementedException();
         }
@@ -26,7 +24,12 @@ namespace MonC.Codegen
             throw new System.NotImplementedException();
         }
 
-        public void VisitFunction(FunctionLeaf leaf)
+        public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void VisitFunctionCall(FunctionCallLeaf leaf)
         {
             throw new System.NotImplementedException();
         }
@@ -42,11 +45,6 @@ namespace MonC.Codegen
         }
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public void VisitPlaceholder(PlaceholderLeaf leaf)
         {
             throw new System.NotImplementedException();
         }

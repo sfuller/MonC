@@ -27,17 +27,23 @@ namespace LexerFrontend
             
             Parser parser = new Parser();
             List<IASTLeaf> tree = new List<IASTLeaf>();
-            List<string> errors = new List<string>();
+            List<ParseError> errors = new List<ParseError>();
             parser.Parse(tokens, tree, errors);
 
             Console.WriteLine();
             
             for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
-                Console.Error.WriteLine(errors[i]);
+                ParseError error = errors[i];
+                Console.Error.WriteLine($"{error.Token.Line},{error.Token.Column}: {error.Message}");
             }
 
+            if (errors.Count > 0) {
+                Environment.Exit(1);
+            }
+
+            PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
             for (int i = 0, ilen = tree.Count; i < ilen; ++i) {
-                Console.WriteLine(tree[i]);
+                tree[i].Accept(treeVisitor);
             }
         }
 

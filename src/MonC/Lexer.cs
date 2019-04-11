@@ -14,6 +14,9 @@ namespace MonC
         
         private string _sourceString = "";
         private int _sourceIndex;
+        private uint _currentLine;
+        private uint _currentColumn;
+        
         private TokenType _currentTokenType;
         private readonly StringBuilder _valueBuffer = new StringBuilder();
         private StringLexState _stringState;
@@ -40,7 +43,7 @@ namespace MonC
             
             switch (_currentTokenType) {
                 default:
-                    token = new Token();
+                    token = MakeToken();
                     canContinue = false;
                     break;
                 case TokenType.Identifier:
@@ -100,7 +103,7 @@ namespace MonC
         
         private bool ProcessIdentifier(out Token token)
         {
-            token = new Token();
+            token = MakeToken();
             int next;
             
             while ((next = Peek()) != -1) {
@@ -132,7 +135,7 @@ namespace MonC
 
         private bool ProcessNumber(out Token token)
         {
-            token = new Token();
+            token = MakeToken();
             int next;
 
             while ((next = Peek()) != -1) {
@@ -142,7 +145,8 @@ namespace MonC
                     // Number is finished
                     string value = _valueBuffer.ToString();
                     _valueBuffer.Length = 0;
-                    token = new Token {Type = TokenType.Number, Value = value};
+                    token.Type = TokenType.Number;
+                    token.Value = value;
                     return true;
                 }
 
@@ -156,7 +160,7 @@ namespace MonC
         
         private bool ProcessString(out Token token)
         {
-            token = new Token();
+            token = MakeToken();
             int next;
 
             if (!_stringState.ConsumedFirstQuote) {
@@ -180,7 +184,8 @@ namespace MonC
                         if (nextChar == '"') {
                             // String finished.
                             Consume();
-                            token = new Token {Type = TokenType.String, Value = _valueBuffer.ToString()};
+                            token.Type = TokenType.String;
+                            token.Value = _valueBuffer.ToString();
                             _valueBuffer.Length = 0;
                             return true;
                         }
@@ -197,21 +202,28 @@ namespace MonC
 
         private bool ProcessSyntax(out Token token)
         {
-            token = new Token();
+            token = MakeToken();
             int next = Peek();
 
             if (next == -1) {
                 // Incomplete.
                 return false;
             }
-            
-            token = new Token {Type = TokenType.Syntax, Value = ((char) next).ToString()};
+
+            token.Type = TokenType.Syntax;
+            token.Value = ((char) next).ToString();
             Consume();
             return true;
         }
 
         private void Consume()
         {
+            ++_currentColumn;
+            if (Peek() == '\n') {
+                ++_currentLine;
+                _currentColumn = 0;
+            }
+            
             ++_sourceIndex;
         }
 
@@ -223,5 +235,12 @@ namespace MonC
             return _sourceString[_sourceIndex];
         }
 
+        private Token MakeToken()
+        {
+            return new Token {
+                Line = _currentLine,
+                Column = _currentColumn
+            };
+        }
     }
 }
