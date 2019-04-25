@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{9BA206D4-CB5B-47D1-9408-3688980895C8}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>MonC</RootNamespace>
     <AssemblyName>MonC</AssemblyName>
@@ -77,7 +77,7 @@
     <Compile Include="SyntaxTree\IfElseLeaf.cs" />
     <Compile Include="SyntaxTree\NumericLiteralLeaf.cs" />
     <Compile Include="SyntaxTree\FunctionDefinitionLeaf.cs" />
-    <Compile Include="SyntaxTree\StringLIteralLeaf.cs" />
+    <Compile Include="SyntaxTree\StringLiteralLeaf.cs" />
     <Compile Include="SyntaxTree\WhileLeaf.cs" />
     <Compile Include="Token.cs" />
     <Compile Include="TokenType.cs" />

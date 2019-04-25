@@ -5,7 +5,7 @@ namespace MonC.SyntaxTree
 {
     public class FunctionCallLeaf : IASTLeaf
     {
-        public readonly IASTLeaf LHS;
+        public IASTLeaf LHS;
         private readonly IASTLeaf[] _arguments;
 
         public int ArgumentCount => _arguments.Length;
@@ -24,6 +24,11 @@ namespace MonC.SyntaxTree
         public IASTLeaf GetArgument(int index)
         {
             return _arguments[index];
+        }
+
+        public void SetArgument(int index, IASTLeaf argument)
+        {
+            _arguments[index] = argument;
         }
     }
 }

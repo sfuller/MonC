@@ -49,7 +49,7 @@ namespace MonC.Codegen
             throw new System.NotImplementedException();
         }
 
-        public void VisitStringLiteral(StringLIteralLeaf leaf)
+        public void VisitStringLiteral(StringLiteralLeaf leaf)
         {
             throw new System.NotImplementedException();
         }

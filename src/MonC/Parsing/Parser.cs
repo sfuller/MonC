@@ -471,7 +471,7 @@ namespace MonC
         {
             Token token;
             Next(TokenType.String, out token);
-            return new StringLIteralLeaf(token.Value);
+            return new StringLiteralLeaf(token.Value);
         }
 
         private void ParseSemicolon()

@@ -193,7 +193,7 @@ namespace MonC.Codegen
             AddInstruction(new PushImmediateInstruction(value));
         }
 
-        public void VisitStringLiteral(StringLIteralLeaf leaf)
+        public void VisitStringLiteral(StringLiteralLeaf leaf)
         {
             int offset = _strings.Get(leaf.Value);
             AddInstruction(new PushDataInstruction(offset));

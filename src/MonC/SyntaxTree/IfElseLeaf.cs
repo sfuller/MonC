@@ -5,9 +5,9 @@ namespace MonC.SyntaxTree
 {
     public class IfElseLeaf : IASTLeaf
     {
-        public readonly IASTLeaf Condition;
-        public readonly IASTLeaf IfBody;
-        public readonly IASTLeaf ElseBody;
+        public IASTLeaf Condition;
+        public IASTLeaf IfBody;
+        public IASTLeaf ElseBody;
 
         public IfElseLeaf(IASTLeaf condition, IASTLeaf ifBody, IASTLeaf elseBody)
         {

@@ -11,10 +11,10 @@ namespace MonC.SyntaxTree
             public string Name;
         }
 
-        public readonly string Name;
-        public readonly string ReturnType;
-        public readonly Parameter[] Parameters;
-        public readonly IASTLeaf Body;
+        public string Name;
+        public string ReturnType;
+        public Parameter[] Parameters;
+        public IASTLeaf Body;
 
         public FunctionDefinitionLeaf(string name, string returnType, IEnumerable<Parameter> parameters, IASTLeaf body)
         {

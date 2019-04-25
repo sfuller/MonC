@@ -2,7 +2,7 @@ using System;
 using MonC;
 using MonC.SyntaxTree;
 
-namespace LexerFrontend
+namespace MonC.Frontend
 {
     public class PrintTreeVisitor : IASTLeafVisitor
     {
@@ -71,7 +71,7 @@ namespace LexerFrontend
             Print($"Numeric Literal ({leaf.Value})");
         }
 
-        public void VisitStringLiteral(StringLIteralLeaf leaf)
+        public void VisitStringLiteral(StringLiteralLeaf leaf)
         {
             Print($"String Literal ({leaf.Value})");
         }

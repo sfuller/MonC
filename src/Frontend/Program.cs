@@ -1,29 +1,32 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Threading.Tasks;
-using MonC;
+using System.Linq;
 
-namespace LexerFrontend
+namespace MonC.Frontend
 {   
     internal class Program
     { 
         public static void Main(string[] args)
         {
+            bool isInteractive = args.Contains("-i");
+            bool showLex = args.Contains("--showlex");
+            
             Lexer lexer = new Lexer();
             List<Token> tokens = new List<Token>();
             
-            WritePrompt();
-
             string input;
-            
-            while ((input = Console.ReadLine()) != null) {
-                Lex(input, lexer, tokens);
-                Lex("\n", lexer, tokens);
+
+            if (isInteractive) {
                 WritePrompt();
+                while ((input = Console.ReadLine()) != null) {
+                    Lex(input, lexer, tokens, verbose: showLex);
+                    Lex("\n", lexer, tokens, verbose: showLex);
+                    WritePrompt();
+                }    
+            } else {
+                input = Console.In.ReadToEnd();
+                Lex(input, lexer, tokens, verbose: showLex);
             }
-            
             
             Parser parser = new Parser();
             List<IASTLeaf> tree = new List<IASTLeaf>();
@@ -53,15 +56,16 @@ namespace LexerFrontend
             Console.Out.Flush();
         }
 
-        private static void Lex(string input, Lexer lexer, List<Token> tokens)
+        private static void Lex(string input, Lexer lexer, List<Token> tokens, bool verbose)
         {
             List<Token> newTokens = new List<Token>();
             lexer.Lex(input, newTokens);
-            
-            for (int i = 0, ilen = tokens.Count; i < ilen; ++i) {
-                Console.WriteLine(tokens[i]);
+
+            if (verbose) {
+                for (int i = 0, ilen = tokens.Count; i < ilen; ++i) {
+                    Console.WriteLine(tokens[i]);
+                }    
             }
-            
             tokens.AddRange(newTokens);
         }
     }

@@ -2,7 +2,7 @@ namespace MonC.SyntaxTree
 {
     public class IdentifierLeaf : IASTLeaf
     {
-        public readonly string Name;
+        public string Name;
 
         public IdentifierLeaf(string name)
         {

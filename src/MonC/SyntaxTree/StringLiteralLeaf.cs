@@ -2,11 +2,11 @@ using System;
 
 namespace MonC.SyntaxTree
 {
-    public class StringLIteralLeaf : IASTLeaf
+    public class StringLiteralLeaf : IASTLeaf
     {
-        public readonly string Value;
+        public string Value;
 
-        public StringLIteralLeaf(string value)
+        public StringLiteralLeaf(string value)
         {
             Value = value;
         }

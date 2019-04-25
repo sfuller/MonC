@@ -2,7 +2,7 @@ namespace MonC.SyntaxTree
 {
     public class NumericLiteralLeaf : IASTLeaf
     {
-        public readonly string Value;
+        public string Value;
 
         public NumericLiteralLeaf(string value)
         {

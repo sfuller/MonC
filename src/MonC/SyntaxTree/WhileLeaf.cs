@@ -3,8 +3,8 @@ namespace MonC.SyntaxTree
 {
     public class WhileLeaf : IASTLeaf
     {
-        public readonly IASTLeaf Condition;
-        public readonly IASTLeaf Body;
+        public IASTLeaf Condition;
+        public IASTLeaf Body;
 
         public WhileLeaf(IASTLeaf condition, IASTLeaf body)
         {

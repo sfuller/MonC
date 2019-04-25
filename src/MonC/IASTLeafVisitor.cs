@@ -13,7 +13,7 @@ namespace MonC
         void VisitIdentifier(IdentifierLeaf leaf);
         void VisitIfElse(IfElseLeaf leaf);
         void VisitNumericLiteral(NumericLiteralLeaf leaf);
-        void VisitStringLiteral(StringLIteralLeaf leaf);
+        void VisitStringLiteral(StringLiteralLeaf leaf);
         void VisitWhile(WhileLeaf leaf);
     }
 }

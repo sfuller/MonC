@@ -1,19 +1,19 @@
 using System.Collections.Generic;
-using System.Linq;
+using System.Data;
 
 namespace MonC.SyntaxTree
 {
     public class BodyLeaf : IASTLeaf
     {
-        private readonly IASTLeaf[] _statements;
+        private readonly List<IASTLeaf> _statements;
 
         public int Length {
-            get { return _statements.Length; }
+            get { return _statements.Count; }
         }
         
         public BodyLeaf(IEnumerable<IASTLeaf> statements)
         {
-            _statements = statements.ToArray();
+            _statements = new List<IASTLeaf>(statements);
         }
         
         public void Accept(IASTLeafVisitor visitor)
@@ -24,6 +24,16 @@ namespace MonC.SyntaxTree
         public IASTLeaf GetStatement(int index)
         {
             return _statements[index];
+        }
+
+        public void SetStatement(int index, IASTLeaf statement)
+        {
+            _statements[index] = statement;
+        }
+
+        public void AddStatement(IASTLeaf statement)
+        {
+            _statements.Add(statement);
         }
            
     }
