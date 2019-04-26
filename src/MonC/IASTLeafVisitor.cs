@@ -15,5 +15,7 @@ namespace MonC
         void VisitNumericLiteral(NumericLiteralLeaf leaf);
         void VisitStringLiteral(StringLiteralLeaf leaf);
         void VisitWhile(WhileLeaf leaf);
+        void VisitBreak(BreakLeaf leaf);
+        void VisitReturn(ReturnLeaf leaf);
     }
 }

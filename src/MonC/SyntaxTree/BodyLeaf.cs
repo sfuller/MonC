@@ -35,6 +35,16 @@ namespace MonC.SyntaxTree
         {
             _statements.Add(statement);
         }
+
+        public void InsertStatement(int index, IASTLeaf statement)
+        {
+            _statements.Insert(index, statement);
+        }
+        
+        public void RemoveStatement(int index)
+        {
+            _statements.RemoveAt(index);
+        }
            
     }
 }

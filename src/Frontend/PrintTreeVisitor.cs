@@ -83,6 +83,16 @@ namespace MonC.Frontend
             VisitSubleaf(leaf.Body);
         }
 
+        public void VisitBreak(BreakLeaf leaf)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void VisitReturn(ReturnLeaf leaf)
+        {
+            throw new NotImplementedException();
+        }
+
         private void VisitSubleaf(IASTLeaf leaf)
         {
             if (leaf == null) {

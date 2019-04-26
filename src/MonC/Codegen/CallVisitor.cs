@@ -58,5 +58,15 @@ namespace MonC.Codegen
         {
             throw new System.NotImplementedException();
         }
+
+        public void VisitBreak(BreakLeaf leaf)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void VisitReturn(ReturnLeaf leaf)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

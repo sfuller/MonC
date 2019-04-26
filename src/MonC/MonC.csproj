@@ -70,6 +70,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SyntaxTree\BinaryOperationExpressionLeaf.cs" />
     <Compile Include="SyntaxTree\BodyLeaf.cs" />
+    <Compile Include="SyntaxTree\BreakLeaf.cs" />
     <Compile Include="SyntaxTree\DeclarationLeaf.cs" />
     <Compile Include="SyntaxTree\ForLeaf.cs" />
     <Compile Include="SyntaxTree\FunctionCallLeaf.cs" />
@@ -77,6 +78,7 @@
     <Compile Include="SyntaxTree\IfElseLeaf.cs" />
     <Compile Include="SyntaxTree\NumericLiteralLeaf.cs" />
     <Compile Include="SyntaxTree\FunctionDefinitionLeaf.cs" />
+    <Compile Include="SyntaxTree\ReturnLeaf.cs" />
     <Compile Include="SyntaxTree\StringLiteralLeaf.cs" />
     <Compile Include="SyntaxTree\WhileLeaf.cs" />
     <Compile Include="Token.cs" />

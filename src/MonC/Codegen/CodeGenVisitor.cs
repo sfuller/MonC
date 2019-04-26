@@ -219,5 +219,15 @@ namespace MonC.Codegen
             
             _instructions[initialJumpLocation] = new BranchInstruction(conditionLocation - initialJumpLocation);
         }
+
+        public void VisitBreak(BreakLeaf leaf)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void VisitReturn(ReturnLeaf leaf)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
