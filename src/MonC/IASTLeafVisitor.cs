@@ -10,7 +10,7 @@ namespace MonC
         void VisitFor(ForLeaf leaf);
         void VisitFunctionDefinition(FunctionDefinitionLeaf leaf);
         void VisitFunctionCall(FunctionCallLeaf leaf);
-        void VisitIdentifier(IdentifierLeaf leaf);
+        void VisitVariable(VariableLeaf leaf);
         void VisitIfElse(IfElseLeaf leaf);
         void VisitNumericLiteral(NumericLiteralLeaf leaf);
         void VisitStringLiteral(StringLiteralLeaf leaf);

@@ -1,10 +1,12 @@
 using System;
 using MonC;
+using MonC.Parsing;
+using MonC.Parsing.ParseTreeLeaves;
 using MonC.SyntaxTree;
 
 namespace MonC.Frontend
 {
-    public class PrintTreeVisitor : IASTLeafVisitor
+    public class PrintTreeVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
     {
         private int _currentIndent;
         
@@ -53,9 +55,10 @@ namespace MonC.Frontend
             }
         }
 
-        public void VisitIdentifier(IdentifierLeaf leaf)
+        public void VisitVariable(VariableLeaf leaf)
         {
-            Print($"Identifier ({leaf.Name})");
+            Print($"Variable");
+            VisitSubleaf(leaf.Declaration);
         }
 
         public void VisitIfElse(IfElseLeaf leaf)
@@ -91,6 +94,20 @@ namespace MonC.Frontend
         public void VisitReturn(ReturnLeaf leaf)
         {
             throw new NotImplementedException();
+        }
+
+        public void VisitIdentifier(IdentifierParseLeaf leaf)
+        {
+            Print($"Identifier (Parse Tree Leaf) (Name={leaf.Name})");
+        }
+
+        public void VisitFunctionCall(FunctionCallParseLeaf leaf)
+        {
+            Print($"Function Call (Parse Tree Leaf)");
+            VisitSubleaf(leaf.LHS);
+            for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
+                VisitSubleaf(leaf.GetArgument(i));
+            }
         }
 
         private void VisitSubleaf(IASTLeaf leaf)

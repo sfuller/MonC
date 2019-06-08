@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using MonC.Parsing.ParseTreeLeaves;
 using MonC.SyntaxTree;
 
 namespace MonC
@@ -85,7 +87,7 @@ namespace MonC
         
         private IASTLeaf ParseFunction()
         {
-            var parameters = new List<FunctionDefinitionLeaf.Parameter>();
+            var parameters = new List<DeclarationLeaf>();
 
             Token returnType, name;
             if (!(
@@ -96,7 +98,7 @@ namespace MonC
                 return null;
             }
             
-            Token next = Next();
+            Token next = Peek();
 
             if (!(next.Type == TokenType.Syntax && next.Value == ")")) {
                 // Parse parameters
@@ -107,7 +109,7 @@ namespace MonC
                         return null;
                     }
 
-                    parameters.Add(new FunctionDefinitionLeaf.Parameter {Name = paramName.Value, Type = paramType.Value});
+                    parameters.Add(new DeclarationLeaf(paramType.Value, paramName.Value, null));
 
                     Token nextParamToken;
                     if (!Next(TokenType.Syntax, out nextParamToken)) {
@@ -414,7 +416,7 @@ namespace MonC
                 }
             }
             
-            return new FunctionCallLeaf(lhs, arguments);
+            return new FunctionCallParseLeaf(lhs, arguments);
         }
 
         private IASTLeaf ParsePrimaryExpression()
@@ -457,7 +459,7 @@ namespace MonC
         {
             Token token;
             Next(TokenType.Identifier, out token);
-            return new IdentifierLeaf(token.Value);
+            return new IdentifierParseLeaf(token.Value);
         }
         
         private IASTLeaf ParseNumericLiteralExpression()

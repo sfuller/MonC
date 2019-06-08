@@ -159,7 +159,7 @@ namespace MonC.Codegen
             throw new InvalidOperationException("Not expecting a function here!");
         }
 
-        public void VisitIdentifier(IdentifierLeaf leaf)
+        public void VisitVariable(VariableLeaf leaf)
         {
             throw new System.NotImplementedException();
         }

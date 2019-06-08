@@ -34,7 +34,7 @@ namespace MonC.Codegen
             throw new System.NotImplementedException();
         }
 
-        public void VisitIdentifier(IdentifierLeaf leaf)
+        public void VisitVariable(VariableLeaf leaf)
         {
             throw new System.NotImplementedException();
         }

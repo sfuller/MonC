@@ -1,26 +1,29 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace MonC.SyntaxTree
+namespace MonC.Parsing.ParseTreeLeaves
 {
-    public class FunctionCallLeaf : IASTLeaf
+    public class FunctionCallParseLeaf : IASTLeaf
     {
-        public FunctionDefinitionLeaf LHS;
+        public readonly IASTLeaf LHS;
         private readonly IASTLeaf[] _arguments;
 
         public int ArgumentCount => _arguments.Length;
-
-        public FunctionCallLeaf(FunctionDefinitionLeaf lhs, IEnumerable<IASTLeaf> arguments)
+        
+        public FunctionCallParseLeaf(IASTLeaf lhs, IEnumerable<IASTLeaf> arguments)
         {
             LHS = lhs;
             _arguments = arguments.ToArray();
         }
-        
+
         public void Accept(IASTLeafVisitor visitor)
         {
-            visitor.VisitFunctionCall(this);
+            IParseTreeLeafVisitor specificVisitor = visitor as IParseTreeLeafVisitor;
+            if (specificVisitor != null) {
+                specificVisitor.VisitFunctionCall(this);
+            }
         }
-
+        
         public IASTLeaf GetArgument(int index)
         {
             return _arguments[index];

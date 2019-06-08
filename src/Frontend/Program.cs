@@ -1,6 +1,8 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace MonC.Frontend
 {   
@@ -24,7 +26,12 @@ namespace MonC.Frontend
                     WritePrompt();
                 }    
             } else {
-                input = Console.In.ReadToEnd();
+                string line;
+                StringBuilder inputBuilder = new StringBuilder();
+                while ((line = Console.In.ReadLine()) != null) {
+                    inputBuilder.AppendLine(line);
+                }
+                input = inputBuilder.ToString();
                 Lex(input, lexer, tokens, verbose: showLex);
             }
             
