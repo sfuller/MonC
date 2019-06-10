@@ -98,35 +98,48 @@ namespace MonC
                 return null;
             }
             
-            Token next = Peek();
-
-            if (!(next.Type == TokenType.Syntax && next.Value == ")")) {
-                // Parse parameters
-                while (true) {
+            bool expectingEnd = true;
+            bool expectingComma = false;
+            bool expectingNext = true;
+            
+            while (true) {
+                if (expectingNext) {
                     Token paramType, paramName;
+                    paramType = Peek();
+                    paramName = Peek(1);
 
-                    if (!(Next(TokenType.Identifier, out paramType) && Next(TokenType.Identifier, out paramName))) {
-                        return null;
-                    }
-
-                    parameters.Add(new DeclarationLeaf(paramType.Value, paramName.Value, null));
-
-                    Token nextParamToken;
-                    if (!Next(TokenType.Syntax, out nextParamToken)) {
-                        return null;
-                    }
-                    
-                    if (nextParamToken.Value == ")") {
-                        // No more parameters.
-                        break;
-                    }
-
-                    // if next token isn't a closing paren, expect comma.
-                    if (nextParamToken.Value != ",") {
-                        AddError("Expecing ','", nextParamToken);
-                        return null;
+                    if (paramType.Type == TokenType.Identifier && paramName.Type == TokenType.Identifier) {
+                        parameters.Add(new DeclarationLeaf(paramType.Value, paramName.Value, null));
+                        Next();
+                        Next();
+                        expectingNext = false;
+                        expectingComma = true;
+                        expectingEnd = true;
+                        continue;
                     }
                 }
+
+                if (expectingComma) {
+                    Token comma = Peek();
+                    if (comma.Type == TokenType.Syntax && comma.Value == ",") {
+                        Next();
+                        expectingNext = true;
+                        expectingComma = false;
+                        expectingEnd = false;
+                        continue;
+                    }
+                }
+
+                if (expectingEnd) {
+                    Token rightParen = Peek();
+                    if (rightParen.Type == TokenType.Syntax && rightParen.Value == ")") {
+                        Next();
+                        break;
+                    }
+                }
+                
+                AddError("Unexpected token", Peek());
+                return null;
             }
 
             IASTLeaf body = ParseBody();
