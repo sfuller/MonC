@@ -155,17 +155,19 @@ namespace MonC
             List<IASTLeaf> statements = new List<IASTLeaf>();
             
             while (true) {
-                statements.Add(ParseStatement());
-
                 Token next = Peek();
-
-                if (next.Type == TokenType.None) {
-                    AddError("Expected end of body", next);
-                    break;
-                }
                 
                 if (next.Type == TokenType.Syntax && next.Value == "}") {
                     Consume();
+                    break;
+                }
+                
+                statements.Add(ParseStatement());
+
+                next = Peek();
+
+                if (next.Type == TokenType.None) {
+                    AddError("Expected end of body", next);
                     break;
                 }
             }
