@@ -87,7 +87,7 @@ namespace MonC
 
             nextChar = (char)next;
             
-            if (Char.IsLetter(nextChar)) {
+            if (IsIdentifierOpener(nextChar)) {
                 return TokenType.Identifier;
             }
             if (Char.IsNumber(nextChar)) {
@@ -100,6 +100,16 @@ namespace MonC
             
             return TokenType.Syntax;
         }
+
+        private bool IsIdentifierOpener(char c)
+        {
+            return Char.IsLetter(c) || c == '_';
+        }
+
+        private bool IsValidIdentifierCharacter(char c)
+        {
+            return Char.IsLetterOrDigit(c) || c == '_';
+        }
         
         private bool ProcessIdentifier(out Token token)
         {
@@ -109,7 +119,7 @@ namespace MonC
             while ((next = Peek()) != -1) {
                 char nextChar = (char)next;
                                                     
-                if (!Char.IsLetterOrDigit(nextChar)) {
+                if (!IsValidIdentifierCharacter(nextChar)) {
                     // Token is finished. Determine whether it is a reserved keyword or a normal identifier. 
                     string value = _valueBuffer.ToString();
                     token.Value = value;
