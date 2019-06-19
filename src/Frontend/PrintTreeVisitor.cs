@@ -93,7 +93,8 @@ namespace MonC.Frontend
 
         public void VisitReturn(ReturnLeaf leaf)
         {
-            throw new NotImplementedException();
+            Print("Return");
+            VisitSubleaf(leaf.RHS);
         }
 
         public void VisitIdentifier(IdentifierParseLeaf leaf)

@@ -8,8 +8,9 @@ namespace MonC
         public const string ELSE = "else";
         public const string WHILE = "while";
         public const string FOR = "for";
+        public const string RETURN = "return";
 
-        private static readonly string[] KEYWORDS = new string[] {IF, ELSE, WHILE, FOR};
+        private static readonly string[] KEYWORDS = new string[] {IF, ELSE, WHILE, FOR, RETURN};
 
         public static bool IsKeyword(string value)
         {

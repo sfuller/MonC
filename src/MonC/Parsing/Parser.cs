@@ -177,18 +177,20 @@ namespace MonC
 
         private IASTLeaf ParseStatement()
         {
+            IASTLeaf statement;
+            
             if (CheckDeclaration()) {
-                IASTLeaf declaration = ParseDeclaration();
-                ParseSemicolon();
-                return declaration;
+                statement = ParseDeclaration();
             }
-            if (CheckFlow()) {
-                return ParseFlow();
+            else if (CheckFlow()) {
+                statement = ParseFlow();
+            } 
+            else {
+                statement = ParseExpression();
             }
-
-            IASTLeaf expression = ParseExpression();
+            
             ParseSemicolon();
-            return expression;
+            return statement;
         }
 
         private bool CheckDeclaration()
@@ -209,7 +211,10 @@ namespace MonC
                 return false;
             }
             
-            return token.Value == Keyword.IF || token.Value == Keyword.WHILE || token.Value == Keyword.FOR;
+            return token.Value == Keyword.IF 
+                || token.Value == Keyword.WHILE
+                || token.Value == Keyword.FOR
+                || token.Value == Keyword.RETURN;
         }
 
         private IASTLeaf ParseDeclaration()
@@ -247,6 +252,8 @@ namespace MonC
                     return ParseWhile();
                 case Keyword.FOR:
                     return ParseFor();
+                case Keyword.RETURN:
+                    return ParseReturn();
             }
             
             AddError("Unexpected token", token);
@@ -313,6 +320,24 @@ namespace MonC
             
             IASTLeaf body = ParseBody();
             return new ForLeaf(declaration, condition, update, body);
+        }
+
+        private IASTLeaf ParseReturn()
+        {
+            // Eat 'return'
+            Next();
+
+            Token token = Peek();
+
+            IASTLeaf expression;
+            
+            if (token.Type == TokenType.Syntax && token.Value == ";") {
+                expression = null;
+            } else {
+                expression = ParseExpression();
+            }
+
+            return new ReturnLeaf {RHS = expression};
         }
 
         private IASTLeaf ParseExpression()
@@ -382,6 +407,7 @@ namespace MonC
                 case ">=":
                 case "<=":
                 case "==":
+                case "!=":
                 case "=":
                     return 0;
                 default: 

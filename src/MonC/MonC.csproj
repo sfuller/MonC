@@ -71,6 +71,7 @@
     <Compile Include="Parsing\ParseTreeLeaves\IdentifierParseLeaf.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Syntax.cs" />
     <Compile Include="SyntaxTree\BinaryOperationExpressionLeaf.cs" />
     <Compile Include="SyntaxTree\BodyLeaf.cs" />
     <Compile Include="SyntaxTree\BreakLeaf.cs" />

@@ -26,14 +26,10 @@ namespace MonC
             _sourceString = source;
             _sourceIndex = 0;
             
-            Token token;
-            
-            while (Lex(out token)) {
-                tokens.Add(token);
-            }
+            while (Lex(tokens)) { }
         }
 
-        private bool Lex(out Token token)
+        private bool Lex(IList<Token> tokens)
         {
             if (_currentTokenType == TokenType.None) {
                 _currentTokenType = GetNextTokenType();
@@ -43,20 +39,20 @@ namespace MonC
             
             switch (_currentTokenType) {
                 default:
-                    token = MakeToken();
+                    tokens.Add(MakeToken());
                     canContinue = false;
                     break;
                 case TokenType.Identifier:
-                    canContinue = ProcessIdentifier(out token);
+                    canContinue = ProcessIdentifier(tokens);
                     break;
                 case TokenType.Number:
-                    canContinue = ProcessNumber(out token);
+                    canContinue = ProcessNumber(tokens);
                     break;
                 case TokenType.String:
-                    canContinue = ProcessString(out token);
+                    canContinue = ProcessString(tokens);
                     break;
                 case TokenType.Syntax:
-                    canContinue = ProcessSyntax(out token);
+                    canContinue = ProcessSyntax(tokens);
                     break;
             }
 
@@ -66,21 +62,26 @@ namespace MonC
             return canContinue;
         }
 
-        private TokenType GetNextTokenType()
+        private TokenType GetNextTokenType(bool ignoreSpace = true)
         {
             int next;
             char nextChar;
-
-            // Skip non-token characters
-            while ((next = Peek()) != -1) {
-                nextChar = (char) next;
-                if (Char.IsWhiteSpace(nextChar)) {
-                    Consume();
-                } else {
-                    break;
-                }
-            }
             
+            if (ignoreSpace) {
+                // Skip non-token characters
+                while ((next = Peek()) != -1) {
+                    nextChar = (char) next;
+                    if (Char.IsWhiteSpace(nextChar)) {
+                        Consume();
+                    } else {
+                        break;
+                    }
+                }    
+            }
+            else {
+                next = Peek();
+            }
+
             if (next == -1 || next == '\0') {
                 return TokenType.None;
             }
@@ -111,9 +112,9 @@ namespace MonC
             return Char.IsLetterOrDigit(c) || c == '_';
         }
         
-        private bool ProcessIdentifier(out Token token)
+        private bool ProcessIdentifier(IList<Token> tokens)
         {
-            token = MakeToken();
+            Token token = MakeToken();
             int next;
             
             while ((next = Peek()) != -1) {
@@ -132,6 +133,7 @@ namespace MonC
                     
                     // All done!
                     _valueBuffer.Length = 0;
+                    tokens.Add(token);
                     return true;
                 }
 
@@ -143,9 +145,9 @@ namespace MonC
             return false;
         }
 
-        private bool ProcessNumber(out Token token)
+        private bool ProcessNumber(IList<Token> tokens)
         {
-            token = MakeToken();
+            Token token = MakeToken();
             int next;
 
             while ((next = Peek()) != -1) {
@@ -157,6 +159,7 @@ namespace MonC
                     _valueBuffer.Length = 0;
                     token.Type = TokenType.Number;
                     token.Value = value;
+                    tokens.Add(token);
                     return true;
                 }
 
@@ -168,9 +171,9 @@ namespace MonC
             return false;
         }
         
-        private bool ProcessString(out Token token)
+        private bool ProcessString(IList<Token> tokens)
         {
-            token = MakeToken();
+            Token token = MakeToken();
             int next;
 
             if (!_stringState.ConsumedFirstQuote) {
@@ -197,6 +200,7 @@ namespace MonC
                             token.Type = TokenType.String;
                             token.Value = _valueBuffer.ToString();
                             _valueBuffer.Length = 0;
+                            tokens.Add(token);
                             return true;
                         }
 
@@ -210,20 +214,58 @@ namespace MonC
             return false;
         }
 
-        private bool ProcessSyntax(out Token token)
+        private bool ProcessSyntax(IList<Token> tokens)
         {
-            token = MakeToken();
-            int next = Peek();
-
-            if (next == -1) {
-                // Incomplete.
-                return false;
+            Token baseToken = MakeToken();
+            
+            StringBuilder blockBuilder = new StringBuilder();
+            List<Token> blockTokenStubs = new List<Token>(); 
+            
+            while (GetNextTokenType(ignoreSpace: false) == TokenType.Syntax) {
+                int next = Peek();
+                char nextChar = (char) next;
+                if (Char.IsWhiteSpace(nextChar)) {
+                    break;
+                }
+                blockBuilder.Append((char) next);
+                Token stub = MakeToken();
+                stub.Type = TokenType.Syntax;
+                blockTokenStubs.Add(stub);
+                Consume();
+            }
+            
+            string block = blockBuilder.ToString();
+            int stubOffset = 0;
+            
+            while (!string.IsNullOrEmpty(block)) {
+                Token token;
+                int offset = ProcessSyntaxBlock(blockTokenStubs[stubOffset], block, out token);
+                tokens.Add(token);
+                stubOffset += offset;
+                block = block.Substring(offset);
             }
 
-            token.Type = TokenType.Syntax;
-            token.Value = ((char) next).ToString();
-            Consume();
             return true;
+        }
+
+        private int ProcessSyntaxBlock(Token baseToken, string value, out Token lexedToken)
+        {
+            for (int i = value.Length; i > 1; --i) {
+                string subValue = value.Substring(0, i);
+                string[] possibleValues = Syntax.GetTokensByLength(i);
+                
+                for (int j = 0, jlen = possibleValues.Length; j < jlen ; ++j) {
+                    if (subValue == possibleValues[j]) {
+                        lexedToken = baseToken;
+                        lexedToken.Value = subValue;
+                        return i;
+                    }
+                }
+            }
+
+            lexedToken = baseToken;
+            lexedToken.Value = value.Substring(0, 1);
+            return 1;
         }
 
         private void Consume()
