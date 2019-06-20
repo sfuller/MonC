@@ -181,15 +181,16 @@ namespace MonC
             
             if (CheckDeclaration()) {
                 statement = ParseDeclaration();
+                ParseSemicolon();
             }
             else if (CheckFlow()) {
                 statement = ParseFlow();
             } 
             else {
                 statement = ParseExpression();
+                ParseSemicolon();
             }
-            
-            ParseSemicolon();
+
             return statement;
         }
 
@@ -336,6 +337,8 @@ namespace MonC
             } else {
                 expression = ParseExpression();
             }
+            
+            ParseSemicolon();
 
             return new ReturnLeaf {RHS = expression};
         }

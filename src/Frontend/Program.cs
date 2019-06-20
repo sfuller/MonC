@@ -1,6 +1,7 @@
 ﻿using System;
 using System.CodeDom;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 
@@ -12,6 +13,17 @@ namespace MonC.Frontend
         {
             bool isInteractive = args.Contains("-i");
             bool showLex = args.Contains("--showlex");
+
+            string filename = null;
+            
+            for (int i = 0, ilen = args.Length; i < ilen; ++i) {
+                string arg = args[i];
+                if (!arg.StartsWith("-")) {
+                    filename = arg;
+                    break;
+                }
+            }
+            
             
             Lexer lexer = new Lexer();
             List<Token> tokens = new List<Token>();
@@ -26,12 +38,17 @@ namespace MonC.Frontend
                     WritePrompt();
                 }    
             } else {
-                string line;
-                StringBuilder inputBuilder = new StringBuilder();
-                while ((line = Console.In.ReadLine()) != null) {
-                    inputBuilder.AppendLine(line);
+                if (filename == null) {
+                    string line;
+                    StringBuilder inputBuilder = new StringBuilder();
+                    while ((line = Console.In.ReadLine()) != null) {
+                        inputBuilder.AppendLine(line);
+                    }
+                    input = inputBuilder.ToString();    
+                } else {
+                    input = File.ReadAllText(filename);
                 }
-                input = inputBuilder.ToString();
+                
                 Lex(input, lexer, tokens, verbose: showLex);
             }
             
