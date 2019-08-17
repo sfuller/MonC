@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using MonC.Parsing;
 using MonC.Parsing.ParseTreeLeaves;
+using MonC.Parsing.Semantics;
 using MonC.SyntaxTree;
 
 namespace MonC
@@ -12,7 +14,7 @@ namespace MonC
 
         private IList<ParseError> _errors;
 
-        public void Parse(IEnumerable<Token> tokens, IList<IASTLeaf> tree, IList<ParseError> errors)
+        public void Parse(IEnumerable<Token> tokens, Module module, IList<ParseError> errors)
         {
             _tokens.Clear();
             _tokens.AddRange(tokens);
@@ -20,8 +22,11 @@ namespace MonC
             _errors = errors;
 
             while (Peek().Type != TokenType.None) {
-                tree.Add(ParseTopLevelStatement());
+                ParseTopLevelStatement(module.Functions);
             }
+            
+            SemanticAnalyzer analyzer = new SemanticAnalyzer();
+            analyzer.AnalyzeModule(module);
         }
 
         private Token Peek(int offset = 0)
@@ -80,12 +85,14 @@ namespace MonC
             _errors.Add(new ParseError {Message = message, Token = token});
         }
 
-        private IASTLeaf ParseTopLevelStatement()
+        private IASTLeaf ParseTopLevelStatement(IList<FunctionDefinitionLeaf> functions)
         {
-            return ParseFunction();
+            FunctionDefinitionLeaf def = ParseFunction();
+            functions.Add(def);
+            return def;
         }
         
-        private IASTLeaf ParseFunction()
+        private FunctionDefinitionLeaf ParseFunction()
         {
             var parameters = new List<DeclarationLeaf>();
 
@@ -368,7 +375,6 @@ namespace MonC
                     continue;
                 }
                 
-                
                 // Eat the operator
                 Consume();
 
@@ -384,7 +390,7 @@ namespace MonC
                 if (nextPrecedence > rhsPrecedence) {
                     rhs = ParseOperator(rhs, rhsPrecedence + 1);
                 }
-                
+
                 lhs = new BinaryOperationExpressionLeaf(lhs, rhs, tok);
             }
         }

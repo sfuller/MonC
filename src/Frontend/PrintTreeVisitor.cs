@@ -97,6 +97,13 @@ namespace MonC.Frontend
             VisitSubleaf(leaf.RHS);
         }
 
+        public void VisitAssignment(AssignmentLeaf leaf)
+        {
+            Print("Assignment");
+            VisitSubleaf(leaf.Declaration);
+            VisitSubleaf(leaf.RHS);
+        }
+
         public void VisitIdentifier(IdentifierParseLeaf leaf)
         {
             Print($"Identifier (Parse Tree Leaf) (Name={leaf.Name})");

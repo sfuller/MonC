@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using MonC.Parsing;
 
 namespace MonC.Frontend
 {   
@@ -53,9 +54,9 @@ namespace MonC.Frontend
             }
             
             Parser parser = new Parser();
-            List<IASTLeaf> tree = new List<IASTLeaf>();
+            Module module = new Module();
             List<ParseError> errors = new List<ParseError>();
-            parser.Parse(tokens, tree, errors);
+            parser.Parse(tokens, module, errors);
 
             Console.WriteLine();
             
@@ -69,8 +70,8 @@ namespace MonC.Frontend
             }
 
             PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
-            for (int i = 0, ilen = tree.Count; i < ilen; ++i) {
-                tree[i].Accept(treeVisitor);
+            for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
+                module.Functions[i].Accept(treeVisitor);
             }
         }
 

@@ -9,7 +9,13 @@ namespace MonC.Parsing.ParseTreeLeaves
         private readonly IASTLeaf[] _arguments;
 
         public int ArgumentCount => _arguments.Length;
-        
+
+        public IASTLeaf[] GetArguments()
+        {
+            // TODO: This sucks
+            return new List<IASTLeaf>(_arguments).ToArray();
+        }
+
         public FunctionCallParseLeaf(IASTLeaf lhs, IEnumerable<IASTLeaf> arguments)
         {
             LHS = lhs;

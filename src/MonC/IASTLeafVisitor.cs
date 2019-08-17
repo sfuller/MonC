@@ -17,5 +17,6 @@ namespace MonC
         void VisitWhile(WhileLeaf leaf);
         void VisitBreak(BreakLeaf leaf);
         void VisitReturn(ReturnLeaf leaf);
+        void VisitAssignment(AssignmentLeaf leaf);
     }
 }

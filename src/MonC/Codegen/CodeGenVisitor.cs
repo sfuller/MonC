@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using MonC.Bytecode;
 using MonC.SyntaxTree;
 
@@ -8,47 +7,29 @@ namespace MonC.Codegen
 {
     public class CodeGenVisitor : IASTLeafVisitor
     {
-//        struct IdentifierContext
-//        {
-//            public IdentifierType Type;
-//        }
+        private readonly FunctionStackLayout _layout;
 
-        enum IdentifierType
-        {
-            NONE,
-            VALUE,
-            FUNCTION
-        }
-        
-        struct StackEntry
-        {
-            public string Name;
-            public int Size; 
-        }
-        
-        private readonly List<IInstruction> _instructions = new List<IInstruction>();
-        private readonly Stack<LocalVariableContext> _localVariableContexts = new Stack<LocalVariableContext>();
+        private readonly List<Instruction> _instructions;
         private readonly StaticStringManager _strings = new StaticStringManager();
         
-        private IdentifierType _currentIdentifier;
-
+        private readonly Stack<int> _breaks = new Stack<int>();
+        
         private bool _expectingFunctionCall;
         
+        
+        public CodeGenVisitor(FunctionStackLayout layout, List<Instruction> instructions)
+        {
+            _layout = layout;
+            _instructions = instructions;
+        }
 
-        private int AddInstruction(IInstruction instruction)
+        private int AddInstruction(OpCode op, int immediate = 0)
         {
             int index = _instructions.Count;
-            _instructions.Add(instruction);
+            _instructions.Add(new Instruction(op, immediate));
             return index;
         }
 
-        private LocalVariableContext GetCurrentLocalVariableContext()
-        {
-            return _localVariableContexts.Peek();
-        }
-        
-        
-       
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
 
@@ -61,6 +42,8 @@ namespace MonC.Codegen
             
             // Evaluate left hand side
             leaf.LHS.Accept(this);
+
+            AddInstruction(OpCode.LOADB);
             
             // Evaluate right hand side
             leaf.RHS.Accept(this);
@@ -74,7 +57,11 @@ namespace MonC.Codegen
                     GenerateRelationalComparison(leaf.Op);
                     break;
                 case "==":
-                    AddInstruction(new CompareEqualityInstruction());
+                    AddInstruction(OpCode.CMPE);
+                    break;
+                case "!=":
+                    AddInstruction(OpCode.CMPE);
+                    AddInstruction(OpCode.NOT);
                     break;
                 default:
                     throw new NotImplementedException();
@@ -85,39 +72,35 @@ namespace MonC.Codegen
         private void GenerateRelationalComparison(Token token)
         {
             if (token.Value.Contains("=")) {
-                AddInstruction(new CompareLTEInstruction());
+                AddInstruction(OpCode.CMPLTE);
             } else {
-                AddInstruction(new CompareLTInstruction());
+                AddInstruction(OpCode.CMPLT);
             }
 
             if (token.Value.Contains(">")) {
-                AddInstruction(new NotInstruction());
+                AddInstruction(OpCode.NOT);
             }
         }
-
+        
+        public void VisitAssignment(AssignmentLeaf leaf)
+        {
+            leaf.RHS.Accept(this);
+            AddInstruction(OpCode.WRITE, _layout.Variables[leaf.Declaration]);
+        }
+        
         public void VisitBody(BodyLeaf leaf)
         {
-            throw new NotImplementedException();
+            for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
+                IASTLeaf statement = leaf.GetStatement(i);
+                statement.Accept(this);
+            }
         }
 
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
-            LocalVariableContext context = GetCurrentLocalVariableContext();
-            LocalVariable var;
-            if (context.GetVariable(leaf.Name, out var)) {
-                // TODO: Add an error!
-                throw new NotImplementedException(); 
-            }
-            
-            context.AddVariable(leaf.Name, var);
-
             if (leaf.Assignment != null) {
-                // Evaluate assignment expression
                 leaf.Assignment.Accept(this);
-
-                // Store the result of the expression
-                AddInstruction(new PushLocalInstruction());
-                AddInstruction(new StoreInstruction());
+                AddInstruction(OpCode.WRITE, _layout.Variables[leaf]);
             }
         }
 
@@ -126,8 +109,7 @@ namespace MonC.Codegen
             leaf.Declaration.Accept(this);
             
             // jump straight to condition
-            AddInstruction(new PushImmediateInstruction(1));
-            int initialJumpLocation = AddInstruction(null);
+            int initialJumpLocation = AddInstruction(OpCode.NOOP);
 
             // Generate body code
             int bodyLocation = _instructions.Count;
@@ -142,16 +124,19 @@ namespace MonC.Codegen
             
             // Branch to body if condition met.
             int currentLocation = _instructions.Count;
-            AddInstruction(new BranchInstruction(bodyLocation - currentLocation));
+            AddInstruction(OpCode.JUMPNZ, bodyLocation - currentLocation);
             
-            _instructions[initialJumpLocation] = new BranchInstruction(conditionLocation - initialJumpLocation);
+            _instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation - initialJumpLocation);
         }
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
         {
-            CallVisitor visitor = new CallVisitor();
-            leaf.LHS.Accept(visitor);
-            throw new NotImplementedException();
+            for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
+                leaf.GetArgument(i).Accept(this);
+                AddInstruction(OpCode.PUSHARG);
+            }
+
+            AddInstruction(OpCode.CALL, 0); // TODO: Figure out how to represent function definitions.. a table maybe?
         }
         
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
@@ -161,7 +146,7 @@ namespace MonC.Codegen
 
         public void VisitVariable(VariableLeaf leaf)
         {
-            throw new System.NotImplementedException();
+            AddInstruction(OpCode.READ, _layout.Variables[leaf.Declaration]);
         }
 
         public void VisitIfElse(IfElseLeaf leaf)
@@ -169,41 +154,37 @@ namespace MonC.Codegen
             leaf.Condition.Accept(this);
             
             // Make space for the branch instruction we will instert.
-            int branchIndex = AddInstruction(null);
+            int branchIndex = AddInstruction(OpCode.NOOP);
             
             leaf.IfBody.Accept(this);
             // Jump to end of if/else after evaluation of if body.
-            AddInstruction(new PushImmediateInstruction(1));
-            int ifEndIndex = AddInstruction(null);
+            int ifEndIndex = AddInstruction(OpCode.NOOP);
             
             leaf.ElseBody.Accept(this);
 
             int endIndex = _instructions.Count;
 
-            BranchInstruction branchToElseInstr = new BranchInstruction(ifEndIndex - branchIndex);
-            BranchInstruction branchToEndInstr = new BranchInstruction(endIndex - ifEndIndex);
-
-            _instructions[branchIndex] = branchToElseInstr;
-            _instructions[ifEndIndex] = branchToEndInstr;
+            _instructions[branchIndex] = new Instruction(OpCode.JUMPZ, ifEndIndex - branchIndex);
+            _instructions[ifEndIndex] =  new Instruction(OpCode.JUMP, endIndex - ifEndIndex);
         }
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)
         {
-            int value = Int32.Parse(leaf.Value);
-            AddInstruction(new PushImmediateInstruction(value));
+            int value = int.Parse(leaf.Value);
+            AddInstruction(OpCode.LOAD, value);
         }
 
         public void VisitStringLiteral(StringLiteralLeaf leaf)
         {
-            int offset = _strings.Get(leaf.Value);
-            AddInstruction(new PushDataInstruction(offset));
+            throw new NotImplementedException();
+            //int offset = _strings.Get(leaf.Value);
+            //AddInstruction(new PushDataInstruction(offset));
         }
 
         public void VisitWhile(WhileLeaf leaf)
         {
             // jump straight to condition
-            AddInstruction(new PushImmediateInstruction(1));
-            int initialJumpLocation = AddInstruction(null);
+            int initialJumpLocation = AddInstruction(OpCode.NOOP);
 
             // Generate body code
             int bodyLocation = _instructions.Count;
@@ -215,19 +196,23 @@ namespace MonC.Codegen
             
             // Branch to body if condition met.
             int currentLocation = _instructions.Count;
-            AddInstruction(new BranchInstruction(bodyLocation - currentLocation));
+            AddInstruction(OpCode.JUMPNZ, bodyLocation - currentLocation);
             
-            _instructions[initialJumpLocation] = new BranchInstruction(conditionLocation - initialJumpLocation);
+            _instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation - initialJumpLocation);
         }
 
         public void VisitBreak(BreakLeaf leaf)
         {
-            throw new NotImplementedException();
+            int breakIndex = AddInstruction(OpCode.NOOP);
+            _breaks.Push(breakIndex);
         }
 
         public void VisitReturn(ReturnLeaf leaf)
         {
-            throw new NotImplementedException();
+            if (leaf.RHS != null) {
+                leaf.Accept(this);
+            }
+            AddInstruction(OpCode.RETURN);
         }
     }
 }
