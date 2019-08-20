@@ -44,9 +44,11 @@
   <ItemGroup>
     <Compile Include="Bytecode\Instruction.cs" />
     <Compile Include="Bytecode\OpCode.cs" />
-    <Compile Include="Codegen\FunctionCodeGenerator.cs" />
+    <Compile Include="Codegen\CodeGenerator.cs" />
     <Compile Include="Codegen\CodeGenVisitor.cs" />
+    <Compile Include="Codegen\FunctionManager.cs" />
     <Compile Include="Codegen\FunctionStackLayout.cs" />
+    <Compile Include="Codegen\ILModule.cs" />
     <Compile Include="Codegen\IVariable.cs" />
     <Compile Include="Codegen\IVariableVisitor.cs" />
     <Compile Include="Codegen\StackLayoutGenerator.cs" />
@@ -93,6 +95,8 @@
     <Compile Include="SyntaxTree\WhileLeaf.cs" />
     <Compile Include="Token.cs" />
     <Compile Include="TokenType.cs" />
+    <Compile Include="VM\StackFrame.cs" />
+    <Compile Include="VM\StackFrameMemory.cs" />
     <Compile Include="VM\VirtualMachine.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

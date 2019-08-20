@@ -1,0 +1,7 @@
+int main(int foo) {
+   foo(foo);
+}
+
+int foo(int bar) {
+   return 0;
+}

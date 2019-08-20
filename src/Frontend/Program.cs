@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using MonC.Bytecode;
+using MonC.Codegen;
 using MonC.Parsing;
 
 namespace MonC.Frontend
@@ -14,6 +16,7 @@ namespace MonC.Frontend
         {
             bool isInteractive = args.Contains("-i");
             bool showLex = args.Contains("--showlex");
+            bool showAST = args.Contains("--showast");
 
             string filename = null;
             
@@ -69,10 +72,17 @@ namespace MonC.Frontend
                 Environment.Exit(1);
             }
 
-            PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
-            for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
-                module.Functions[i].Accept(treeVisitor);
+            if (showAST) {
+                PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
+                for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
+                    module.Functions[i].Accept(treeVisitor);
+                }    
             }
+            
+            CodeGenerator generator = new CodeGenerator();
+            ILModule ilmodule = generator.Generate(module);
+            IntermediateLanguageWriter writer = new IntermediateLanguageWriter();
+            writer.Write(ilmodule, Console.Out);
         }
 
         private static void WritePrompt()

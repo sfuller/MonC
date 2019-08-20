@@ -1,0 +1,31 @@
+using System.Collections.Generic;
+using MonC.SyntaxTree;
+
+namespace MonC.Codegen
+{
+    public class FunctionManager
+    {
+        public readonly Dictionary<string, int> FunctionTable = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> DefinedFunctions = new Dictionary<string, int>();
+        public readonly Dictionary<string, int> UndefinedFunctions = new Dictionary<string, int>();
+        
+        public void RegisterFunction(FunctionDefinitionLeaf leaf)
+        {
+            int index = FunctionTable.Count;
+            DefinedFunctions.Add(leaf.Name, index);
+            FunctionTable.Add(leaf.Name, index);
+        }
+
+        public int GetFunctionIndex(FunctionDefinitionLeaf leaf)
+        {
+            int index;
+            if (!FunctionTable.TryGetValue(leaf.Name, out index)) {
+                index = FunctionTable.Count;
+                UndefinedFunctions.Add(leaf.Name, index);
+                FunctionTable.Add(leaf.Name, index);
+            }
+            return index;
+        }
+        
+    }
+}

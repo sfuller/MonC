@@ -7,12 +7,14 @@ namespace MonC.Parsing.Semantics
 {
     public class SemanticAnalyzer
     {
-
+        private IList<ParseError> _errors;
+        
         private readonly Dictionary<string, FunctionDefinitionLeaf> _functions = new Dictionary<string, FunctionDefinitionLeaf>();
         
-        public void AnalyzeModule(Module module)
+        public void AnalyzeModule(Module module, IList<ParseError> errors)
         {
             _functions.Clear();
+            _errors = errors;
             
             foreach (FunctionDefinitionLeaf function in module.Functions) {
                 _functions[function.Name] = function;
@@ -38,7 +40,7 @@ namespace MonC.Parsing.Semantics
             ProcessAssignmentsVisitor assignmentsVisitor = new ProcessAssignmentsVisitor(scopes);
             function.Accept(visitChildrenVisitor.SetVisitors(replacementsVisitor.SetReplacer(assignmentsVisitor)));
             
-            TranslateIdentifiersVisitor identifiersVisitor = new TranslateIdentifiersVisitor(scopes, _functions);
+            TranslateIdentifiersVisitor identifiersVisitor = new TranslateIdentifiersVisitor(scopes, _functions, _errors);
             function.Accept(visitChildrenVisitor.SetVisitors(replacementsVisitor.SetReplacer(identifiersVisitor)));
         }
         

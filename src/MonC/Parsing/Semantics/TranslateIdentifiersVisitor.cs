@@ -12,10 +12,13 @@ namespace MonC.Parsing.Semantics
         private readonly ScopeCache _scopes;
         private readonly Dictionary<string, FunctionDefinitionLeaf> _functions;
 
-        public TranslateIdentifiersVisitor(ScopeCache scopes, Dictionary<string, FunctionDefinitionLeaf> functions)
+        private IList<ParseError> _errors;
+
+        public TranslateIdentifiersVisitor(ScopeCache scopes, Dictionary<string, FunctionDefinitionLeaf> functions, IList<ParseError> errors)
         {
             _scopes = scopes;
             _functions = functions;
+            _errors = errors;
         }
 
         public bool ShouldReplace { get; private set; }
@@ -40,12 +43,20 @@ namespace MonC.Parsing.Semantics
             IdentifierParseLeaf identifier = leaf.LHS as IdentifierParseLeaf;
 
             if (identifier == null) {
-                throw new NotImplementedException();
+                _errors.Add(new ParseError {
+                    Message = "LHS of function call operator is not an identifier.",
+                    Token = new Token()  // TODO
+                });
+                return;
             }
 
             FunctionDefinitionLeaf function;
             if (!_functions.TryGetValue(identifier.Name, out function)) {
-                throw new NotImplementedException();
+                _errors.Add(new ParseError {
+                    Message = "Undefined function " + identifier.Name,
+                    Token = new Token() // TODO
+                });
+                return;
             }
 
             ShouldReplace = true;

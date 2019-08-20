@@ -26,7 +26,7 @@ namespace MonC
             }
             
             SemanticAnalyzer analyzer = new SemanticAnalyzer();
-            analyzer.AnalyzeModule(module);
+            analyzer.AnalyzeModule(module, errors);
         }
 
         private Token Peek(int offset = 0)

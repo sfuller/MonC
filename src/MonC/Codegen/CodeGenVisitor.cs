@@ -8,6 +8,7 @@ namespace MonC.Codegen
     public class CodeGenVisitor : IASTLeafVisitor
     {
         private readonly FunctionStackLayout _layout;
+        private readonly FunctionManager _functionManager;
 
         private readonly List<Instruction> _instructions;
         private readonly StaticStringManager _strings = new StaticStringManager();
@@ -17,10 +18,11 @@ namespace MonC.Codegen
         private bool _expectingFunctionCall;
         
         
-        public CodeGenVisitor(FunctionStackLayout layout, List<Instruction> instructions)
+        public CodeGenVisitor(FunctionStackLayout layout, List<Instruction> instructions,FunctionManager functionManager)
         {
             _layout = layout;
             _instructions = instructions;
+            _functionManager = functionManager;
         }
 
         private int AddInstruction(OpCode op, int immediate = 0)
@@ -32,14 +34,6 @@ namespace MonC.Codegen
 
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
-
-            if (leaf.Op.Value == "(") {
-                
-            }
-            
-            
-            
-            
             // Evaluate left hand side
             leaf.LHS.Accept(this);
 
@@ -135,8 +129,8 @@ namespace MonC.Codegen
                 leaf.GetArgument(i).Accept(this);
                 AddInstruction(OpCode.PUSHARG);
             }
-
-            AddInstruction(OpCode.CALL, 0); // TODO: Figure out how to represent function definitions.. a table maybe?
+            
+            AddInstruction(OpCode.CALL, _functionManager.GetFunctionIndex(leaf.LHS));
         }
         
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
@@ -159,13 +153,15 @@ namespace MonC.Codegen
             leaf.IfBody.Accept(this);
             // Jump to end of if/else after evaluation of if body.
             int ifEndIndex = AddInstruction(OpCode.NOOP);
-            
-            leaf.ElseBody.Accept(this);
+
+            if (leaf.ElseBody != null) {
+                leaf.ElseBody.Accept(this);    
+            }
 
             int endIndex = _instructions.Count;
 
             _instructions[branchIndex] = new Instruction(OpCode.JUMPZ, ifEndIndex - branchIndex);
-            _instructions[ifEndIndex] =  new Instruction(OpCode.JUMP, endIndex - ifEndIndex);
+            _instructions[ifEndIndex] =  new Instruction(OpCode.JUMP, endIndex - ifEndIndex - 1);
         }
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)
@@ -210,7 +206,7 @@ namespace MonC.Codegen
         public void VisitReturn(ReturnLeaf leaf)
         {
             if (leaf.RHS != null) {
-                leaf.Accept(this);
+                leaf.RHS.Accept(this);
             }
             AddInstruction(OpCode.RETURN);
         }
