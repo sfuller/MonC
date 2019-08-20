@@ -15,7 +15,8 @@ to help implement this language as part of the game.
 
 ## Whats missing? (Right now)
 * Type system (everything is a 32 bit integer right now)
-* Language Level Memory Addressing, Pointers Operations (Some memory operations might be implemented with poke/peek functions)
+* Language Level Memory Addressing, Pointer Operations (Some memory operations might be implemented with poke/peek functions)
+* Indirect Function Calls
 
 ## Language 
 
@@ -30,8 +31,9 @@ It's fun to show off code :)
 * Simple Frontend (For testing purposes)
 * Lexer
 * Parser
+* VM + IL Code Generator
 That's it for now
 
 ## What's not in this repo?
-* Interpreter (Keeps changing rapidly so I'm not intending on ripping it out of the game's codebase until later.)
-* VM/IL/CodeGen (As fun as this would be to implement, it's not super important to the game right now.)
+* Executable Generation
+* AOT/JIT (Hooking this up to LLVM would be pretty neat!)
