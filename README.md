@@ -32,6 +32,7 @@ It's fun to show off code :)
 * Lexer
 * Parser
 * VM + IL Code Generator
+
 That's it for now
 
 ## What's not in this repo?
