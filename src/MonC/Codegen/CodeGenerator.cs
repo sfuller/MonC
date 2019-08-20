@@ -43,7 +43,7 @@ namespace MonC.Codegen
             List<Instruction> instructions = new List<Instruction>();
             
             CodeGenVisitor codeGenVisitor = new CodeGenVisitor(layout, instructions, _manager);
-            leaf.Body.Accept(codeGenVisitor);
+            leaf.Accept(codeGenVisitor);
 
             return instructions.ToArray();
         }

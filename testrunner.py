@@ -29,7 +29,9 @@ def test(path):
     print('-----')
     print(f'Testing {path}')
     with open(path) as f:
-        result = subprocess.run(['mono', FRONTEND_BINARY], stdin=f)
+        args = ['mono', FRONTEND_BINARY]
+        args.extend(sys.argv[1:])
+        result = subprocess.run(args, stdin=f)
     
 
     return result.returncode is 0

@@ -17,6 +17,11 @@ namespace MonC.Parsing.Semantics
             _errors = errors;
             
             foreach (FunctionDefinitionLeaf function in module.Functions) {
+                if (_functions.ContainsKey(function.Name)) {
+                    _errors.Add(new ParseError {
+                        Message = "Redefinition of function " + function.Name
+                    });
+                }
                 _functions[function.Name] = function;
             } 
             

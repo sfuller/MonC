@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+sourcedir=`dirname $0`
+mono "$sourcedir/bin/Debug/Frontend.exe" "$@"
+

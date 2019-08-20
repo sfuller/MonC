@@ -88,7 +88,9 @@ namespace MonC
         private IASTLeaf ParseTopLevelStatement(IList<FunctionDefinitionLeaf> functions)
         {
             FunctionDefinitionLeaf def = ParseFunction();
-            functions.Add(def);
+            if (def != null) {
+                functions.Add(def);    
+            }
             return def;
         }
         

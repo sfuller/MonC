@@ -15,9 +15,6 @@ namespace MonC.Codegen
         
         private readonly Stack<int> _breaks = new Stack<int>();
         
-        private bool _expectingFunctionCall;
-        
-        
         public CodeGenVisitor(FunctionStackLayout layout, List<Instruction> instructions,FunctionManager functionManager)
         {
             _layout = layout;
@@ -135,7 +132,12 @@ namespace MonC.Codegen
         
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
         {
-            throw new InvalidOperationException("Not expecting a function here!");
+            leaf.Body.Accept(this);
+            
+            // All functions must end with a RETURN instruction.
+            if (_instructions[_instructions.Count - 1].Op != OpCode.RETURN) {
+                AddInstruction(OpCode.RETURN);
+            }
         }
 
         public void VisitVariable(VariableLeaf leaf)

@@ -1,6 +1,5 @@
+using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using MonC.Bytecode;
 using MonC.Codegen;
 
@@ -25,15 +24,18 @@ namespace MonC.VM
         public void Call(string functionName, IEnumerable<int> arguments)
         {
             // TODO: Assert stopped.
-            
-            _argumentStack.AddRange(arguments);
 
             int functionIndex = LookupFunction(functionName);
-            
-            _callStack.Push(new StackFrame {
-                Function = functionIndex
-            });
 
+            if (functionIndex == -1) {
+                throw new ArgumentException(
+                    message:   "No function by the given name was found in the loaded module",
+                    paramName: nameof(functionName));
+            }
+            
+            _argumentStack.AddRange(arguments);
+            
+            PushCall(functionIndex);
             Continue();
         }
 
@@ -58,6 +60,12 @@ namespace MonC.VM
 
         private void InterpretCurrentInstruction()
         {
+            if (_callStack.Count == 0) {
+                // TODO: Set stopped
+                _canContinue = false;
+                return;
+            }
+            
             StackFrame top = _callStack.Peek();
             Instruction ins = _module.DefinedFunctions[top.Function][top.PC];
             ++top.PC;
@@ -158,17 +166,11 @@ namespace MonC.VM
 
         private void InterpretCall(Instruction ins)
         {
-            StackFrame newFrame = new StackFrame { Function = ins.ImmediateValue };
-            for (int i = 0, ilen = _argumentStack.Count; i < ilen; ++i) {
-                newFrame.Memory.Write(i, _argumentStack[i]);
-            }
-            _argumentStack.Clear();
-            _callStack.Push(newFrame);
+            PushCall(ins.ImmediateValue);
         }
 
         private void InterpretReturn(Instruction ins)
         {
-            // TODO: Handle end of code
             _callStack.Pop();
         }
 
@@ -235,6 +237,15 @@ namespace MonC.VM
         {
             _callStack.Peek().PC += offset;
         }
-        
+
+        private void PushCall(int functionIndex)
+        {
+            StackFrame newFrame = new StackFrame { Function = functionIndex};
+            for (int i = 0, ilen = _argumentStack.Count; i < ilen; ++i) {
+                newFrame.Memory.Write(i, _argumentStack[i]);
+            }
+            _argumentStack.Clear();
+            _callStack.Push(newFrame);
+        }
     }
 }

@@ -21,6 +21,9 @@ namespace MonC
         private readonly StringBuilder _valueBuffer = new StringBuilder();
         private StringLexState _stringState;
 
+        private bool _isCurrentCommentTypeKnown;
+        private bool _isCurrentCommentMultiline;
+
         public void Lex(string source, IList<Token> tokens)
         {
             _sourceString = source;
@@ -53,6 +56,9 @@ namespace MonC
                     break;
                 case TokenType.Syntax:
                     canContinue = ProcessSyntax(tokens);
+                    break;
+                case TokenType.Comment:
+                    canContinue = ProcessComment();
                     break;
             }
 
@@ -98,6 +104,9 @@ namespace MonC
                 _stringState = new StringLexState(); // TODO: Getter shouldn't modify state like this!!!
                 return TokenType.String;
             }
+            if (IsNextTokenCommentOpener()) {
+                return TokenType.Comment;
+            }
             
             return TokenType.Syntax;
         }
@@ -111,7 +120,33 @@ namespace MonC
         {
             return Char.IsLetterOrDigit(c) || c == '_';
         }
-        
+
+        private bool IsNextTokenCommentOpener()
+        {
+            return IsNextTokenSingleLineComment() || IsNextTokenMultiLineOpener();
+        }
+
+        private bool IsNextTokenSingleLineComment()
+        {
+            return Peek(0) == '/' && Peek(1) == '/';
+        }
+
+        private bool IsNextTokenMultiLineOpener()
+        {
+            return Peek(0) == '/' && Peek(1) == '*';
+        }
+
+        private bool IsNextTokenMultiLineCloser()
+        {
+            return Peek(0) == '/' && Peek(1) == '*';
+        }
+
+        private void ConsumeMultiLineCloser()
+        {
+            Consume();
+            Consume();
+        }
+
         private bool ProcessIdentifier(IList<Token> tokens)
         {
             Token token = MakeToken();
@@ -268,6 +303,39 @@ namespace MonC
             return 1;
         }
 
+        private bool ProcessComment()
+        {
+            if (!_isCurrentCommentTypeKnown) {
+                _isCurrentCommentMultiline = IsNextTokenMultiLineOpener();
+                _isCurrentCommentTypeKnown = true;
+            }
+            
+            while (true) {
+                int val = Peek();
+                char c = (char)val;
+
+                if (val == -1) {
+                    return true;
+                }
+                if (_isCurrentCommentMultiline) {
+                    if (IsNextTokenMultiLineCloser()) {
+                        ConsumeMultiLineCloser();
+                        break;
+                    }
+                } else { 
+                    if (c == '\n') {
+                        Consume();
+                        break;
+                    }
+                }
+
+                Consume();
+            }
+
+            _isCurrentCommentTypeKnown = false;
+            return false;
+        }
+        
         private void Consume()
         {
             ++_currentColumn;
@@ -279,12 +347,13 @@ namespace MonC
             ++_sourceIndex;
         }
 
-        private int Peek()
+        private int Peek(int offset = 0)
         {
-            if (_sourceIndex >= _sourceString.Length) {
+            int index = _sourceIndex + offset;
+            if (index >= _sourceString.Length) {
                 return -1;
             }
-            return _sourceString[_sourceIndex];
+            return _sourceString[index];
         }
 
         private Token MakeToken()

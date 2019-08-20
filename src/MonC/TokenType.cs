@@ -7,6 +7,7 @@ namespace MonC
         Identifier,
         Number,
         String,
-        Syntax
+        Syntax,
+        Comment
     }
 }

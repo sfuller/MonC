@@ -1,12 +1,11 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using MonC.Bytecode;
+using System.Threading;
 using MonC.Codegen;
 using MonC.Parsing;
+using MonC.VM;
 
 namespace MonC.Frontend
 {   
@@ -14,21 +13,53 @@ namespace MonC.Frontend
     { 
         public static void Main(string[] args)
         {
-            bool isInteractive = args.Contains("-i");
-            bool showLex = args.Contains("--showlex");
-            bool showAST = args.Contains("--showast");
+            bool isInteractive = false;
+            bool showLex = false;
+            bool showAST = false;
+            bool showIL = false;
+            List<string> positionals = new List<string>();
+            List<int> argsToPass = new List<int>();
 
-            string filename = null;
-            
             for (int i = 0, ilen = args.Length; i < ilen; ++i) {
-                string arg = args[i];
-                if (!arg.StartsWith("-")) {
-                    filename = arg;
-                    break;
+                string arg = args[i].Trim();
+                bool argFound = true;
+                
+                switch (arg) {
+                    case "-i":
+                        isInteractive = true;
+                        break;
+                    case "--showlex":
+                        showLex = true;
+                        break;
+                    case "--showast":
+                        showAST = true;
+                        break;
+                    case "--showil":
+                        showIL = true;
+                        break;
+                    case "-a":
+                        int argToPass;
+                        Int32.TryParse(args[++i], out argToPass);
+                        argsToPass.Add(argToPass);
+                        break;
+                    default:
+                        argFound = false;
+                        break;
+                }
+
+                if (!argFound) {
+                    if (!arg.Contains("-")) {
+                        positionals.Add(arg);
+                    }
                 }
             }
-            
-            
+
+            string filename = null;
+
+            if (positionals.Count > 0) {
+                filename = positionals[0];
+            }
+
             Lexer lexer = new Lexer();
             List<Token> tokens = new List<Token>();
             
@@ -81,8 +112,14 @@ namespace MonC.Frontend
             
             CodeGenerator generator = new CodeGenerator();
             ILModule ilmodule = generator.Generate(module);
-            IntermediateLanguageWriter writer = new IntermediateLanguageWriter();
-            writer.Write(ilmodule, Console.Out);
+            if (showIL) {
+                IntermediateLanguageWriter writer = new IntermediateLanguageWriter();
+                writer.Write(ilmodule, Console.Out);    
+            }
+            
+            VirtualMachine vm = new VirtualMachine();
+            vm.LoadModule(ilmodule);
+            vm.Call("main", argsToPass);
         }
 
         private static void WritePrompt()
@@ -97,8 +134,8 @@ namespace MonC.Frontend
             lexer.Lex(input, newTokens);
 
             if (verbose) {
-                for (int i = 0, ilen = tokens.Count; i < ilen; ++i) {
-                    Console.WriteLine(tokens[i]);
+                for (int i = 0, ilen = newTokens.Count; i < ilen; ++i) {
+                    Console.WriteLine(newTokens[i]);
                 }    
             }
             tokens.AddRange(newTokens);
