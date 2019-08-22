@@ -8,12 +8,16 @@ namespace MonC.Codegen
         public readonly Dictionary<string, int> FunctionTable = new Dictionary<string, int>();
         public readonly Dictionary<string, int> DefinedFunctions = new Dictionary<string, int>();
         public readonly Dictionary<string, int> UndefinedFunctions = new Dictionary<string, int>();
+        public readonly List<KeyValuePair<string, int>> ExportedFunctions = new List<KeyValuePair<string, int>>();
         
         public void RegisterFunction(FunctionDefinitionLeaf leaf)
         {
             int index = FunctionTable.Count;
             DefinedFunctions.Add(leaf.Name, index);
             FunctionTable.Add(leaf.Name, index);
+            if (leaf.IsExported) {
+                ExportedFunctions.Add(new KeyValuePair<string, int>(leaf.Name, index));    
+            }
         }
 
         public int GetFunctionIndex(FunctionDefinitionLeaf leaf)

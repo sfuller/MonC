@@ -9,22 +9,27 @@ namespace MonC.VM
     {
         private readonly Stack<StackFrame> _callStack = new Stack<StackFrame>();
         private readonly List<int> _argumentStack = new List<int>();
-        private ILModule _module;
+        private VMModule _module;
         private int _aRegister;
         private int _bRegister;
 
+        private bool _isRunning;
         private bool _canContinue;
 
-        public void LoadModule(ILModule module)
+        public void LoadModule(VMModule module)
         {
-            // TODO: Assert stopped.
+            if (_isRunning) {
+                throw new InvalidOperationException("Cannot load module while running");
+            }
             _module = module;
         }
 
         public void Call(string functionName, IEnumerable<int> arguments)
         {
-            // TODO: Assert stopped.
-
+            if (_isRunning) {
+                throw new InvalidOperationException("Cannot call function while running");
+            }
+            
             int functionIndex = LookupFunction(functionName);
 
             if (functionIndex == -1) {
@@ -32,6 +37,8 @@ namespace MonC.VM
                     message:   "No function by the given name was found in the loaded module",
                     paramName: nameof(functionName));
             }
+
+            _isRunning = true;
             
             _argumentStack.AddRange(arguments);
             
@@ -41,9 +48,10 @@ namespace MonC.VM
 
         private int LookupFunction(string functionName)
         {
-            for (int i = 0, ilen = _module.ExportedFunctions.Length; i < ilen; ++i) {
-                if (_module.ExportedFunctions[i] == functionName) {
-                    return i;
+            for (int i = 0, ilen = _module.Module.ExportedFunctions.Length; i < ilen; ++i) {
+                KeyValuePair<string, int> exportedFunction = _module.Module.ExportedFunctions[i];
+                if (exportedFunction.Key == functionName) {
+                    return exportedFunction.Value;
                 }
             }
             return -1;
@@ -58,16 +66,40 @@ namespace MonC.VM
             }
         }
 
+        private void ContinueFromVMBinding(int returnValue)
+        {
+            if (!_isRunning) {
+                throw new InvalidOperationException("Cannot continue while not running");
+            }
+            
+            _aRegister = returnValue;
+            Continue();
+        }
+
         private void InterpretCurrentInstruction()
         {
             if (_callStack.Count == 0) {
-                // TODO: Set stopped
+                _isRunning = false;
                 _canContinue = false;
                 return;
             }
             
             StackFrame top = _callStack.Peek();
-            Instruction ins = _module.DefinedFunctions[top.Function][top.PC];
+
+            if (top.Function >= _module.Module.DefinedFunctions.Length) {
+                // Bound VM function call
+                VMFunction function = _module.VMFunctions[top.Function];
+                int[] args = new int[top.ArgumentCount];
+                for (int i = 0, ilen = top.ArgumentCount; i < ilen; ++i) {
+                    args[i] = top.Memory.Read(i);
+                }
+                _canContinue = false;
+                _callStack.Pop();
+                function(args, ContinueFromVMBinding);
+                return;
+            }
+            
+            Instruction ins = _module.Module.DefinedFunctions[top.Function][top.PC];
             ++top.PC;
             InterpretInstruction(ins);
         }
@@ -240,7 +272,7 @@ namespace MonC.VM
 
         private void PushCall(int functionIndex)
         {
-            StackFrame newFrame = new StackFrame { Function = functionIndex};
+            StackFrame newFrame = new StackFrame { Function = functionIndex, ArgumentCount = _argumentStack.Count };
             for (int i = 0, ilen = _argumentStack.Count; i < ilen; ++i) {
                 newFrame.Memory.Write(i, _argumentStack[i]);
             }

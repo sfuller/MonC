@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using MonC.Bytecode;
 using MonC.Codegen;
 
@@ -13,8 +14,14 @@ namespace MonC.Frontend
         {
             _writer = writer;
 
-            foreach (KeyValuePair<string, int> pair in module.DefinedFunctionsIndices) {
-                WriteFunction(pair.Key, pair.Value, module.DefinedFunctions[pair.Value]);
+            Dictionary<int, string> exportedFunctionNames = module.ExportedFunctions.ToDictionary(x => x.Value, x => x.Key);
+            
+            for (int i = 0, ilen = module.DefinedFunctions.Length; i < ilen; ++i) {
+                string name;
+                if (!exportedFunctionNames.TryGetValue(i, out name)) {
+                    name = "";
+                }
+                WriteFunction(name, i, module.DefinedFunctions[i]);
             }
         }
 

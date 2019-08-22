@@ -27,9 +27,8 @@ namespace MonC.Codegen
             
             return new ILModule {
                 DefinedFunctions = functions.ToArray(),
-                DefinedFunctionsIndices = _manager.DefinedFunctions,
-                ExportedFunctions = _manager.DefinedFunctions.Keys.ToArray(),
-                UndefinedFunctionsIndices = _manager.UndefinedFunctions
+                ExportedFunctions = _manager.ExportedFunctions.ToArray(),
+                UndefinedFunctionNames = _manager.UndefinedFunctions.Keys.ToArray()
             };
 
         }

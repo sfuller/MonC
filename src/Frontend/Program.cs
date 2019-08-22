@@ -116,8 +116,20 @@ namespace MonC.Frontend
                 writer.Write(ilmodule, Console.Out);    
             }
             
+            Linker linker = new Linker();
+            linker.AddModule(ilmodule);
+
+            VMModule vmModule = linker.Link();
+
+            if (vmModule.Errors.Length > 0) {
+                foreach (LinkError error in vmModule.Errors) {
+                    Console.Error.WriteLine($"Link error: {error.Message}");
+                }
+                Environment.Exit(1);
+            }
+            
             VirtualMachine vm = new VirtualMachine();
-            vm.LoadModule(ilmodule);
+            vm.LoadModule(linker.Link());
             vm.Call("main", argsToPass);
         }
 

@@ -95,9 +95,13 @@
     <Compile Include="SyntaxTree\WhileLeaf.cs" />
     <Compile Include="Token.cs" />
     <Compile Include="TokenType.cs" />
+    <Compile Include="VM\Linker.cs" />
+    <Compile Include="VM\LinkError.cs" />
     <Compile Include="VM\StackFrame.cs" />
     <Compile Include="VM\StackFrameMemory.cs" />
     <Compile Include="VM\VirtualMachine.cs" />
+    <Compile Include="VM\VMFunction.cs" />
+    <Compile Include="VM\VMModule.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -152,7 +152,7 @@ namespace MonC
             }
 
             IASTLeaf body = ParseBody();
-            return new FunctionDefinitionLeaf(name.Value, returnType.Value, parameters, body);    
+            return new FunctionDefinitionLeaf(name.Value, returnType.Value, parameters, body, isExported: true);    
         }
 
         private IASTLeaf ParseBody()
