@@ -315,7 +315,7 @@ namespace MonC
                 char c = (char)val;
 
                 if (val == -1) {
-                    return true;
+                    return false;
                 }
                 if (_isCurrentCommentMultiline) {
                     if (IsNextTokenMultiLineCloser()) {
@@ -333,7 +333,7 @@ namespace MonC
             }
 
             _isCurrentCommentTypeKnown = false;
-            return false;
+            return true;
         }
         
         private void Consume()

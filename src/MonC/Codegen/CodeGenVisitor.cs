@@ -135,7 +135,7 @@ namespace MonC.Codegen
             leaf.Body.Accept(this);
             
             // All functions must end with a RETURN instruction.
-            if (_instructions[_instructions.Count - 1].Op != OpCode.RETURN) {
+            if (_instructions.Count == 0 || _instructions[_instructions.Count - 1].Op != OpCode.RETURN) {
                 AddInstruction(OpCode.RETURN);
             }
         }

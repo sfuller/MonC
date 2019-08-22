@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Threading;
 using MonC.Codegen;
 using MonC.Parsing;
 using MonC.VM;
