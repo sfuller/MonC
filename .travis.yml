@@ -1,0 +1,10 @@
+services:
+  - docker
+
+language: minimal
+
+before_install:
+  - docker build -t monc-ci .
+
+script:
+  - docker run monc-ci:latest
