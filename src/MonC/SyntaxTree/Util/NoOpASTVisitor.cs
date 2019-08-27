@@ -73,6 +73,16 @@ namespace MonC.SyntaxTree.Util
             VisitDefault(leaf);
         }
 
+        public virtual void VisitEnum(EnumLeaf leaf)
+        {
+            VisitDefault(leaf);
+        }
+
+        public virtual void VisitEnumValue(EnumValueLeaf leaf)
+        {
+            VisitDefault(leaf);
+        }
+
         public virtual void VisitDefault(IASTLeaf leaf)
         {
         }

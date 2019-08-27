@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using MonC.Codegen;
@@ -12,6 +13,14 @@ namespace MonC.Frontend
     { 
         public static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) => {
+                if (eventArgs.ExceptionObject is Exception exception) {
+                    Console.Error.WriteLine(exception.ToString());
+                    Console.Error.WriteLine(new StackTrace(exception));
+                    Environment.Exit(2);    
+                }
+            }; 
+            
             bool isInteractive = false;
             bool showLex = false;
             bool showAST = false;

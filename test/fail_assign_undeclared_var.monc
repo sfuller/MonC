@@ -1,0 +1,5 @@
+
+int main() {
+    bar = 42;
+    return 0;
+}

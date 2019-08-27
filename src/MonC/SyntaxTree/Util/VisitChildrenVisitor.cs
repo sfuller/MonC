@@ -112,9 +112,20 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
 
         public void VisitAssignment(AssignmentLeaf leaf)
         {
-            throw new System.NotImplementedException();
+            _visitor.VisitAssignment(leaf);
+            leaf.RHS.Accept(this);
         }
 
+        public void VisitEnum(EnumLeaf leaf)
+        {
+            _visitor.VisitEnum(leaf);
+        }
+
+        public void VisitEnumValue(EnumValueLeaf leaf)
+        {
+            _visitor.VisitEnumValue(leaf);
+        }
+        
         public void VisitBody(BodyLeaf leaf)
         {
             _visitor.VisitBody(leaf);

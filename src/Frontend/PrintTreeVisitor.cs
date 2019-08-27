@@ -1,5 +1,4 @@
 using System;
-using MonC;
 using MonC.Parsing;
 using MonC.Parsing.ParseTreeLeaves;
 using MonC.SyntaxTree;
@@ -102,6 +101,16 @@ namespace MonC.Frontend
             Print("Assignment");
             VisitSubleaf(leaf.Declaration);
             VisitSubleaf(leaf.RHS);
+        }
+
+        public void VisitEnum(EnumLeaf leaf)
+        {
+            Print("Enum");
+        }
+
+        public void VisitEnumValue(EnumValueLeaf leaf)
+        {
+            Print($"EnumValue (name={leaf.Name})");
         }
 
         public void VisitIdentifier(IdentifierParseLeaf leaf)

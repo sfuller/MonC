@@ -64,8 +64,10 @@ namespace MonC.Parsing.Scoping
 
             _cache.SetScope(leaf, _scope);
 
-            leaf.Assignment.Accept(this);
-            
+            if (leaf.Assignment != null) {
+                leaf.Assignment.Accept(this);    
+            }
+
             _scope.Variables.Add(leaf);
         }
 
@@ -179,6 +181,14 @@ namespace MonC.Parsing.Scoping
             _cache.SetScope(leaf, _scope);
             
             CheckChild(leaf.RHS);
+        }
+
+        public void VisitEnum(EnumLeaf leaf)
+        {
+        }
+
+        public void VisitEnumValue(EnumValueLeaf leaf)
+        {
         }
 
         public void VisitIdentifier(IdentifierParseLeaf leaf)

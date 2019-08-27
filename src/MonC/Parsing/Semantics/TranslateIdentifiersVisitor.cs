@@ -11,13 +11,15 @@ namespace MonC.Parsing.Semantics
     {
         private readonly ScopeCache _scopes;
         private readonly Dictionary<string, FunctionDefinitionLeaf> _functions;
+        private readonly EnumManager _enums;
 
         private IList<ParseError> _errors;
 
-        public TranslateIdentifiersVisitor(ScopeCache scopes, Dictionary<string, FunctionDefinitionLeaf> functions, IList<ParseError> errors)
+        public TranslateIdentifiersVisitor(ScopeCache scopes, Dictionary<string, FunctionDefinitionLeaf> functions, IList<ParseError> errors, EnumManager enums)
         {
             _scopes = scopes;
             _functions = functions;
+            _enums = enums;
             _errors = errors;
         }
 
@@ -26,16 +28,23 @@ namespace MonC.Parsing.Semantics
         
         public void VisitIdentifier(IdentifierParseLeaf leaf)
         {
-            ShouldReplace = false;
+            ShouldReplace = true;
             
             Scope scope = _scopes.GetScope(leaf);
             DeclarationLeaf decl = scope.Variables.Find(d => d.Name == leaf.Name);
-            if (decl == null) {
+            if (decl != null) {
+                NewLeaf = new VariableLeaf(decl);
                 return;
             }
 
-            ShouldReplace = true;
-            NewLeaf = new VariableLeaf(decl);
+            EnumLeaf enumLeaf = _enums.GetEnumeration(leaf.Name);
+            if (enumLeaf != null) {
+                NewLeaf = new EnumValueLeaf(enumLeaf, leaf.Name);
+                return;
+            }
+
+            ShouldReplace = false;
+            _errors.Add(new ParseError { Message = $"Undeclared identifier {leaf.Name}" });
         }
 
         public void VisitFunctionCall(FunctionCallParseLeaf leaf)

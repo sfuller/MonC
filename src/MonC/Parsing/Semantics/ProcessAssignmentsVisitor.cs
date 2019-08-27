@@ -10,10 +10,12 @@ namespace MonC.Parsing.Semantics
     public class ProcessAssignmentsVisitor : IReplacementVisitor, IParseTreeLeafVisitor
     {
         private readonly ScopeCache _scopes;
+        private readonly IList<ParseError> _errors;
 
-        public ProcessAssignmentsVisitor(ScopeCache scopes)
+        public ProcessAssignmentsVisitor(ScopeCache scopes, IList<ParseError> errors)
         {
             _scopes = scopes;
+            _errors = errors;
         }
 
         public bool ShouldReplace { get; private set; }
@@ -24,14 +26,16 @@ namespace MonC.Parsing.Semantics
             if (leaf.Op.Value == "=") {
                 IdentifierParseLeaf identifier = leaf.LHS as IdentifierParseLeaf;
                 if (identifier == null) {
-                    throw new NotImplementedException("TODO");    
+                    _errors.Add(new ParseError {Message = "Expecting identifier" } );
+                    return;
                 }
 
                 Scope scope = _scopes.GetScope(leaf);
                 
                 DeclarationLeaf declaration = scope.Variables.Find(d => d.Name == identifier.Name);
                 if (declaration == null) {
-                    throw new NotImplementedException("TODO");
+                    _errors.Add(new ParseError {Message = $"Undeclared identifier {identifier.Name}" } );
+                    return;
                 }
 
                 ShouldReplace = true;
@@ -100,6 +104,16 @@ namespace MonC.Parsing.Semantics
         }
 
         public void VisitAssignment(AssignmentLeaf leaf)
+        {
+            ShouldReplace = false;
+        }
+
+        public void VisitEnum(EnumLeaf leaf)
+        {
+            ShouldReplace = false;
+        }
+
+        public void VisitEnumValue(EnumValueLeaf leaf)
         {
             ShouldReplace = false;
         }

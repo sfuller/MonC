@@ -78,7 +78,18 @@ namespace MonC.Codegen
             leaf.RHS.Accept(this);
             AddInstruction(OpCode.WRITE, _layout.Variables[leaf.Declaration]);
         }
-        
+
+        public void VisitEnum(EnumLeaf leaf)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void VisitEnumValue(EnumValueLeaf leaf)
+        {
+            int value = Array.IndexOf(leaf.Enum.Enumerations, leaf.Name);
+            AddInstruction(OpCode.LOAD, value);
+        }
+
         public void VisitBody(BodyLeaf leaf)
         {
             for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {

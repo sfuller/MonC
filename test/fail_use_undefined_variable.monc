@@ -1,0 +1,9 @@
+
+int test(int foo) {
+    return foo;
+}
+
+int main() {
+    test(bar);
+}
+

@@ -1,0 +1,12 @@
+
+enum {
+    FOO_A,
+    FOO_B
+}
+
+int main() {
+    int a = FOO_B;
+    int b = FOO_A;
+    return a;
+}
+

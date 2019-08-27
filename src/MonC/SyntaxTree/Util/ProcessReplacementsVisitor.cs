@@ -21,20 +21,20 @@ namespace MonC.SyntaxTree.Util
 
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
-            leaf.LHS = ProcessReplacement(leaf.LHS);
-            leaf.RHS = ProcessReplacement(leaf.RHS);
+            leaf.LHS = ProcessReplacement(leaf.LHS, leaf);
+            leaf.RHS = ProcessReplacement(leaf.RHS, leaf);
         }
 
         public void VisitBody(BodyLeaf leaf)
         {
             for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                leaf.SetStatement(i, ProcessReplacement(leaf.GetStatement(i)));
+                leaf.SetStatement(i, ProcessReplacement(leaf.GetStatement(i), leaf));
             }
         }
 
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
-            leaf.Assignment = ProcessReplacement(leaf.Assignment);
+            leaf.Assignment = ProcessReplacement(leaf.Assignment, leaf);
         }
 
         public void VisitFor(ForLeaf leaf)
@@ -44,13 +44,13 @@ namespace MonC.SyntaxTree.Util
 
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
         {
-            leaf.Body = ProcessReplacement(leaf.Body);
+            leaf.Body = ProcessReplacement(leaf.Body, leaf);
         }
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
         {
             for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                leaf.SetArgument(i, ProcessReplacement(leaf.GetArgument(i)));
+                leaf.SetArgument(i, ProcessReplacement(leaf.GetArgument(i), leaf));
             }
         }
 
@@ -60,9 +60,9 @@ namespace MonC.SyntaxTree.Util
 
         public void VisitIfElse(IfElseLeaf leaf)
         {
-            leaf.Condition = ProcessReplacement(leaf.Condition);
-            leaf.IfBody = ProcessReplacement(leaf.IfBody);
-            leaf.ElseBody = ProcessReplacement(leaf.ElseBody);
+            leaf.Condition = ProcessReplacement(leaf.Condition, leaf);
+            leaf.IfBody = ProcessReplacement(leaf.IfBody, leaf);
+            leaf.ElseBody = ProcessReplacement(leaf.ElseBody, leaf);
         }
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)
@@ -75,8 +75,8 @@ namespace MonC.SyntaxTree.Util
 
         public void VisitWhile(WhileLeaf leaf)
         {
-            leaf.Condition = ProcessReplacement(leaf.Condition);
-            leaf.Body = ProcessReplacement(leaf.Body);
+            leaf.Condition = ProcessReplacement(leaf.Condition, leaf);
+            leaf.Body = ProcessReplacement(leaf.Body, leaf);
         }
 
         public void VisitBreak(BreakLeaf leaf)
@@ -85,15 +85,23 @@ namespace MonC.SyntaxTree.Util
 
         public void VisitReturn(ReturnLeaf leaf)
         {
-            leaf.RHS = ProcessReplacement(leaf.RHS);
+            leaf.RHS = ProcessReplacement(leaf.RHS, leaf);
         }
 
         public void VisitAssignment(AssignmentLeaf leaf)
         {
-            leaf.RHS = ProcessReplacement(leaf.RHS);
+            leaf.RHS = ProcessReplacement(leaf.RHS, leaf);
         }
 
-        private IASTLeaf ProcessReplacement(IASTLeaf leaf)
+        public void VisitEnum(EnumLeaf leaf)
+        {
+        }
+
+        public void VisitEnumValue(EnumValueLeaf leaf)
+        {
+        }
+        
+        private IASTLeaf ProcessReplacement(IASTLeaf leaf, IASTLeaf parent)
         {
             if (leaf == null) {
                 return null;
@@ -101,12 +109,14 @@ namespace MonC.SyntaxTree.Util
             
             leaf.Accept(_replacer);
             if (_replacer.ShouldReplace) {
-                if (_scopes != null) {
-                    Scope scope = _scopes.GetScope(leaf);
-                    _scopes.SetScope(_replacer.NewLeaf, scope);
-                }
+                IASTLeaf newLeaf = _replacer.NewLeaf;
                 
-                return _replacer.NewLeaf;
+                if (_scopes != null) {
+                    ScopeResolver resolver = new ScopeResolver(_scopes, _scopes.GetScope(parent));
+                    newLeaf.Accept(resolver);
+                }
+
+                return newLeaf;
             }
             return leaf;
         }

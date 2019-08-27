@@ -86,5 +86,13 @@ namespace MonC.Codegen
         public void VisitAssignment(AssignmentLeaf leaf)
         {
         }
+
+        public void VisitEnum(EnumLeaf leaf)
+        {
+        }
+
+        public void VisitEnumValue(EnumValueLeaf leaf)
+        {
+        }
     }
 }

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using MonC.Parsing;
 using MonC.Parsing.ParseTreeLeaves;
@@ -22,7 +21,7 @@ namespace MonC
             _errors = errors;
 
             while (Peek().Type != TokenType.None) {
-                ParseTopLevelStatement(module.Functions);
+                ParseTopLevelStatement(module.Functions, module.Enums);
             }
             
             SemanticAnalyzer analyzer = new SemanticAnalyzer();
@@ -85,16 +84,88 @@ namespace MonC
             _errors.Add(new ParseError {Message = message, Token = token});
         }
 
-        private IASTLeaf ParseTopLevelStatement(IList<FunctionDefinitionLeaf> functions)
+        private IASTLeaf ParseTopLevelStatement(IList<FunctionDefinitionLeaf> functions, IList<EnumLeaf> enums)
         {
-            FunctionDefinitionLeaf def = ParseFunction();
+            bool isExported = true;
+
+            Token token = Peek();
+            if (token.Type == TokenType.Keyword && token.Value == Keyword.STATIC) {
+                isExported = false;
+                Next();
+                token = Peek();
+            }
+
+            if (token.Type == TokenType.Keyword && token.Value == Keyword.ENUM) {
+                EnumLeaf enumLeaf = ParseEnum(isExported);
+                if (enumLeaf != null) {
+                    enums.Add(enumLeaf);
+                }
+                return enumLeaf;
+            }
+            
+            FunctionDefinitionLeaf def = ParseFunction(isExported);
             if (def != null) {
-                functions.Add(def);    
+                functions.Add(def);
             }
             return def;
         }
+
+        private EnumLeaf ParseEnum(bool isExported)
+        {
+            if (!(
+                Next(TokenType.Keyword, Keyword.ENUM, out _)
+                && Next(TokenType.Syntax, "{", out _)
+            )) {
+                return null;
+            }
+
+            List<string> names = new List<string>();
+
+            bool endIsAllowed = true;
+            bool nextEnumerationIsAllowed = true;
+            
+            while (true) {
+                Token next = Peek();
+
+                if (next.Type == TokenType.None) {
+                    AddError("Unexpected EOF", next);
+                    break;
+                }
+                
+                if (next.Type == TokenType.Syntax && next.Value == "}") {
+                    if (!endIsAllowed) {
+                        AddError("Expecting next enumeration", next);
+                    }
+                    Next();
+                    break;
+                }
+                
+                if (!nextEnumerationIsAllowed) {
+                    AddError("Expecting }", next);
+                    break;
+                }
+
+                Token name;
+                if (!Next(TokenType.Identifier, out name)) {
+                    break;
+                }
+                
+                names.Add(name.Value);
+
+                next = Peek();
+                if (next.Type == TokenType.Syntax && next.Value == ",") {
+                    endIsAllowed = false;
+                    Next();
+                } else {
+                    endIsAllowed = true;
+                    nextEnumerationIsAllowed = false;
+                }
+            }
+            
+            return new EnumLeaf(names, isExported);
+        }
         
-        private FunctionDefinitionLeaf ParseFunction()
+        private FunctionDefinitionLeaf ParseFunction(bool isExported)
         {
             var parameters = new List<DeclarationLeaf>();
 
@@ -152,7 +223,7 @@ namespace MonC
             }
 
             IASTLeaf body = ParseBody();
-            return new FunctionDefinitionLeaf(name.Value, returnType.Value, parameters, body, isExported: true);    
+            return new FunctionDefinitionLeaf(name.Value, returnType.Value, parameters, body, isExported);    
         }
 
         private IASTLeaf ParseBody()
@@ -227,7 +298,7 @@ namespace MonC
                 || token.Value == Keyword.RETURN;
         }
 
-        private IASTLeaf ParseDeclaration()
+        private DeclarationLeaf ParseDeclaration()
         {
             Token typeToken, nameToken;
             if (!(Next(TokenType.Identifier, out typeToken) && Next(TokenType.Identifier, out nameToken))) {
@@ -425,7 +496,7 @@ namespace MonC
                     return -1;
             }
         }
-
+        
         private IASTLeaf ParseFunctionCall(IASTLeaf lhs)
         {   
             // Eat left paren

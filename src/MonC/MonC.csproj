@@ -67,6 +67,7 @@
     <Compile Include="Parsing\Scoping\Scope.cs" />
     <Compile Include="Parsing\Scoping\ScopeCache.cs" />
     <Compile Include="Parsing\Scoping\ScopeResolver.cs" />
+    <Compile Include="Parsing\Semantics\EnumManager.cs" />
     <Compile Include="Parsing\Semantics\TranslateIdentifiersVisitor.cs" />
     <Compile Include="Parsing\Semantics\VariableAnalyzer.cs" />
     <Compile Include="Parsing\Semantics\ProcessAssignmentsVisitor.cs" />
@@ -80,6 +81,8 @@
     <Compile Include="SyntaxTree\BodyLeaf.cs" />
     <Compile Include="SyntaxTree\BreakLeaf.cs" />
     <Compile Include="SyntaxTree\DeclarationLeaf.cs" />
+    <Compile Include="SyntaxTree\EnumLeaf.cs" />
+    <Compile Include="SyntaxTree\EnumValueLeaf.cs" />
     <Compile Include="SyntaxTree\ForLeaf.cs" />
     <Compile Include="SyntaxTree\FunctionCallLeaf.cs" />
     <Compile Include="SyntaxTree\Util\IReplacementVisitor.cs" />

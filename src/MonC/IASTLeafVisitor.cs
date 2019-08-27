@@ -18,5 +18,7 @@ namespace MonC
         void VisitBreak(BreakLeaf leaf);
         void VisitReturn(ReturnLeaf leaf);
         void VisitAssignment(AssignmentLeaf leaf);
+        void VisitEnum(EnumLeaf leaf);
+        void VisitEnumValue(EnumValueLeaf leaf);
     }
 }

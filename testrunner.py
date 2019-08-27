@@ -67,6 +67,10 @@ def test(path, showall: bool) -> bool:
     if filename.startswith('fail_'):
         status = not status
 
+    # Crashes always fail
+    if result.returncode is 2:
+        status = False
+
     sys.stdout.write('\r')
     sys.stdout.write(TERM_ERASE_LINE)
 
