@@ -35,6 +35,17 @@ namespace MonC.Parsing.Scoping
 //            CheckChild(leaf.RHS);
         }
 
+        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        {
+            if (CheckContext(leaf)) {
+                return;
+            }
+            
+            _cache.SetScope(leaf, _scope);
+            
+            leaf.RHS.Accept(this);
+        }
+
         public void VisitBody(BodyLeaf leaf)
         {
             if (CheckContext(leaf)) {
@@ -64,8 +75,9 @@ namespace MonC.Parsing.Scoping
 
             _cache.SetScope(leaf, _scope);
 
-            if (leaf.Assignment != null) {
-                leaf.Assignment.Accept(this);    
+            IASTLeaf assignment;
+            if (leaf.Assignment.Get(out assignment)) {
+                assignment.Accept(this);
             }
 
             _scope.Variables.Add(leaf);
@@ -213,10 +225,6 @@ namespace MonC.Parsing.Scoping
 
         private void CheckChild(IASTLeaf leaf)
         {
-            if (leaf == null) {
-                return;
-            }
-            
             var visitor = new ScopeResolver(_cache, _scope);
             leaf.Accept(visitor);
             
@@ -226,6 +234,13 @@ namespace MonC.Parsing.Scoping
 //            }
         }
 
-        
+        private void CheckChild(Optional<IASTLeaf> leaf)
+        {
+            IASTLeaf nonNullLeaf;
+            if (leaf.Get(out nonNullLeaf)) {
+                CheckChild(nonNullLeaf);
+            }
+        }
+
     }
 }

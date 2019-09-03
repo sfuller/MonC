@@ -47,13 +47,12 @@ namespace MonC.Bytecode
         //
         // Math
         //
-        
+        BOOL,
         NOT,
         ADD,
-        ADDI,
         SUB,
-        SUBI
-        
-
+        OR,
+        AND,
+        XOR
     }
 }

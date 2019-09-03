@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using MonC.Bytecode;
-using MonC.Codegen;
 
 namespace MonC.VM
 {
@@ -15,6 +14,7 @@ namespace MonC.VM
 
         private bool _isRunning;
         private bool _canContinue;
+        private bool _isContinuing;
 
         public void LoadModule(VMModule module)
         {
@@ -60,20 +60,17 @@ namespace MonC.VM
         private void Continue()
         {
             _canContinue = true;
-
+            
+            if (_isContinuing) {
+                return;
+            }
+            _isContinuing = true;
+            
             while (_canContinue) {
                 InterpretCurrentInstruction();
             }
-        }
 
-        private void ContinueFromVMBinding(int returnValue)
-        {
-            if (!_isRunning) {
-                throw new InvalidOperationException("Cannot continue while not running");
-            }
-            
-            _aRegister = returnValue;
-            Continue();
+            _isContinuing = false;
         }
 
         private void InterpretCurrentInstruction()
@@ -86,22 +83,58 @@ namespace MonC.VM
             
             StackFrame top = _callStack.Peek();
 
-            if (top.Function >= _module.Module.DefinedFunctions.Length) {
-                // Bound VM function call
-                VMFunction function = _module.VMFunctions[top.Function];
-                int[] args = new int[top.ArgumentCount];
-                for (int i = 0, ilen = top.ArgumentCount; i < ilen; ++i) {
-                    args[i] = top.Memory.Read(i);
-                }
-                _canContinue = false;
-                _callStack.Pop();
-                function(args, ContinueFromVMBinding);
+            if (top.BindingContext != null) {
+                InterpretBoundFunctionCall(top);
                 return;
             }
-            
+
             Instruction ins = _module.Module.DefinedFunctions[top.Function][top.PC];
             ++top.PC;
             InterpretInstruction(ins);
+        }
+
+        private void InterpretBoundFunctionCall(StackFrame frame)
+        {
+            frame.BindingContext.ReturnValue = _aRegister;
+            
+            if (!frame.BindingContext.Enumerator.MoveNext()) {
+                // Function has finished
+                _callStack.Pop();
+                return;
+            }
+
+            Continuation continuation = frame.BindingContext.Enumerator.Current;
+
+            if (continuation.Action == ContinuationAction.CALL) {
+                _argumentStack.AddRange(continuation.Arguments);
+                PushCall(continuation.FunctionIndex);
+                return;
+            }
+
+            if (continuation.Action == ContinuationAction.RETURN) {
+                _aRegister = continuation.ReturnValue;
+                _callStack.Pop();
+                return;
+            }
+
+            if (continuation.Action == ContinuationAction.YIELD) {
+                _canContinue = false;
+                continuation.YieldToken.OnFinished(Continue);
+
+                // Remember: Caling Start can call the finish callback, so call Start at the very end.
+                continuation.YieldToken.Start();
+                
+                return;
+            }
+
+            if (continuation.Action == ContinuationAction.UNWRAP) {
+                StackFrame unwrapFrame = MakeBoundCallFrame();
+                unwrapFrame.BindingContext.Enumerator = continuation.ToUnwrap;
+                _callStack.Push(unwrapFrame);
+                return;
+            }
+            
+            throw new NotImplementedException();
         }
 
         private void InterpretInstruction(Instruction ins)
@@ -149,21 +182,26 @@ namespace MonC.VM
                 case OpCode.JUMPNZ:
                     InterpretJumpNZ(ins);
                     break;
+                case OpCode.BOOL:
+                    InterpretBool(ins);
+                    break;
                 case OpCode.NOT:
                     InterpretNot(ins);
                     break;
                 case OpCode.ADD:
                     InterpretAdd(ins);
                     break;
-                case OpCode.ADDI:
-                    InterpretAddI(ins);
-                    break;
                 case OpCode.SUB:
                     InterpretSub(ins);
                     break;
-                case OpCode.SUBI:
-                    InterpretSubI(ins);
+                case OpCode.AND:
+                    InterpretAnd(ins);
                     break;
+                case OpCode.OR:
+                    InterpretOr(ins);
+                    break;
+                default:
+                    throw new NotImplementedException();
             }
         }
 
@@ -240,29 +278,34 @@ namespace MonC.VM
             }
         }
 
+        private void InterpretBool(Instruction ins)
+        {
+            _aRegister = _aRegister == 0 ? 0 : 1;
+        }
+
         private void InterpretNot(Instruction ins)
         {
-            _aRegister = _aRegister == 0 ? 1 : 0;
+            _aRegister = ~_aRegister;
         }
 
         private void InterpretAdd(Instruction ins)
         {
             _aRegister += _bRegister;
         }
-
-        private void InterpretAddI(Instruction ins)
-        {
-            _aRegister += ins.ImmediateValue;
-        }
-
+        
         private void InterpretSub(Instruction ins)
         {
             _aRegister -= _bRegister;
         }
 
-        private void InterpretSubI(Instruction ins)
+        private void InterpretAnd(Instruction ins)
         {
-            _aRegister -= ins.ImmediateValue;
+            _aRegister &= _bRegister;
+        }
+
+        private void InterpretOr(Instruction ins)
+        {
+            _aRegister |= _bRegister;
         }
         
         private void Jump(int offset)
@@ -272,12 +315,27 @@ namespace MonC.VM
 
         private void PushCall(int functionIndex)
         {
-            StackFrame newFrame = new StackFrame { Function = functionIndex, ArgumentCount = _argumentStack.Count };
-            for (int i = 0, ilen = _argumentStack.Count; i < ilen; ++i) {
-                newFrame.Memory.Write(i, _argumentStack[i]);
+            if (functionIndex >= _module.Module.DefinedFunctions.Length) {
+                StackFrame frame = MakeBoundCallFrame();
+                VMEnumerable enumerable = _module.VMFunctions[functionIndex];
+                int[] args = _argumentStack.ToArray();
+                _argumentStack.Clear();
+                frame.BindingContext.Enumerator = enumerable(frame.BindingContext, args);
+                _callStack.Push(frame);
+            } else {
+                StackFrame newFrame = new StackFrame { Function = functionIndex };
+                for (int i = 0, ilen = _argumentStack.Count; i < ilen; ++i) {
+                    newFrame.Memory.Write(i, _argumentStack[i]);
+                }
+                _argumentStack.Clear();
+                _callStack.Push(newFrame);
             }
-            _argumentStack.Clear();
-            _callStack.Push(newFrame);
+        }
+
+        private StackFrame MakeBoundCallFrame()
+        {
+            VMBindingContext context = new VMBindingContext();
+            return new StackFrame { BindingContext = context};
         }
     }
 }

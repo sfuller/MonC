@@ -1,6 +1,7 @@
-using System;
+using System.Collections.Generic;
 
 namespace MonC.VM
 {
-    public delegate void VMFunction(int[] arguments, Action<int> ret);
+    public delegate int VMFunction(int[] arguments);
+    public delegate IEnumerator<Continuation> VMEnumerable(IVMBindingContext context, int[] arguments);
 }

@@ -8,6 +8,11 @@ namespace MonC.SyntaxTree.Util
             VisitDefault(leaf);
         }
 
+        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        {
+            VisitDefault(leaf);
+        }
+
         public virtual void VisitBody(BodyLeaf leaf)
         {
             VisitDefault(leaf);

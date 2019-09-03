@@ -7,7 +7,7 @@ using MonC.SyntaxTree.Util;
 
 namespace MonC.Parsing.Semantics
 {
-    public class ProcessAssignmentsVisitor : IReplacementVisitor, IParseTreeLeafVisitor
+    public class ProcessAssignmentsVisitor : NoOpASTVisitor, IReplacementVisitor, IParseTreeLeafVisitor
     {
         private readonly ScopeCache _scopes;
         private readonly IList<ParseError> _errors;
@@ -21,12 +21,17 @@ namespace MonC.Parsing.Semantics
         public bool ShouldReplace { get; private set; }
         public IASTLeaf NewLeaf { get; private set; }
 
-        public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
+        public override void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
+            base.VisitBinaryOperation(leaf);
+            
             if (leaf.Op.Value == "=") {
                 IdentifierParseLeaf identifier = leaf.LHS as IdentifierParseLeaf;
                 if (identifier == null) {
-                    _errors.Add(new ParseError {Message = "Expecting identifier" } );
+                    // TODO: Make this shared functionality
+                    GetTokenVisitor tokenVisitor = new GetTokenVisitor();
+                    leaf.LHS.Accept(tokenVisitor);
+                    _errors.Add(new ParseError {Message = "Expecting identifier", Token = tokenVisitor.Token} );
                     return;
                 }
 
@@ -34,7 +39,10 @@ namespace MonC.Parsing.Semantics
                 
                 DeclarationLeaf declaration = scope.Variables.Find(d => d.Name == identifier.Name);
                 if (declaration == null) {
-                    _errors.Add(new ParseError {Message = $"Undeclared identifier {identifier.Name}" } );
+                    // TODO: Make this shared functionality
+                    GetTokenVisitor tokenVisitor = new GetTokenVisitor();
+                    leaf.LHS.Accept(tokenVisitor);
+                    _errors.Add(new ParseError {Message = $"Undeclared identifier {identifier.Name}", Token = tokenVisitor.Token} );
                     return;
                 }
 
@@ -43,77 +51,7 @@ namespace MonC.Parsing.Semantics
             }
         }
 
-        public void VisitBody(BodyLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitDeclaration(DeclarationLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitFor(ForLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitFunctionCall(FunctionCallLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitVariable(VariableLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitIfElse(IfElseLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitNumericLiteral(NumericLiteralLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitStringLiteral(StringLiteralLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitWhile(WhileLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitBreak(BreakLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitReturn(ReturnLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitAssignment(AssignmentLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitEnum(EnumLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        public void VisitEnumValue(EnumValueLeaf leaf)
+        public override void VisitDefault(IASTLeaf leaf)
         {
             ShouldReplace = false;
         }

@@ -7,9 +7,9 @@ namespace MonC.SyntaxTree
     {
         public IASTLeaf Condition;
         public IASTLeaf IfBody;
-        public IASTLeaf ElseBody;
+        public Optional<IASTLeaf> ElseBody;
 
-        public IfElseLeaf(IASTLeaf condition, IASTLeaf ifBody, IASTLeaf elseBody)
+        public IfElseLeaf(IASTLeaf condition, IASTLeaf ifBody, Optional<IASTLeaf> elseBody)
         {
             Condition = condition;
             IfBody = ifBody;

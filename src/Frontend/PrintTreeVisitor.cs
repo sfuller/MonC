@@ -16,6 +16,12 @@ namespace MonC.Frontend
             VisitSubleaf(leaf.RHS);
         }
 
+        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        {
+            Print($"Unary Operation ({leaf.Operator})");
+            VisitSubleaf(leaf.RHS);
+        }
+
         public void VisitBody(BodyLeaf leaf)
         {
             Print("Body");
@@ -129,18 +135,23 @@ namespace MonC.Frontend
 
         private void VisitSubleaf(IASTLeaf leaf)
         {
-            if (leaf == null) {
-                return;
-            }
-            
             ++_currentIndent;
             leaf.Accept(this);
             --_currentIndent;
         }
 
+        public void VisitSubleaf(Optional<IASTLeaf> leaf)
+        {
+            IASTLeaf leafData;
+            if (leaf.Get(out leafData)) {
+                VisitSubleaf(leafData);
+            }
+        }
+        
         private void Print(string text)
         {
             Console.WriteLine(new string(' ', _currentIndent) + text);
         }
+        
     }
 }

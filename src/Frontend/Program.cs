@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using MonC.Codegen;
-using MonC.Parsing;
+using MonC.DotNetInterop;
 using MonC.VM;
+using Module = MonC.Parsing.Module;
 
 namespace MonC.Frontend
 {   
@@ -27,6 +29,7 @@ namespace MonC.Frontend
             bool showIL = false;
             List<string> positionals = new List<string>();
             List<int> argsToPass = new List<int>();
+            List<string> libraryNames = new List<string>();
 
             for (int i = 0, ilen = args.Length; i < ilen; ++i) {
                 string arg = args[i].Trim();
@@ -50,6 +53,9 @@ namespace MonC.Frontend
                         Int32.TryParse(args[++i], out argToPass);
                         argsToPass.Add(argToPass);
                         break;
+                    case "-l":
+                        libraryNames.Add(args[++i]);
+                        break;
                     default:
                         argFound = false;
                         break;
@@ -62,6 +68,13 @@ namespace MonC.Frontend
                 }
             }
 
+            InteropResolver interopResolver = new InteropResolver();
+
+            foreach (string libraryName in libraryNames) {
+                Assembly lib = Assembly.LoadFile(Path.GetFullPath(libraryName));
+                interopResolver.FindBindings(lib);
+            }
+            
             string filename = null;
 
             if (positionals.Count > 0) {
@@ -97,6 +110,7 @@ namespace MonC.Frontend
             
             Parser parser = new Parser();
             Module module = new Module();
+            module.Functions.AddRange(interopResolver.Definitions);
             List<ParseError> errors = new List<ParseError>();
             parser.Parse(tokens, module, errors);
 

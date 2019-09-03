@@ -8,7 +8,7 @@ namespace MonC.VM
     public class Linker
     {
         private readonly List<ILModule> _inputModules = new List<ILModule>();
-        private readonly List<KeyValuePair<string, VMFunction>> _boundFunctions = new List<KeyValuePair<string, VMFunction>>();
+        private readonly List<KeyValuePair<string, VMEnumerable>> _boundFunctions = new List<KeyValuePair<string, VMEnumerable>>();
         
         private readonly List<LinkError> _errors = new List<LinkError>();
         private readonly Dictionary<string, int> _exportedFunctionIndices = new Dictionary<string, int>();
@@ -23,7 +23,12 @@ namespace MonC.VM
 
         public void AddFunctionBinding(string name, VMFunction function)
         {
-            _boundFunctions.Add(new KeyValuePair<string, VMFunction>(name, function));
+            AddFunctionBinding(name, new VMEnumerableWrapper(function).MakeEnumerator);
+        }
+
+        public void AddFunctionBinding(string name, VMEnumerable enumerable)
+        {
+            _boundFunctions.Add(new KeyValuePair<string, VMEnumerable>(name, enumerable));
         }
 
         public VMModule Link()
@@ -50,7 +55,7 @@ namespace MonC.VM
             };
 
             int vmFunctionsOffset = _functionImplementations.Count;
-            Dictionary<int, VMFunction> vmFunctions = new Dictionary<int, VMFunction>(_boundFunctions.Count);
+            Dictionary<int, VMEnumerable> vmFunctions = new Dictionary<int, VMEnumerable>(_boundFunctions.Count);
             for (int i = 0, ilen = _boundFunctions.Count; i < ilen; ++i) {
                 vmFunctions.Add(vmFunctionsOffset + i, _boundFunctions[i].Value);    
             }
@@ -87,7 +92,7 @@ namespace MonC.VM
             int baseIndex = _functionImplementations.Count;
             
             for (int i = 0, ilen = _boundFunctions.Count; i < ilen; ++i) {
-                KeyValuePair<string, VMFunction> vmFunction = _boundFunctions[i];
+                KeyValuePair<string, VMEnumerable> vmFunction = _boundFunctions[i];
                 if (_exportedFunctionIndices.ContainsKey(vmFunction.Key)) {
                     _errors.Add(new LinkError {Message = $"Conflicting bound function {vmFunction.Key}"});
                     continue;

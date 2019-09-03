@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonC", "src/MonC/MonC.cspro
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Frontend", "src\Frontend\Frontend.csproj", "{B5D5F377-FFE8-400A-AAE3-40A6ECADFFB9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoreLib", "CoreLib\CoreLib.csproj", "{EF724D0D-1CFE-4D8A-A092-E2D792BEC2A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{B5D5F377-FFE8-400A-AAE3-40A6ECADFFB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B5D5F377-FFE8-400A-AAE3-40A6ECADFFB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B5D5F377-FFE8-400A-AAE3-40A6ECADFFB9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF724D0D-1CFE-4D8A-A092-E2D792BEC2A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF724D0D-1CFE-4D8A-A092-E2D792BEC2A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF724D0D-1CFE-4D8A-A092-E2D792BEC2A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF724D0D-1CFE-4D8A-A092-E2D792BEC2A2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

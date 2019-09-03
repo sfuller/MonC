@@ -1,0 +1,10 @@
+
+int func(int in) {
+   return 0;
+}
+
+int main() {
+    int x = func(0);
+    return func(x);
+}
+

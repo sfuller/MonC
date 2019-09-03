@@ -22,24 +22,39 @@ namespace MonC.SyntaxTree.Util
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
             leaf.LHS = ProcessReplacement(leaf.LHS, leaf);
+            leaf.RHS = ProcessReplacement(leaf.RHS, leaf.LHS);
+        }
+
+        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        {
             leaf.RHS = ProcessReplacement(leaf.RHS, leaf);
         }
 
         public void VisitBody(BodyLeaf leaf)
         {
+            IASTLeaf previousLeaf = leaf;
             for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                leaf.SetStatement(i, ProcessReplacement(leaf.GetStatement(i), leaf));
+                IASTLeaf statementLeaf = leaf.GetStatement(i);
+                leaf.SetStatement(i, ProcessReplacement(statementLeaf, previousLeaf));
+                previousLeaf = statementLeaf;
             }
         }
 
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
-            leaf.Assignment = ProcessReplacement(leaf.Assignment, leaf);
+            IASTLeaf assignment;
+            if (leaf.Assignment.Get(out assignment)) {
+                leaf.Assignment = new Optional<IASTLeaf>(ProcessReplacement(assignment, leaf));    
+            }
+            
         }
 
         public void VisitFor(ForLeaf leaf)
         {
-            throw new NotImplementedException();
+            leaf.Declaration = ProcessReplacement(leaf.Declaration, leaf);
+            leaf.Condition = ProcessReplacement(leaf.Condition, leaf.Declaration);
+            leaf.Update = ProcessReplacement(leaf.Update, leaf.Condition);
+            leaf.Body = ProcessReplacement(leaf.Body, leaf.Update);
         }
 
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
@@ -101,22 +116,32 @@ namespace MonC.SyntaxTree.Util
         {
         }
         
-        private IASTLeaf ProcessReplacement(IASTLeaf leaf, IASTLeaf parent)
+        private IASTLeaf ProcessReplacement(IASTLeaf leaf, IASTLeaf previous)
         {
-            if (leaf == null) {
-                return null;
+            Optional<IASTLeaf> result = ProcessReplacement(new Optional<IASTLeaf>(leaf), previous);
+            IASTLeaf nonNullResult;
+            if (result.Get(out nonNullResult)) {
+                return nonNullResult;
+            }
+            throw new InvalidOperationException("Result of ProcessReplacement cannot be null here");
+        }
+
+        private Optional<IASTLeaf> ProcessReplacement(Optional<IASTLeaf> leaf, IASTLeaf previous)
+        {
+            IASTLeaf nonNullLeaf;
+            if (leaf.Get(out nonNullLeaf)) {
+                nonNullLeaf.Accept(_replacer);    
             }
             
-            leaf.Accept(_replacer);
             if (_replacer.ShouldReplace) {
                 IASTLeaf newLeaf = _replacer.NewLeaf;
                 
                 if (_scopes != null) {
-                    ScopeResolver resolver = new ScopeResolver(_scopes, _scopes.GetScope(parent));
+                    ScopeResolver resolver = new ScopeResolver(_scopes, _scopes.GetScope(nonNullLeaf));
                     newLeaf.Accept(resolver);
                 }
-
-                return newLeaf;
+                
+                return new Optional<IASTLeaf>(newLeaf);
             }
             return leaf;
         }

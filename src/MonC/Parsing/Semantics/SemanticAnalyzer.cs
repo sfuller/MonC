@@ -46,7 +46,7 @@ namespace MonC.Parsing.Semantics
             ProcessReplacementsVisitor replacementsVisitor = new ProcessReplacementsVisitor(scopes);
             VisitChildrenVisitor visitChildrenVisitor = new VisitChildrenVisitor();
 
-            VariableDeclarationAnalyzer declarationAnalyzer = new VariableDeclarationAnalyzer(scopes);
+            VariableDeclarationAnalyzer declarationAnalyzer = new VariableDeclarationAnalyzer(scopes, _errors);
             function.Accept(visitChildrenVisitor.SetVisitors(declarationAnalyzer));
 
             ProcessAssignmentsVisitor assignmentsVisitor = new ProcessAssignmentsVisitor(scopes, _errors);

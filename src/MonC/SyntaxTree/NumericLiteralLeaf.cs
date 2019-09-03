@@ -2,9 +2,9 @@ namespace MonC.SyntaxTree
 {
     public class NumericLiteralLeaf : IASTLeaf
     {
-        public string Value;
+        public int Value;
 
-        public NumericLiteralLeaf(string value)
+        public NumericLiteralLeaf(int value)
         {
             Value = value;
         }

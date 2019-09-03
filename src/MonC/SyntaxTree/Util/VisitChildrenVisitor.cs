@@ -50,6 +50,13 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
             leaf.RHS.Accept(this);
         }
 
+        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        {
+            _visitor.VisitUnaryOperation(leaf);
+            
+            leaf.RHS.Accept(this);
+        }
+
         void IASTLeafVisitor.VisitBody(BodyLeaf leaf)
         {
             VisitBody(leaf);
@@ -139,8 +146,9 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
         {
             _visitor.VisitDeclaration(leaf);
 
-            if (leaf.Assignment != null) {
-                leaf.Assignment.Accept(this);    
+            IASTLeaf assignment;
+            if (leaf.Assignment.Get(out assignment)) {
+                assignment.Accept(this);    
             }
         }
 
@@ -161,8 +169,10 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
             for (int i = 0, ilen = leaf.Parameters.Length; i < ilen; ++i) {
                 leaf.Parameters[i].Accept(this);
             }
-            
-            leaf.Body.Accept(this);
+
+            if (leaf.Body != null) {
+                leaf.Body.Accept(this);    
+            }
         }
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
@@ -186,8 +196,9 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
             leaf.Condition.Accept(this);
             leaf.IfBody.Accept(this);
 
-            if (leaf.ElseBody != null) {
-                leaf.ElseBody.Accept(this);    
+            IASTLeaf elseBody;
+            if (leaf.ElseBody.Get(out elseBody)) {
+                elseBody.Accept(this);    
             }
         }
 
@@ -217,8 +228,11 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
         public void VisitReturn(ReturnLeaf leaf)
         {
             _visitor.VisitReturn(leaf);
-            
-            leaf.RHS.Accept(this);
+
+            IASTLeaf rhs;
+            if (leaf.RHS.Get(out rhs)) {
+                rhs.Accept(this);
+            }
         }
 
         public void VisitIdentifier(IdentifierParseLeaf leaf)

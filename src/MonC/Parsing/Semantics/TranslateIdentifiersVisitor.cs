@@ -44,7 +44,7 @@ namespace MonC.Parsing.Semantics
             }
 
             ShouldReplace = false;
-            _errors.Add(new ParseError { Message = $"Undeclared identifier {leaf.Name}" });
+            _errors.Add(new ParseError { Message = $"Undeclared identifier {leaf.Name}", Token = leaf.Token});
         }
 
         public void VisitFunctionCall(FunctionCallParseLeaf leaf)
@@ -54,7 +54,7 @@ namespace MonC.Parsing.Semantics
             if (identifier == null) {
                 _errors.Add(new ParseError {
                     Message = "LHS of function call operator is not an identifier.",
-                    Token = new Token()  // TODO
+                    Token = leaf.Token
                 });
                 return;
             }
@@ -63,7 +63,7 @@ namespace MonC.Parsing.Semantics
             if (!_functions.TryGetValue(identifier.Name, out function)) {
                 _errors.Add(new ParseError {
                     Message = "Undefined function " + identifier.Name,
-                    Token = new Token() // TODO
+                    Token = leaf.Token
                 });
                 return;
             }

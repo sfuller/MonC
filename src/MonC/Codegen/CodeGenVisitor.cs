@@ -43,21 +43,44 @@ namespace MonC.Codegen
             switch (leaf.Op.Value) {
                 case ">":
                 case "<":
-                case ">=":
-                case "<=":
+                case Syntax.GREATER_THAN_OR_EQUAL_TO:
+                case Syntax.LESS_THAN_OR_EQUAL_TO:
                     GenerateRelationalComparison(leaf.Op);
                     break;
-                case "==":
+                case Syntax.EQUALS:
                     AddInstruction(OpCode.CMPE);
                     break;
-                case "!=":
+                case Syntax.NOT_EQUALS:
                     AddInstruction(OpCode.CMPE);
                     AddInstruction(OpCode.NOT);
+                    AddInstruction(OpCode.BOOL);
+                    break;
+                case Syntax.LOGICAL_OR:
+                    AddInstruction(OpCode.OR);
+                    AddInstruction(OpCode.BOOL);
+                    break;
+                case Syntax.LOGICAL_AND:
+                    AddInstruction(OpCode.AND);
+                    AddInstruction(OpCode.BOOL);
                     break;
                 default:
                     throw new NotImplementedException();
             }
             
+        }
+
+        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        {
+            switch (leaf.Operator.Value) {
+                case "-":
+                    leaf.RHS.Accept(this);
+                    AddInstruction(OpCode.LOADB);
+                    AddInstruction(OpCode.LOAD, 0);
+                    AddInstruction(OpCode.SUB);
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
         }
 
         private void GenerateRelationalComparison(Token token)
@@ -70,6 +93,7 @@ namespace MonC.Codegen
 
             if (token.Value.Contains(">")) {
                 AddInstruction(OpCode.NOT);
+                AddInstruction(OpCode.BOOL);
             }
         }
         
@@ -100,8 +124,9 @@ namespace MonC.Codegen
 
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
-            if (leaf.Assignment != null) {
-                leaf.Assignment.Accept(this);
+            IASTLeaf assignment;
+            if (leaf.Assignment.Get(out assignment)) {
+                assignment.Accept(this);
                 AddInstruction(OpCode.WRITE, _layout.Variables[leaf]);
             }
         }
@@ -167,8 +192,9 @@ namespace MonC.Codegen
             // Jump to end of if/else after evaluation of if body.
             int ifEndIndex = AddInstruction(OpCode.NOOP);
 
-            if (leaf.ElseBody != null) {
-                leaf.ElseBody.Accept(this);    
+            IASTLeaf elseBody;
+            if (leaf.ElseBody.Get(out elseBody)) {
+                elseBody.Accept(this);
             }
 
             int endIndex = _instructions.Count;
@@ -179,8 +205,7 @@ namespace MonC.Codegen
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)
         {
-            int value = int.Parse(leaf.Value);
-            AddInstruction(OpCode.LOAD, value);
+            AddInstruction(OpCode.LOAD, leaf.Value);
         }
 
         public void VisitStringLiteral(StringLiteralLeaf leaf)
@@ -218,8 +243,9 @@ namespace MonC.Codegen
 
         public void VisitReturn(ReturnLeaf leaf)
         {
-            if (leaf.RHS != null) {
-                leaf.RHS.Accept(this);
+            IASTLeaf rhs;
+            if (leaf.RHS.Get(out rhs)) {
+                rhs.Accept(this);
             }
             AddInstruction(OpCode.RETURN);
         }

@@ -53,10 +53,13 @@
     <Compile Include="Codegen\IVariableVisitor.cs" />
     <Compile Include="Codegen\StackLayoutGenerator.cs" />
     <Compile Include="Codegen\StaticStringManager.cs" />
+    <Compile Include="DotNetInterop\InteropResolver.cs" />
     <Compile Include="IASTLeaf.cs" />
     <Compile Include="IASTLeafVisitor.cs" />
     <Compile Include="Keyword.cs" />
     <Compile Include="Lexer.cs" />
+    <Compile Include="Optional.cs" />
+    <Compile Include="Parsing\GetTokenVisitor.cs" />
     <Compile Include="Parsing\IParseTreeLeafVisitor.cs" />
     <Compile Include="Parsing\Module.cs" />
     <Compile Include="Parsing\NoOpParseTreeVisitor.cs" />
@@ -64,6 +67,7 @@
     <Compile Include="Parsing\Parser.cs" />
     <Compile Include="Parsing\ParseTreeLeaves\FunctionCallParseLeaf.cs" />
     <Compile Include="Parsing\ParseTreeLeaves\IdentifierParseLeaf.cs" />
+    <Compile Include="Parsing\ParseTreeLeaves\PlaceholderLeaf.cs" />
     <Compile Include="Parsing\Scoping\Scope.cs" />
     <Compile Include="Parsing\Scoping\ScopeCache.cs" />
     <Compile Include="Parsing\Scoping\ScopeResolver.cs" />
@@ -85,6 +89,7 @@
     <Compile Include="SyntaxTree\EnumValueLeaf.cs" />
     <Compile Include="SyntaxTree\ForLeaf.cs" />
     <Compile Include="SyntaxTree\FunctionCallLeaf.cs" />
+    <Compile Include="SyntaxTree\UnaryOperationLeaf.cs" />
     <Compile Include="SyntaxTree\Util\IReplacementVisitor.cs" />
     <Compile Include="SyntaxTree\Util\NoOpASTVisitor.cs" />
     <Compile Include="SyntaxTree\Util\ProcessReplacementsVisitor.cs" />
@@ -98,13 +103,21 @@
     <Compile Include="SyntaxTree\WhileLeaf.cs" />
     <Compile Include="Token.cs" />
     <Compile Include="TokenType.cs" />
+    <Compile Include="VM\Continuation.cs" />
+    <Compile Include="VM\IVMBindingContext.cs" />
+    <Compile Include="VM\IYieldToken.cs" />
+    <Compile Include="VM\LinkableFunctionAttribute.cs" />
+    <Compile Include="VM\LinkableModuleAttribute.cs" />
     <Compile Include="VM\Linker.cs" />
     <Compile Include="VM\LinkError.cs" />
     <Compile Include="VM\StackFrame.cs" />
     <Compile Include="VM\StackFrameMemory.cs" />
     <Compile Include="VM\VirtualMachine.cs" />
+    <Compile Include="VM\VMBindingContext.cs" />
+    <Compile Include="VM\VMEnumerableWrapper.cs" />
     <Compile Include="VM\VMFunction.cs" />
     <Compile Include="VM\VMModule.cs" />
+    <Compile Include="VM\YieldToken.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

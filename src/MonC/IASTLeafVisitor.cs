@@ -5,6 +5,7 @@ namespace MonC
     public interface IASTLeafVisitor
     {
         void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf);
+        void VisitUnaryOperation(UnaryOperationLeaf leaf);
         void VisitBody(BodyLeaf leaf);
         void VisitDeclaration(DeclarationLeaf leaf);
         void VisitFor(ForLeaf leaf);

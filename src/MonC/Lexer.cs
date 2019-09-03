@@ -113,12 +113,17 @@ namespace MonC
 
         private bool IsIdentifierOpener(char c)
         {
-            return Char.IsLetter(c) || c == '_';
+            return char.IsLetter(c) || c == '_';
         }
 
         private bool IsValidIdentifierCharacter(char c)
         {
-            return Char.IsLetterOrDigit(c) || c == '_';
+            return char.IsLetterOrDigit(c) || c == '_';
+        }
+
+        private bool IsValidNumericCharacter(char c)
+        {
+            return char.IsLetterOrDigit(c) || c == '.';
         }
 
         private bool IsNextTokenCommentOpener()
@@ -188,7 +193,7 @@ namespace MonC
             while ((next = Peek()) != -1) {
                 char nextChar = (char) next;
 
-                if (!(Char.IsDigit(nextChar) || nextChar == '.')) {
+                if (!IsValidNumericCharacter(nextChar)) {
                     // Number is finished
                     string value = _valueBuffer.ToString();
                     _valueBuffer.Length = 0;

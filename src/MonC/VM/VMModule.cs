@@ -6,7 +6,7 @@ namespace MonC.VM
     public class VMModule
     {
         public ILModule Module;
-        public Dictionary<int, VMFunction> VMFunctions;
+        public Dictionary<int, VMEnumerable> VMFunctions;
         public LinkError[] Errors;
     }
 }

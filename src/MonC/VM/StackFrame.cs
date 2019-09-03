@@ -1,3 +1,4 @@
+
 namespace MonC.VM
 {
     public class StackFrame
@@ -5,6 +6,7 @@ namespace MonC.VM
         public int Function;
         public int PC;
         public StackFrameMemory Memory = new StackFrameMemory();
-        public int ArgumentCount;
+        public VMBindingContext BindingContext;
+        
     }
 }
