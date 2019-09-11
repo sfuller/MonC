@@ -15,19 +15,27 @@ namespace MonC
 
         private IList<ParseError> _errors;
         
-        public void Parse(IEnumerable<Token> tokens, Module module, IList<ParseError> errors)
+        public void Parse(IEnumerable<Token> tokens, Module module, IList<ParseError> errors, IList<FunctionDefinitionLeaf> functions)
         {
             _tokens.Clear();
             _tokens.AddRange(tokens);
 
             _errors = errors;
 
+            IList<FunctionDefinitionLeaf> newFunctions = new List<FunctionDefinitionLeaf>();
+            
             while (Peek().Type != TokenType.None) {
-                ParseTopLevelStatement(module.Functions, module.Enums);
+                ParseTopLevelStatement(newFunctions, module.Enums);
             }
             
+            module.Functions.AddRange(newFunctions);
+
             SemanticAnalyzer analyzer = new SemanticAnalyzer();
-            analyzer.AnalyzeModule(module, errors);
+            analyzer.AnalyzeModule(module, errors, functions);
+            
+            foreach (FunctionDefinitionLeaf func in newFunctions) {
+                functions.Add(func);
+            }
         }
 
         private Token Peek(int offset = 0)

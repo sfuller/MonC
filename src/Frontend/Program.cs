@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using MonC.Codegen;
 using MonC.DotNetInterop;
+using MonC.SyntaxTree;
 using MonC.VM;
 using Module = MonC.Parsing.Module;
 
@@ -15,13 +16,13 @@ namespace MonC.Frontend
     { 
         public static void Main(string[] args)
         {
-            AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) => {
-                if (eventArgs.ExceptionObject is Exception exception) {
-                    Console.Error.WriteLine(exception.ToString());
-                    Console.Error.WriteLine(new StackTrace(exception));
-                    Environment.Exit(2);    
-                }
-            }; 
+            //AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) => {
+            //    if (eventArgs.ExceptionObject is Exception exception) {
+            //        Console.Error.WriteLine(exception.ToString());
+            //        Console.Error.WriteLine(new StackTrace(exception));
+            //        Environment.Exit(2);    
+            //    }
+            //}; 
             
             bool isInteractive = false;
             bool showLex = false;
@@ -110,15 +111,15 @@ namespace MonC.Frontend
             
             Parser parser = new Parser();
             Module module = new Module();
-            module.Functions.AddRange(interopResolver.Definitions);
+            List<FunctionDefinitionLeaf> allFunctions = new List<FunctionDefinitionLeaf>(interopResolver.Definitions);
             List<ParseError> errors = new List<ParseError>();
-            parser.Parse(tokens, module, errors);
+            parser.Parse(tokens, module, errors, allFunctions);
 
             Console.WriteLine();
             
             for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
                 ParseError error = errors[i];
-                Console.Error.WriteLine($"{error.Token.Line},{error.Token.Column}: {error.Message}");
+                Console.Error.WriteLine($"{error.Token.Line + 1},{error.Token.Column + 1}: {error.Message}");
             }
 
             if (errors.Count > 0) {
@@ -142,6 +143,10 @@ namespace MonC.Frontend
             Linker linker = new Linker();
             linker.AddModule(ilmodule);
 
+            foreach (KeyValuePair<string, VMEnumerable> binding in interopResolver.Bindings) {
+                linker.AddFunctionBinding(binding.Key, binding.Value);
+            }
+
             VMModule vmModule = linker.Link();
 
             if (vmModule.Errors.Length > 0) {
@@ -151,8 +156,16 @@ namespace MonC.Frontend
                 Environment.Exit(1);
             }
             
+            List<string> loadErrors = new List<string>();
+            if (!interopResolver.PrepareForExecution(vmModule, loadErrors)) {
+                foreach (string error in loadErrors) {
+                    Console.Error.WriteLine($"Load error: {error}");
+                }
+                Environment.Exit(1);
+            }
+
             VirtualMachine vm = new VirtualMachine();
-            vm.LoadModule(linker.Link());
+            vm.LoadModule(vmModule);
             vm.Call("main", argsToPass);
         }
 

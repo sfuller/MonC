@@ -31,13 +31,12 @@ namespace MonC.Codegen
 
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
-            // Evaluate left hand side
-            leaf.LHS.Accept(this);
-
+            // Evaluate right hand side and put it in the b register
+            leaf.RHS.Accept(this);
             AddInstruction(OpCode.LOADB);
             
-            // Evaluate right hand side
-            leaf.RHS.Accept(this);
+            // Evaluate left hand side and put it in the a register
+            leaf.LHS.Accept(this);
 
 
             switch (leaf.Op.Value) {
@@ -63,8 +62,23 @@ namespace MonC.Codegen
                     AddInstruction(OpCode.AND);
                     AddInstruction(OpCode.BOOL);
                     break;
+                case "+":
+                    AddInstruction(OpCode.ADD);
+                    break;
+                case "-":
+                    AddInstruction(OpCode.SUB);
+                    break;
+                case "*":
+                    AddInstruction(OpCode.MUL);
+                    break;
+                case "/":
+                    AddInstruction(OpCode.DIV);
+                    break;
+                case "%":
+                    AddInstruction(OpCode.MUL);
+                    break;
                 default:
-                    throw new NotImplementedException();
+                    throw new NotImplementedException(leaf.Op.Value);
             }
             
         }

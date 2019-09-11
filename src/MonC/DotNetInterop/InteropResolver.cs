@@ -12,8 +12,10 @@ namespace MonC.DotNetInterop
     {
         private Dictionary<string, VMEnumerable> _bindings = new Dictionary<string, VMEnumerable>();
         private readonly Dictionary<string, FunctionDefinitionLeaf> _definitions = new Dictionary<string, FunctionDefinitionLeaf>();
+        private readonly List<Type> _linkableModules = new List<Type>();
         
         public IEnumerable<FunctionDefinitionLeaf> Definitions => _definitions.Values;
+        public IEnumerable<KeyValuePair<string, VMEnumerable>> Bindings => _bindings;
         
         public void FindBindings(Assembly assembly)
         {
@@ -25,8 +27,33 @@ namespace MonC.DotNetInterop
             }
         }
 
+        public bool PrepareForExecution(VMModule module, IList<string> errors)
+        {
+            Dictionary<string, int> exporetedFunctions = module.Module.ExportedFunctions.ToDictionary(p => p.Key, p => p.Value);
+            bool success = true;
+            
+            foreach (Type type in _linkableModules) {
+                FieldInfo[] fields = type.GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                foreach (FieldInfo field in fields) {
+                    object[] attribs = field.GetCustomAttributes(typeof(LinkableFunctionAttribute), inherit: false);
+                    foreach (LinkableFunctionAttribute attrib in attribs) {
+                        int index;
+                        if (!exporetedFunctions.TryGetValue(attrib.Name, out index)) {
+                            errors.Add($"Cannot find exported method {attrib.Name}");
+                            success = false;
+                        }
+                        field.SetValue(null, index);
+                    }
+                }
+            }
+
+            return success;
+        }
+
         private void ImportModule(Type type)
         {
+            _linkableModules.Add(type);
+            
             MethodInfo[] methods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly);
 
             foreach (MethodInfo method in methods) {
@@ -45,8 +72,6 @@ namespace MonC.DotNetInterop
             if (ProcessEnumeratorBinding(method, parameters)) {
                 return;
             }
-            
-            throw new InvalidOperationException("TODO");
         }
 
         private bool ProcessSimpleBinding(MethodInfo method, ParameterInfo[] parameters)
@@ -101,6 +126,8 @@ namespace MonC.DotNetInterop
 
         private static VMEnumerable WrapSimpleBinding(MethodInfo info, ParameterInfo[] parameters)
         {
+            
+            
             return (context, args) => SimpleBindingEnumerator(info, parameters, args);
         }
         
@@ -127,9 +154,9 @@ namespace MonC.DotNetInterop
             // TODO: This sucks
             
             VMEnumerable enumerable = (context, args) => {
-                object[] invokeArgs = new object[parameters.Length + 1];
+                object[] invokeArgs = new object[parameters.Length];
                 invokeArgs[0] = context;
-                for (int i = 0, ilen = parameters.Length; i < ilen; ++i) {
+                for (int i = 0, ilen = args.Length; i < ilen; ++i) {
                     invokeArgs[i + 1] = args[i];
                 }
 

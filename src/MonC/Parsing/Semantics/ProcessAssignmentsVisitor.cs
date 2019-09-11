@@ -39,10 +39,7 @@ namespace MonC.Parsing.Semantics
                 
                 DeclarationLeaf declaration = scope.Variables.Find(d => d.Name == identifier.Name);
                 if (declaration == null) {
-                    // TODO: Make this shared functionality
-                    GetTokenVisitor tokenVisitor = new GetTokenVisitor();
-                    leaf.LHS.Accept(tokenVisitor);
-                    _errors.Add(new ParseError {Message = $"Undeclared identifier {identifier.Name}", Token = tokenVisitor.Token} );
+                    _errors.Add(new ParseError {Message = $"Undeclared identifier {identifier.Name}", Token = identifier.Token} );
                     return;
                 }
 

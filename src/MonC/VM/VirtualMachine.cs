@@ -4,7 +4,7 @@ using MonC.Bytecode;
 
 namespace MonC.VM
 {
-    public class VirtualMachine
+    public class VirtualMachine : IVMBindingContext
     {
         private readonly Stack<StackFrame> _callStack = new Stack<StackFrame>();
         private readonly List<int> _argumentStack = new List<int>();
@@ -83,7 +83,7 @@ namespace MonC.VM
             
             StackFrame top = _callStack.Peek();
 
-            if (top.BindingContext != null) {
+            if (top.BindingEnumerator != null) {
                 InterpretBoundFunctionCall(top);
                 return;
             }
@@ -95,15 +95,13 @@ namespace MonC.VM
 
         private void InterpretBoundFunctionCall(StackFrame frame)
         {
-            frame.BindingContext.ReturnValue = _aRegister;
-            
-            if (!frame.BindingContext.Enumerator.MoveNext()) {
+            if (!frame.BindingEnumerator.MoveNext()) {
                 // Function has finished
-                _callStack.Pop();
+                PopFrame();
                 return;
             }
 
-            Continuation continuation = frame.BindingContext.Enumerator.Current;
+            Continuation continuation = frame.BindingEnumerator.Current;
 
             if (continuation.Action == ContinuationAction.CALL) {
                 _argumentStack.AddRange(continuation.Arguments);
@@ -113,7 +111,7 @@ namespace MonC.VM
 
             if (continuation.Action == ContinuationAction.RETURN) {
                 _aRegister = continuation.ReturnValue;
-                _callStack.Pop();
+                PopFrame();
                 return;
             }
 
@@ -128,8 +126,9 @@ namespace MonC.VM
             }
 
             if (continuation.Action == ContinuationAction.UNWRAP) {
-                StackFrame unwrapFrame = MakeBoundCallFrame();
-                unwrapFrame.BindingContext.Enumerator = continuation.ToUnwrap;
+                StackFrame unwrapFrame = AcquireFrame();
+                unwrapFrame.Function = frame.Function;
+                unwrapFrame.BindingEnumerator = continuation.ToUnwrap;
                 _callStack.Push(unwrapFrame);
                 return;
             }
@@ -200,6 +199,15 @@ namespace MonC.VM
                 case OpCode.OR:
                     InterpretOr(ins);
                     break;
+                case OpCode.MUL:
+                    InterpretMul(ins);
+                    break;
+                case OpCode.DIV:
+                    InterpretDiv(ins);
+                    break;
+                case OpCode.MOD:
+                    InterpretMod(ins);    
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -241,7 +249,7 @@ namespace MonC.VM
 
         private void InterpretReturn(Instruction ins)
         {
-            _callStack.Pop();
+            PopFrame();
         }
 
         private void InterpretCmpE(Instruction ins)
@@ -307,6 +315,21 @@ namespace MonC.VM
         {
             _aRegister |= _bRegister;
         }
+
+        private void InterpretMul(Instruction ins)
+        {
+            _aRegister *= _bRegister;
+        }
+
+        private void InterpretDiv(Instruction ins)
+        {
+            _aRegister /= _bRegister;
+        }
+
+        private void InterpretMod(Instruction ins)
+        {
+            _aRegister %= _bRegister;
+        }
         
         private void Jump(int offset)
         {
@@ -315,15 +338,16 @@ namespace MonC.VM
 
         private void PushCall(int functionIndex)
         {
+            StackFrame newFrame = AcquireFrame();
+            newFrame.Function = functionIndex;
+
             if (functionIndex >= _module.Module.DefinedFunctions.Length) {
-                StackFrame frame = MakeBoundCallFrame();
                 VMEnumerable enumerable = _module.VMFunctions[functionIndex];
                 int[] args = _argumentStack.ToArray();
                 _argumentStack.Clear();
-                frame.BindingContext.Enumerator = enumerable(frame.BindingContext, args);
-                _callStack.Push(frame);
+                newFrame.BindingEnumerator = enumerable(this, args);
+                _callStack.Push(newFrame);
             } else {
-                StackFrame newFrame = new StackFrame { Function = functionIndex };
                 for (int i = 0, ilen = _argumentStack.Count; i < ilen; ++i) {
                     newFrame.Memory.Write(i, _argumentStack[i]);
                 }
@@ -332,10 +356,24 @@ namespace MonC.VM
             }
         }
 
-        private StackFrame MakeBoundCallFrame()
+        int IVMBindingContext.ReturnValue => _aRegister;
+
+        private StackFrame AcquireFrame()
         {
-            VMBindingContext context = new VMBindingContext();
-            return new StackFrame { BindingContext = context};
+            if (_framePool.Count > 0) {
+                return _framePool.Pop();
+            }
+            return new StackFrame();
         }
+
+        private void PopFrame()
+        {
+            StackFrame frame = _callStack.Pop();
+            frame.BindingEnumerator = null;
+            frame.PC = 0;
+            _framePool.Push(frame);
+        }
+
+        private readonly Stack<StackFrame> _framePool = new Stack<StackFrame>();
     }
 }

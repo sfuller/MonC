@@ -1,0 +1,11 @@
+
+int main() {
+    int y = 0;
+
+    for (int x = 1; x < 20; x = x + 1) {
+        y = y + 1;
+    }
+
+    return y;
+}
+

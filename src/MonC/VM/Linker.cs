@@ -133,7 +133,8 @@ namespace MonC.VM
                         _errors.Add(new LinkError {Message = $"Undefined function {functionName}"});
                     }
                 }
-                
+
+                impl[i] = ins;
             }
             
         }

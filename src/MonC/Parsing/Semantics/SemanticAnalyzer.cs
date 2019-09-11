@@ -13,7 +13,7 @@ namespace MonC.Parsing.Semantics
         private readonly Dictionary<string, FunctionDefinitionLeaf> _functions = new Dictionary<string, FunctionDefinitionLeaf>();
         
 
-        public void AnalyzeModule(Module module, IList<ParseError> errors)
+        public void AnalyzeModule(Module module, IList<ParseError> errors, IEnumerable<FunctionDefinitionLeaf> functions)
         {
             _functions.Clear();
             _errors = errors;
@@ -21,6 +21,10 @@ namespace MonC.Parsing.Semantics
             _enumManager = new EnumManager(_errors);
             foreach (EnumLeaf enumLeaf in module.Enums) {
                 _enumManager.RegisterEnum(enumLeaf);
+            }
+
+            foreach (FunctionDefinitionLeaf externalFunction in functions) {
+                _functions.Add(externalFunction.Name, externalFunction);
             }
 
             foreach (FunctionDefinitionLeaf function in module.Functions) {

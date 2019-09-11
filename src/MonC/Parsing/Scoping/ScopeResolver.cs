@@ -91,9 +91,10 @@ namespace MonC.Parsing.Scoping
             
             _cache.SetScope(leaf, _scope);
             
-            CheckChild(leaf.Declaration);
-            CheckChild(leaf.Condition);
-            CheckChild(leaf.Update);
+            leaf.Declaration.Accept(this);
+            leaf.Condition.Accept(this);
+            leaf.Update.Accept(this);
+            
             CheckChild(leaf.Body);
         }
 

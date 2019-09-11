@@ -53,6 +53,9 @@ namespace MonC.Bytecode
         SUB,
         OR,
         AND,
-        XOR
+        XOR,
+        MUL,
+        DIV,
+        MOD
     }
 }
