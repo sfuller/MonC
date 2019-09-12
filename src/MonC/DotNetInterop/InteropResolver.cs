@@ -35,8 +35,8 @@ namespace MonC.DotNetInterop
             foreach (Type type in _linkableModules) {
                 FieldInfo[] fields = type.GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
                 foreach (FieldInfo field in fields) {
-                    object[] attribs = field.GetCustomAttributes(typeof(LinkableFunctionAttribute), inherit: false);
-                    foreach (LinkableFunctionAttribute attrib in attribs) {
+                    object[] attribs = field.GetCustomAttributes(typeof(ExternalFunctionAttribute), inherit: false);
+                    foreach (ExternalFunctionAttribute attrib in attribs) {
                         int index;
                         if (!exporetedFunctions.TryGetValue(attrib.Name, out index)) {
                             errors.Add($"Cannot find exported method {attrib.Name}");
@@ -63,59 +63,62 @@ namespace MonC.DotNetInterop
 
         private void ProcessFunction(MethodInfo method)
         {
-            ParameterInfo[] parameters = method.GetParameters();
-
-            if (ProcessSimpleBinding(method, parameters)) {
+            object[] attribs = method.GetCustomAttributes(typeof(LinkableFunctionAttribute), inherit: false);
+            if (attribs.Length == 0) {
                 return;
             }
 
-            if (ProcessEnumeratorBinding(method, parameters)) {
+            LinkableFunctionAttribute attribute = (LinkableFunctionAttribute) attribs[0];
+            ParameterInfo[] parameters = method.GetParameters();
+
+            if (ProcessSimpleBinding(attribute, method, parameters)) {
+                return;
+            }
+
+            if (ProcessEnumeratorBinding(attribute, method, parameters)) {
                 return;
             }
         }
 
-        private bool ProcessSimpleBinding(MethodInfo method, ParameterInfo[] parameters)
+        private bool ProcessSimpleBinding(LinkableFunctionAttribute attribute, MethodInfo method, ParameterInfo[] parameters)
         {
             if (method.ReturnType != typeof(int)) {
                 return false;
             }
-
-            foreach (ParameterInfo param in parameters) {
-                if (param.ParameterType != typeof(int)) {
-                    return false;
-                }
+            if (parameters.Length != 1 && parameters[0].ParameterType != typeof(int[])) {
+                return false;
             }
-            
-            AddBinding(method, parameters, WrapSimpleBinding(method, parameters));
+
+            AddBinding(method, attribute, WrapSimpleBinding(method));
             return true;
         }
 
-        private bool ProcessEnumeratorBinding(MethodInfo method, ParameterInfo[] parameters)
+        private bool ProcessEnumeratorBinding(LinkableFunctionAttribute attribute, MethodInfo method, ParameterInfo[] parameters)
         {
             if (method.ReturnType != typeof(IEnumerator<Continuation>)) {
                 return false;
             }
 
+            if (parameters.Length != 2) {
+                return false;
+            }
             if (parameters[0].ParameterType != typeof(IVMBindingContext)) {
                 return false;
             }
-
-            for (int i = 1, ilen = parameters.Length; i < ilen; ++i) {
-                if (parameters[i].ParameterType != typeof(int)) {
-                    return false;
-                }
+            if (parameters[1].ParameterType != typeof(int[])) {
+                return false;
             }
-            
-            AddBinding(method, parameters, WrapEnumeratorBinding(method, parameters));
+
+            AddBinding(method, attribute, (VMEnumerable) Delegate.CreateDelegate(typeof(VMEnumerable), method));
             return true;
         }
 
-        private void AddBinding(MethodInfo method, ParameterInfo[] parameters, VMEnumerable binding)
+        private void AddBinding(MethodInfo method, LinkableFunctionAttribute attribute, VMEnumerable binding)
         {
             FunctionDefinitionLeaf def = new FunctionDefinitionLeaf(
                 name: method.Name,
                 returnType: "int",
-                parameters: parameters.Select(ParamToDeclaration),
+                parameters: FunctionAttributeToDeclarations(attribute),
                 body: new PlaceholderLeaf(), 
                 isExported: true
             );
@@ -124,50 +127,24 @@ namespace MonC.DotNetInterop
             _bindings[method.Name] = binding;
         }
 
-        private static VMEnumerable WrapSimpleBinding(MethodInfo info, ParameterInfo[] parameters)
+        private static VMEnumerable WrapSimpleBinding(MethodInfo info)
         {
-            
-            
-            return (context, args) => SimpleBindingEnumerator(info, parameters, args);
+            VMFunction func = (VMFunction)Delegate.CreateDelegate(typeof(VMFunction), info);
+            return (context, args) => SimpleBindingEnumerator(func, args);
         }
-        
-        private static IEnumerator<Continuation> SimpleBindingEnumerator(MethodInfo info, ParameterInfo[] parameters, int[] arguments)
+
+        private static IEnumerator<Continuation> SimpleBindingEnumerator(VMFunction func, int[] arguments)
         {
-            // TODO: This sucks
-            
-            object[] invokeArgs = new object[parameters.Length];
-            for (int i = 0, ilen = parameters.Length; i < ilen; ++i) {
-                invokeArgs[i] = arguments[i];
+            int rv = func(arguments);
+            yield return Continuation.Return(rv);
+        }
+
+        private static IEnumerable<DeclarationLeaf> FunctionAttributeToDeclarations(LinkableFunctionAttribute attribute)
+        {
+            for (int i = 0, ilen = attribute.ArgumentCount; i < ilen; ++i) {
+                yield return new DeclarationLeaf("int", "", new Optional<IASTLeaf>(), new Token()); 
             }
-
-            object rv = info.Invoke(null, invokeArgs);
-            yield return Continuation.Return((int) rv);
         }
-
-        private static DeclarationLeaf ParamToDeclaration(ParameterInfo parameter)
-        {
-            return new DeclarationLeaf("int", parameter.Name, new Optional<IASTLeaf>(), new Token());
-        }
-
-        private static VMEnumerable WrapEnumeratorBinding(MethodInfo info, ParameterInfo[] parameters)
-        {
-            // TODO: This sucks
-            
-            VMEnumerable enumerable = (context, args) => {
-                object[] invokeArgs = new object[parameters.Length];
-                invokeArgs[0] = context;
-                for (int i = 0, ilen = args.Length; i < ilen; ++i) {
-                    invokeArgs[i + 1] = args[i];
-                }
-
-                object rv = info.Invoke(null, invokeArgs);
-                return (IEnumerator<Continuation>) rv;
-            };
-
-            return enumerable;
-        }
-        
-
 
     }
 }

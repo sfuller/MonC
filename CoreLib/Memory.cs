@@ -16,8 +16,10 @@ namespace CoreLib
         private static readonly SortedList<int, int> _holes = new SortedList<int, int>();
         private static readonly Dictionary<int, int> _allocations = new Dictionary<int, int>();
 
-        public static int malloc(int size)
+        [LinkableFunction(ArgumentCount = 1)]
+        public static int malloc(int[] args)
         {
+            int size = args[0];
             int address = 0;
             
             // Allocate within a hole
@@ -50,9 +52,11 @@ namespace CoreLib
 
             return address;
         }
-
-        public static int free(int address)
+        
+        [LinkableFunction(ArgumentCount = 1)]
+        public static int free(int[] args)
         {
+            int address = args[0];
             int size;
             
             if (!_allocations.TryGetValue(address, out size)) {
@@ -94,8 +98,13 @@ namespace CoreLib
             return 0;
         }
 
-        public static int memset(int dest, int value, int size)
+        [LinkableFunction(ArgumentCount = 3)]
+        public static int memset(int[] args)
         {
+            int dest = args[0];
+            int value = args[1];
+            int size = args[2];
+            
             while (size-- > 0) {
                 _heap[dest++] = value;
             }
@@ -103,14 +112,20 @@ namespace CoreLib
             return 0;
         }
 
-        public static int poke(int dest, int value)
+        [LinkableFunction(ArgumentCount = 2)]
+        public static int poke(int[] args)
         {
+            int dest = args[0];
+            int value = args[1];
+            
             _heap[dest] = value;
             return 0;
         }
 
-        public static int peek(int src)
+        [LinkableFunction(ArgumentCount = 1)]
+        public static int peek(int[] args)
         {
+            int src = args[0];
             return _heap[src];
         }
     }

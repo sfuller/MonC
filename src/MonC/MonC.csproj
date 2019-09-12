@@ -106,6 +106,7 @@
     <Compile Include="VM\Continuation.cs" />
     <Compile Include="VM\IVMBindingContext.cs" />
     <Compile Include="VM\IYieldToken.cs" />
+    <Compile Include="VM\ExternalFunctionAttribute.cs" />
     <Compile Include="VM\LinkableFunctionAttribute.cs" />
     <Compile Include="VM\LinkableModuleAttribute.cs" />
     <Compile Include="VM\Linker.cs" />
