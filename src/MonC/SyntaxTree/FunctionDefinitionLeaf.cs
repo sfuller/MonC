@@ -14,10 +14,10 @@ namespace MonC.SyntaxTree
         public string Name;
         public string ReturnType;
         public DeclarationLeaf[] Parameters;
-        public IASTLeaf Body;
+        public BodyLeaf Body;
         public bool IsExported;
 
-        public FunctionDefinitionLeaf(string name, string returnType, IEnumerable<DeclarationLeaf> parameters, IASTLeaf body, bool isExported)
+        public FunctionDefinitionLeaf(string name, string returnType, IEnumerable<DeclarationLeaf> parameters, BodyLeaf body, bool isExported)
         {
             Name = name;
             ReturnType = returnType;

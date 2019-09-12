@@ -52,7 +52,6 @@
     <Compile Include="Codegen\IVariable.cs" />
     <Compile Include="Codegen\IVariableVisitor.cs" />
     <Compile Include="Codegen\StackLayoutGenerator.cs" />
-    <Compile Include="Codegen\StaticStringManager.cs" />
     <Compile Include="DotNetInterop\InteropResolver.cs" />
     <Compile Include="IASTLeaf.cs" />
     <Compile Include="IASTLeafVisitor.cs" />
@@ -102,6 +101,7 @@
     <Compile Include="SyntaxTree\StringLiteralLeaf.cs" />
     <Compile Include="SyntaxTree\WhileLeaf.cs" />
     <Compile Include="Token.cs" />
+    <Compile Include="TokenRange.cs" />
     <Compile Include="TokenType.cs" />
     <Compile Include="VM\Continuation.cs" />
     <Compile Include="VM\IVMBindingContext.cs" />

@@ -12,7 +12,7 @@ namespace MonC.VM
         
         private readonly List<LinkError> _errors = new List<LinkError>();
         private readonly Dictionary<string, int> _exportedFunctionIndices = new Dictionary<string, int>();
-        private readonly List<Instruction[]> _functionImplementations = new List<Instruction[]>();
+        private readonly List<ILFunction> _functionImplementations = new List<ILFunction>();
         private readonly List<int> _moduleOffsets = new List<int>();
 
 
@@ -74,8 +74,9 @@ namespace MonC.VM
 
             // Make copies of implementations for modification
             for (int i = 0, ilen = inputModule.DefinedFunctions.Length; i < ilen; ++i) {
-                Instruction[] impl = inputModule.DefinedFunctions[i];
-                _functionImplementations.Add(impl.ToArray());
+                ILFunction function = inputModule.DefinedFunctions[i];
+                function.Code = function.Code.ToArray();
+                _functionImplementations.Add(function);
             }
             
             foreach (KeyValuePair<string, int> exportedFunction in inputModule.ExportedFunctions) {
@@ -107,7 +108,7 @@ namespace MonC.VM
             int baseIndex = _moduleOffsets[index];
 
             for (int i = 0, ilen = module.DefinedFunctions.Length; i < ilen; ++i) {
-                Instruction[] newImpl = _functionImplementations[baseIndex + i];
+                Instruction[] newImpl = _functionImplementations[baseIndex + i].Code;
                 LinkFunction(baseIndex, module, newImpl);
             }
         }

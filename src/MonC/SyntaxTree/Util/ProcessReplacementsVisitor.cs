@@ -116,19 +116,19 @@ namespace MonC.SyntaxTree.Util
         {
         }
         
-        private IASTLeaf ProcessReplacement(IASTLeaf leaf, IASTLeaf previous)
+        private T ProcessReplacement<T>(T leaf, IASTLeaf previous) where T : class, IASTLeaf
         {
-            Optional<IASTLeaf> result = ProcessReplacement(new Optional<IASTLeaf>(leaf), previous);
-            IASTLeaf nonNullResult;
+            Optional<T> result = ProcessReplacement(new Optional<T>(leaf), previous);
+            T nonNullResult;
             if (result.Get(out nonNullResult)) {
                 return nonNullResult;
             }
             throw new InvalidOperationException("Result of ProcessReplacement cannot be null here");
         }
 
-        private Optional<IASTLeaf> ProcessReplacement(Optional<IASTLeaf> leaf, IASTLeaf previous)
+        private Optional<T> ProcessReplacement<T>(Optional<T> leaf, IASTLeaf previous) where T : class, IASTLeaf
         {
-            IASTLeaf nonNullLeaf;
+            T nonNullLeaf;
             if (leaf.Get(out nonNullLeaf)) {
                 nonNullLeaf.Accept(_replacer);    
             }
@@ -140,8 +140,19 @@ namespace MonC.SyntaxTree.Util
                     ScopeResolver resolver = new ScopeResolver(_scopes, _scopes.GetScope(nonNullLeaf));
                     newLeaf.Accept(resolver);
                 }
+
+                if (newLeaf == null) {
+                    return new Optional<T>();
+                }
                 
-                return new Optional<IASTLeaf>(newLeaf);
+                // TODO: This sucks, considering making separate visitors for different types.
+                T newTypedLeaf = newLeaf as T;
+
+                if (newTypedLeaf == null) {
+                    return new Optional<T>();
+                }
+                
+                return new Optional<T>(newTypedLeaf);
             }
             return leaf;
         }

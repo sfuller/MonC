@@ -140,9 +140,9 @@ namespace MonC.Frontend
             --_currentIndent;
         }
 
-        public void VisitSubleaf(Optional<IASTLeaf> leaf)
+        public void VisitSubleaf<T>(Optional<T> leaf) where T : class, IASTLeaf
         {
-            IASTLeaf leafData;
+            T leafData;
             if (leaf.Get(out leafData)) {
                 VisitSubleaf(leafData);
             }

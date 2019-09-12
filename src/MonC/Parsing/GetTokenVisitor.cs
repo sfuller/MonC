@@ -18,12 +18,12 @@ namespace MonC.Parsing
 
         public void VisitBody(BodyLeaf leaf)
         {
-            Token = leaf.Token;
+            //Token = leaf.Token;
         }
 
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
-            Token = leaf.Token;
+            //Token = leaf.Token;
         }
 
         public void VisitFor(ForLeaf leaf)

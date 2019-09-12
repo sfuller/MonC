@@ -44,7 +44,8 @@ namespace MonC.Parsing.Semantics
             }
 
             ShouldReplace = false;
-            _errors.Add(new ParseError { Message = $"Undeclared identifier {leaf.Name}", Token = leaf.Token});
+            //_errors.Add(new ParseError { Message = $"Undeclared identifier {leaf.Name}", Token = leaf.Token});
+            _errors.Add(new ParseError { Message = $"Undeclared identifier {leaf.Name}", Token = new Token()});
         }
 
         public void VisitFunctionCall(FunctionCallParseLeaf leaf)

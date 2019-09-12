@@ -39,7 +39,8 @@ namespace MonC.Parsing.Semantics
                 
                 DeclarationLeaf declaration = scope.Variables.Find(d => d.Name == identifier.Name);
                 if (declaration == null) {
-                    _errors.Add(new ParseError {Message = $"Undeclared identifier {identifier.Name}", Token = identifier.Token} );
+                    //_errors.Add(new ParseError {Message = $"Undeclared identifier {identifier.Name}", Token = identifier.Token} );
+                    _errors.Add(new ParseError {Message = $"Undeclared identifier {identifier.Name}", Token = new Token()} );
                     return;
                 }
 

@@ -3,12 +3,12 @@ namespace MonC.SyntaxTree
 {
     public class ForLeaf : IASTLeaf
     {
-        public IASTLeaf Declaration;
+        public DeclarationLeaf Declaration;
         public IASTLeaf Condition;
         public IASTLeaf Update;
-        public IASTLeaf Body;
+        public BodyLeaf Body;
 
-        public ForLeaf(IASTLeaf declaration, IASTLeaf condition, IASTLeaf update, IASTLeaf body)
+        public ForLeaf(DeclarationLeaf declaration, IASTLeaf condition, IASTLeaf update, BodyLeaf body)
         {
             Declaration = declaration;
             Condition = condition;

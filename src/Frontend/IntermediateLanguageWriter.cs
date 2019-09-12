@@ -21,7 +21,7 @@ namespace MonC.Frontend
                 if (!exportedFunctionNames.TryGetValue(i, out name)) {
                     name = "";
                 }
-                WriteFunction(name, i, module.DefinedFunctions[i]);
+                WriteFunction(name, i, module.DefinedFunctions[i].Code);
             }
         }
 

@@ -235,9 +235,17 @@ namespace MonC.Parsing.Scoping
 //            }
         }
 
-        private void CheckChild(Optional<IASTLeaf> leaf)
+//        private void CheckChild(Optional<IASTLeaf> leaf)
+//        {
+//            IASTLeaf nonNullLeaf;
+//            if (leaf.Get(out nonNullLeaf)) {
+//                CheckChild(nonNullLeaf);
+//            }
+//        }
+
+        private void CheckChild<T>(Optional<T> leaf) where T : class, IASTLeaf
         {
-            IASTLeaf nonNullLeaf;
+            T nonNullLeaf;
             if (leaf.Get(out nonNullLeaf)) {
                 CheckChild(nonNullLeaf);
             }

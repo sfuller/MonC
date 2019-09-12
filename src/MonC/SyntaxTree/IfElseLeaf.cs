@@ -6,10 +6,10 @@ namespace MonC.SyntaxTree
     public class IfElseLeaf : IASTLeaf
     {
         public IASTLeaf Condition;
-        public IASTLeaf IfBody;
-        public Optional<IASTLeaf> ElseBody;
+        public BodyLeaf IfBody;
+        public Optional<BodyLeaf> ElseBody;
 
-        public IfElseLeaf(IASTLeaf condition, IASTLeaf ifBody, Optional<IASTLeaf> elseBody)
+        public IfElseLeaf(IASTLeaf condition, BodyLeaf ifBody, Optional<BodyLeaf> elseBody)
         {
             Condition = condition;
             IfBody = ifBody;

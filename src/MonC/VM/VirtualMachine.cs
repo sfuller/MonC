@@ -88,7 +88,7 @@ namespace MonC.VM
                 return;
             }
 
-            Instruction ins = _module.Module.DefinedFunctions[top.Function][top.PC];
+            Instruction ins = _module.Module.DefinedFunctions[top.Function].Code[top.PC];
             ++top.PC;
             InterpretInstruction(ins);
         }

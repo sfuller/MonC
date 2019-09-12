@@ -196,7 +196,7 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
             leaf.Condition.Accept(this);
             leaf.IfBody.Accept(this);
 
-            IASTLeaf elseBody;
+            BodyLeaf elseBody;
             if (leaf.ElseBody.Get(out elseBody)) {
                 elseBody.Accept(this);    
             }

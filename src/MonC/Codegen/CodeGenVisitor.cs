@@ -9,17 +9,26 @@ namespace MonC.Codegen
     {
         private readonly FunctionStackLayout _layout;
         private readonly FunctionManager _functionManager;
-
-        private readonly List<Instruction> _instructions;
-        private readonly StaticStringManager _strings = new StaticStringManager();
+        private readonly IDictionary<int, TokenRange> _addressToTokenMap;
+        private readonly IDictionary<IASTLeaf, TokenRange> _leafToTokenMap;
         
+        private readonly List<Instruction> _instructions;
+
         private readonly Stack<int> _breaks = new Stack<int>();
         
-        public CodeGenVisitor(FunctionStackLayout layout, List<Instruction> instructions,FunctionManager functionManager)
+        public CodeGenVisitor(
+            FunctionStackLayout layout,
+            List<Instruction> instructions,
+            FunctionManager functionManager,
+            IDictionary<int, TokenRange> addressToTokenMap,
+            IDictionary<IASTLeaf, TokenRange> leafToTokenMap
+        )
         {
             _layout = layout;
             _instructions = instructions;
             _functionManager = functionManager;
+            _addressToTokenMap = addressToTokenMap;
+            _leafToTokenMap = leafToTokenMap;
         }
 
         private int AddInstruction(OpCode op, int immediate = 0)
@@ -27,6 +36,13 @@ namespace MonC.Codegen
             int index = _instructions.Count;
             _instructions.Add(new Instruction(op, immediate));
             return index;
+        }
+
+        private void AddDebugSymbol(int address, IASTLeaf associatedLeaf)
+        {
+            TokenRange range;
+            _leafToTokenMap.TryGetValue(associatedLeaf, out range);
+            _addressToTokenMap[address] = range;
         }
 
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
@@ -38,7 +54,8 @@ namespace MonC.Codegen
             // Evaluate left hand side and put it in the a register
             leaf.LHS.Accept(this);
 
-
+            int comparisonOperationAddress = _instructions.Count;
+            
             switch (leaf.Op.Value) {
                 case ">":
                 case "<":
@@ -81,6 +98,7 @@ namespace MonC.Codegen
                     throw new NotImplementedException(leaf.Op.Value);
             }
             
+            AddDebugSymbol(comparisonOperationAddress, leaf);
         }
 
         public void VisitUnaryOperation(UnaryOperationLeaf leaf)
@@ -88,9 +106,10 @@ namespace MonC.Codegen
             switch (leaf.Operator.Value) {
                 case "-":
                     leaf.RHS.Accept(this);
-                    AddInstruction(OpCode.LOADB);
+                    int addr = AddInstruction(OpCode.LOADB);
                     AddInstruction(OpCode.LOAD, 0);
                     AddInstruction(OpCode.SUB);
+                    AddDebugSymbol(addr, leaf);
                     break;
                 default:
                     throw new NotImplementedException();
@@ -114,7 +133,8 @@ namespace MonC.Codegen
         public void VisitAssignment(AssignmentLeaf leaf)
         {
             leaf.RHS.Accept(this);
-            AddInstruction(OpCode.WRITE, _layout.Variables[leaf.Declaration]);
+            int addr = AddInstruction(OpCode.WRITE, _layout.Variables[leaf.Declaration]);
+            AddDebugSymbol(addr, leaf);
         }
 
         public void VisitEnum(EnumLeaf leaf)
@@ -141,7 +161,8 @@ namespace MonC.Codegen
             IASTLeaf assignment;
             if (leaf.Assignment.Get(out assignment)) {
                 assignment.Accept(this);
-                AddInstruction(OpCode.WRITE, _layout.Variables[leaf]);
+                int addr = AddInstruction(OpCode.WRITE, _layout.Variables[leaf]);
+                AddDebugSymbol(addr, leaf);
             }
         }
 
@@ -177,7 +198,8 @@ namespace MonC.Codegen
                 AddInstruction(OpCode.PUSHARG);
             }
             
-            AddInstruction(OpCode.CALL, _functionManager.GetFunctionIndex(leaf.LHS));
+            int addr = AddInstruction(OpCode.CALL, _functionManager.GetFunctionIndex(leaf.LHS));
+            AddDebugSymbol(addr, leaf);
         }
         
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
@@ -206,7 +228,7 @@ namespace MonC.Codegen
             // Jump to end of if/else after evaluation of if body.
             int ifEndIndex = AddInstruction(OpCode.NOOP);
 
-            IASTLeaf elseBody;
+            BodyLeaf elseBody;
             if (leaf.ElseBody.Get(out elseBody)) {
                 elseBody.Accept(this);
             }
@@ -225,8 +247,6 @@ namespace MonC.Codegen
         public void VisitStringLiteral(StringLiteralLeaf leaf)
         {
             throw new NotImplementedException();
-            //int offset = _strings.Get(leaf.Value);
-            //AddInstruction(new PushDataInstruction(offset));
         }
 
         public void VisitWhile(WhileLeaf leaf)
@@ -253,6 +273,7 @@ namespace MonC.Codegen
         {
             int breakIndex = AddInstruction(OpCode.NOOP);
             _breaks.Push(breakIndex);
+            AddDebugSymbol(breakIndex, leaf);
         }
 
         public void VisitReturn(ReturnLeaf leaf)
@@ -261,7 +282,8 @@ namespace MonC.Codegen
             if (leaf.RHS.Get(out rhs)) {
                 rhs.Accept(this);
             }
-            AddInstruction(OpCode.RETURN);
+            int addr = AddInstruction(OpCode.RETURN);
+            AddDebugSymbol(addr, leaf);
         }
     }
 }

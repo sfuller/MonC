@@ -19,10 +19,10 @@ namespace MonC.Codegen
                 _manager.RegisterFunction(function);
             }
 
-            List<Instruction[]> functions = new List<Instruction[]>();
-            
+            List<ILFunction> functions = new List<ILFunction>();
+
             foreach (FunctionDefinitionLeaf function in module.Functions) {
-                functions.Add(GenerateFunction(function));
+                functions.Add(GenerateFunction(module, function));
             }
             
             return new ILModule {
@@ -33,18 +33,22 @@ namespace MonC.Codegen
 
         }
 
-        private Instruction[] GenerateFunction(FunctionDefinitionLeaf leaf)
+        private ILFunction GenerateFunction(Module module, FunctionDefinitionLeaf leaf)
         {
             StackLayoutGenerator layoutGenerator = new StackLayoutGenerator();
             leaf.Accept(layoutGenerator);
             FunctionStackLayout layout = layoutGenerator.GetLayout();
             
             List<Instruction> instructions = new List<Instruction>();
-            
-            CodeGenVisitor codeGenVisitor = new CodeGenVisitor(layout, instructions, _manager);
+            Dictionary<int, TokenRange> symbols = new Dictionary<int, TokenRange>();
+
+            CodeGenVisitor codeGenVisitor = new CodeGenVisitor(layout, instructions, _manager, symbols, module.TokenMap);
             leaf.Accept(codeGenVisitor);
 
-            return instructions.ToArray();
+            return new ILFunction {
+                Code = instructions.ToArray(),
+                Symbols = symbols
+            };
         }
         
     }

@@ -4,9 +4,9 @@ namespace MonC.SyntaxTree
     public class WhileLeaf : IASTLeaf
     {
         public IASTLeaf Condition;
-        public IASTLeaf Body;
+        public BodyLeaf Body;
 
-        public WhileLeaf(IASTLeaf condition, IASTLeaf body)
+        public WhileLeaf(IASTLeaf condition, BodyLeaf body)
         {
             Condition = condition;
             Body = body;

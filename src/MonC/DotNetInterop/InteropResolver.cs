@@ -119,7 +119,7 @@ namespace MonC.DotNetInterop
                 name: method.Name,
                 returnType: "int",
                 parameters: FunctionAttributeToDeclarations(attribute),
-                body: new PlaceholderLeaf(), 
+                body: new BodyLeaf(new IASTLeaf[0]), 
                 isExported: true
             );
 
@@ -142,7 +142,7 @@ namespace MonC.DotNetInterop
         private static IEnumerable<DeclarationLeaf> FunctionAttributeToDeclarations(LinkableFunctionAttribute attribute)
         {
             for (int i = 0, ilen = attribute.ArgumentCount; i < ilen; ++i) {
-                yield return new DeclarationLeaf("int", "", new Optional<IASTLeaf>(), new Token()); 
+                yield return new DeclarationLeaf("int", "", new Optional<IASTLeaf>()); 
             }
         }
 

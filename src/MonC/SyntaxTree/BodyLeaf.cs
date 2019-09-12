@@ -5,17 +5,15 @@ namespace MonC.SyntaxTree
 {
     public class BodyLeaf : IASTLeaf
     {
-        public readonly Token Token;
         private readonly List<IASTLeaf> _statements;
 
         public int Length {
             get { return _statements.Count; }
         }
         
-        public BodyLeaf(IEnumerable<IASTLeaf> statements, Token token)
+        public BodyLeaf(IEnumerable<IASTLeaf> statements)
         {
             _statements = new List<IASTLeaf>(statements);
-            Token = token;
         }
         
         public void Accept(IASTLeafVisitor visitor)

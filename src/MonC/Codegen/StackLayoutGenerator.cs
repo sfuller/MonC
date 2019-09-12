@@ -61,7 +61,7 @@ namespace MonC.Codegen
         {
             leaf.IfBody.Accept(this);
 
-            IASTLeaf elseBody;
+            BodyLeaf elseBody;
             if (leaf.ElseBody.Get(out elseBody)) {
                 elseBody.Accept(this);    
             }
