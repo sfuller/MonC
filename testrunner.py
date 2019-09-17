@@ -56,9 +56,9 @@ def test(path, showall: bool) -> bool:
     sys.stdout.flush()
     
     with open(path) as f:
-        args = ['mono', FRONTEND_BINARY]
+        args = ['mono', FRONTEND_BINARY, path]
         args.extend(sys.argv[1:])
-        result = subprocess.run(args, stdin=f, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(args, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     
     filename = os.path.basename(path)
    

@@ -3,6 +3,7 @@ namespace MonC.Bytecode
     public enum OpCode
     {
         NOOP,
+        BREAK,
         
         //
         // Accumulation

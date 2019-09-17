@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Globalization;
 using MonC.Parsing;
@@ -12,13 +11,15 @@ namespace MonC
     {   
         private readonly List<Token> _tokens = new List<Token>();
         private int _currentTokenIndex;
+        private string _filePath;
 
         private IList<ParseError> _errors;
 
-        private IDictionary<IASTLeaf, TokenRange> _tokenMap;
+        private IDictionary<IASTLeaf, Symbol> _tokenMap;
         
-        public void Parse(IEnumerable<Token> tokens, Module module, IList<ParseError> errors, IList<FunctionDefinitionLeaf> functions)
+        public void Parse(string filePath, IEnumerable<Token> tokens, Module module, IList<ParseError> errors)
         {
+            _filePath = filePath;
             _tokens.Clear();
             _tokens.AddRange(tokens);
 
@@ -31,14 +32,10 @@ namespace MonC
                 ParseTopLevelStatement(newFunctions, module.Enums);
             }
             
-            module.Functions.AddRange(newFunctions);
-
             SemanticAnalyzer analyzer = new SemanticAnalyzer();
-            analyzer.AnalyzeModule(module, errors, functions);
+            analyzer.Analyze(module, errors, newFunctions);
             
-            foreach (FunctionDefinitionLeaf func in newFunctions) {
-                functions.Add(func);
-            }
+            module.Functions.AddRange(newFunctions);
         }
 
         private Token Peek(int offset = 0)
@@ -757,7 +754,20 @@ namespace MonC
 
         private T NewLeaf<T>(T leaf, Token startToken, Token endToken) where T : IASTLeaf
         {
-            _tokenMap[leaf] = new TokenRange {Start = startToken, End = endToken};
+            string endVal = endToken.Value;
+            if (string.IsNullOrEmpty(endVal)) {
+                endVal = "";
+            }
+            
+            Symbol symbol = new Symbol {
+                SourceFile = _filePath,
+                LineStart = startToken.Line,
+                LineEnd = endToken.Line,
+                ColumnStart = startToken.Column,
+                ColumnEnd = endToken.Column + (uint)endVal.Length
+            };
+
+            _tokenMap[leaf] = symbol;
             return leaf;
         }
         

@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text;
 using MonC.Codegen;
+using MonC.Debugging;
 using MonC.DotNetInterop;
-using MonC.SyntaxTree;
 using MonC.VM;
 using Module = MonC.Parsing.Module;
 
@@ -28,6 +27,7 @@ namespace MonC.Frontend
             bool showLex = false;
             bool showAST = false;
             bool showIL = false;
+            bool withDebugger = false;
             List<string> positionals = new List<string>();
             List<int> argsToPass = new List<int>();
             List<string> libraryNames = new List<string>();
@@ -56,6 +56,9 @@ namespace MonC.Frontend
                         break;
                     case "-l":
                         libraryNames.Add(args[++i]);
+                        break;
+                    case "--debugger":
+                        withDebugger = true;
                         break;
                     default:
                         argFound = false;
@@ -103,6 +106,7 @@ namespace MonC.Frontend
                     }
                     input = inputBuilder.ToString();    
                 } else {
+                    filename = Path.GetFullPath(filename);
                     input = File.ReadAllText(filename);
                 }
                 
@@ -111,9 +115,9 @@ namespace MonC.Frontend
             
             Parser parser = new Parser();
             Module module = new Module();
-            List<FunctionDefinitionLeaf> allFunctions = new List<FunctionDefinitionLeaf>(interopResolver.Definitions);
+            module.Functions.AddRange(interopResolver.Definitions);
             List<ParseError> errors = new List<ParseError>();
-            parser.Parse(tokens, module, errors, allFunctions);
+            parser.Parse(filename, tokens, module, errors);
 
             Console.WriteLine();
             
@@ -166,7 +170,21 @@ namespace MonC.Frontend
 
             VirtualMachine vm = new VirtualMachine();
             vm.LoadModule(vmModule);
-            vm.Call("main", argsToPass);
+
+            Debugger debugger = null;
+            if (withDebugger) {
+                debugger = new Debugger();
+                debugger.Setup(vmModule, vm);
+                debugger.Pause();
+            }
+
+            vm.Call("main", argsToPass, start: !withDebugger);
+
+            if (debugger != null) {
+                while (vm.IsRunning) {
+                    DebuggerLoop(vm, debugger);
+                }
+            }
         }
 
         private static void WritePrompt()
@@ -186,6 +204,43 @@ namespace MonC.Frontend
                 }    
             }
             tokens.AddRange(newTokens);
+        }
+
+        private static void DebuggerLoop(VirtualMachine vm, Debugger debugger)
+        {
+            Console.Write("(moncdbg) ");
+
+            string line = Console.ReadLine();
+            if (line != null) {
+                line = line.Trim();    
+            }
+
+            switch (line) {
+                case "pc":
+                    StackFrameInfo frame = vm.GetStackFrame(0);
+                    Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}");
+                    break;
+                
+                case "next":
+                    debugger.StepNext();
+                    break;
+                
+                case "into":
+                    debugger.StepInto();
+                    break;
+                
+                case "continue":
+                case null:
+                    debugger.Continue();
+                    break;
+                
+                case "":
+                    break;
+                
+                default:
+                    Console.Error.WriteLine($"moncdbg: unknown command {line}");
+                    break;
+            }
         }
     }
 }

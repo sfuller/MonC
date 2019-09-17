@@ -9,8 +9,8 @@ namespace MonC.Codegen
     {
         private readonly FunctionStackLayout _layout;
         private readonly FunctionManager _functionManager;
-        private readonly IDictionary<int, TokenRange> _addressToTokenMap;
-        private readonly IDictionary<IASTLeaf, TokenRange> _leafToTokenMap;
+        private readonly IDictionary<int, Symbol> _addressToTokenMap;
+        private readonly IDictionary<IASTLeaf, Symbol> _leafToTokenMap;
         
         private readonly List<Instruction> _instructions;
 
@@ -20,8 +20,8 @@ namespace MonC.Codegen
             FunctionStackLayout layout,
             List<Instruction> instructions,
             FunctionManager functionManager,
-            IDictionary<int, TokenRange> addressToTokenMap,
-            IDictionary<IASTLeaf, TokenRange> leafToTokenMap
+            IDictionary<int, Symbol> addressToTokenMap,
+            IDictionary<IASTLeaf, Symbol> leafToTokenMap
         )
         {
             _layout = layout;
@@ -40,7 +40,7 @@ namespace MonC.Codegen
 
         private void AddDebugSymbol(int address, IASTLeaf associatedLeaf)
         {
-            TokenRange range;
+            Symbol range;
             _leafToTokenMap.TryGetValue(associatedLeaf, out range);
             _addressToTokenMap[address] = range;
         }

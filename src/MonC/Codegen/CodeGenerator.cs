@@ -40,7 +40,7 @@ namespace MonC.Codegen
             FunctionStackLayout layout = layoutGenerator.GetLayout();
             
             List<Instruction> instructions = new List<Instruction>();
-            Dictionary<int, TokenRange> symbols = new Dictionary<int, TokenRange>();
+            Dictionary<int, Symbol> symbols = new Dictionary<int, Symbol>();
 
             CodeGenVisitor codeGenVisitor = new CodeGenVisitor(layout, instructions, _manager, symbols, module.TokenMap);
             leaf.Accept(codeGenVisitor);

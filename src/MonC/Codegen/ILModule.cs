@@ -6,7 +6,7 @@ namespace MonC.Codegen
     public struct ILFunction
     {
         public Instruction[] Code;
-        public IDictionary<int, TokenRange> Symbols;
+        public IDictionary<int, Symbol> Symbols;
     }
     
     public class ILModule

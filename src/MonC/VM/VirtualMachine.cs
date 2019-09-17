@@ -6,27 +6,30 @@ namespace MonC.VM
 {
     public class VirtualMachine : IVMBindingContext
     {
-        private readonly Stack<StackFrame> _callStack = new Stack<StackFrame>();
+        private readonly List<StackFrame> _callStack = new List<StackFrame>();
         private readonly List<int> _argumentStack = new List<int>();
         private VMModule _module;
         private int _aRegister;
         private int _bRegister;
-
-        private bool _isRunning;
+        
         private bool _canContinue;
-        private bool _isContinuing;
+
+        private Action _breakHandler;
+        private bool _isStepping;
+
+        public bool IsRunning => _callStack.Count != 0;
 
         public void LoadModule(VMModule module)
         {
-            if (_isRunning) {
+            if (IsRunning) {
                 throw new InvalidOperationException("Cannot load module while running");
             }
             _module = module;
         }
 
-        public void Call(string functionName, IEnumerable<int> arguments)
+        public void Call(string functionName, IEnumerable<int> arguments, bool start = true)
         {
-            if (_isRunning) {
+            if (IsRunning) {
                 throw new InvalidOperationException("Cannot call function while running");
             }
             
@@ -37,13 +40,19 @@ namespace MonC.VM
                     message:   "No function by the given name was found in the loaded module",
                     paramName: nameof(functionName));
             }
-
-            _isRunning = true;
             
             _argumentStack.AddRange(arguments);
             
             PushCall(functionIndex);
-            Continue();
+
+            if (start) {
+                Continue();    
+            }
+        }
+
+        public void SetBreakHandler(Action handler)
+        {
+            _breakHandler = handler;
         }
 
         private int LookupFunction(string functionName)
@@ -56,32 +65,72 @@ namespace MonC.VM
             }
             return -1;
         }
-
-        private void Continue()
+        
+        public void Continue()
         {
-            _canContinue = true;
-            
-            if (_isContinuing) {
+            if (_canContinue) {
                 return;
             }
-            _isContinuing = true;
+            
+            _canContinue = true;
             
             while (_canContinue) {
                 InterpretCurrentInstruction();
             }
+        }
 
-            _isContinuing = false;
+        public void SetStepping(bool isStepping)
+        {
+            _isStepping = isStepping;
+        }
+
+        public StackFrameInfo GetStackFrame(int depth)
+        {
+            if (depth >= _callStack.Count) {
+                return new StackFrameInfo();
+            }
+
+            StackFrame internalFrame = _callStack[_callStack.Count - 1 - depth];
+            return new StackFrameInfo {
+                Function = internalFrame.Function,
+                PC = internalFrame.PC
+            };
+        }
+
+        private StackFrame PeekCallStack()
+        {
+            return _callStack[_callStack.Count - 1];
+        }
+
+        private StackFrame PopCallStack()
+        {
+            int top = _callStack.Count - 1;
+            StackFrame frame = _callStack[top];
+            _callStack.RemoveAt(top);
+            return frame;
+        }
+
+        private void PushCallStack(StackFrame frame)
+        {
+            _callStack.Add(frame);
+        }
+
+        private void Break()
+        {
+            _canContinue = false;
+            if (_breakHandler != null) {
+                _breakHandler();
+            }
         }
 
         private void InterpretCurrentInstruction()
         {
             if (_callStack.Count == 0) {
-                _isRunning = false;
                 _canContinue = false;
                 return;
             }
-            
-            StackFrame top = _callStack.Peek();
+
+            StackFrame top = PeekCallStack();
 
             if (top.BindingEnumerator != null) {
                 InterpretBoundFunctionCall(top);
@@ -91,6 +140,10 @@ namespace MonC.VM
             Instruction ins = _module.Module.DefinedFunctions[top.Function].Code[top.PC];
             ++top.PC;
             InterpretInstruction(ins);
+
+            if (_isStepping) {
+                Break();
+            }
         }
 
         private void InterpretBoundFunctionCall(StackFrame frame)
@@ -129,7 +182,7 @@ namespace MonC.VM
                 StackFrame unwrapFrame = AcquireFrame();
                 unwrapFrame.Function = frame.Function;
                 unwrapFrame.BindingEnumerator = continuation.ToUnwrap;
-                _callStack.Push(unwrapFrame);
+                PushCallStack(unwrapFrame);
                 return;
             }
             
@@ -141,6 +194,9 @@ namespace MonC.VM
             switch (ins.Op) {
                 case OpCode.NOOP:
                     InterpretNoOp(ins);
+                    break;
+                case OpCode.BREAK:
+                    InterpretBreak(ins);
                     break;
                 case OpCode.LOAD:
                     InterpretLoad(ins);
@@ -217,6 +273,12 @@ namespace MonC.VM
         {
         }
 
+        private void InterpretBreak(Instruction ins)
+        {
+            --PeekCallStack().PC;
+            Break();
+        }
+
         private void InterpretLoad(Instruction ins)
         {
             _aRegister = ins.ImmediateValue;
@@ -229,12 +291,12 @@ namespace MonC.VM
 
         private void InterpretRead(Instruction ins)
         {
-            _aRegister = _callStack.Peek().Memory.Read(ins.ImmediateValue);
+            _aRegister = PeekCallStack().Memory.Read(ins.ImmediateValue);
         }
 
         private void InterpretWrite(Instruction ins)
         {
-            _callStack.Peek().Memory.Write(ins.ImmediateValue, _aRegister);
+            PeekCallStack().Memory.Write(ins.ImmediateValue, _aRegister);
         }
 
         private void InterpretPushArg(Instruction ins)
@@ -333,7 +395,7 @@ namespace MonC.VM
         
         private void Jump(int offset)
         {
-            _callStack.Peek().PC += offset;
+            PeekCallStack().PC += offset;
         }
 
         private void PushCall(int functionIndex)
@@ -346,13 +408,13 @@ namespace MonC.VM
                 int[] args = _argumentStack.ToArray();
                 _argumentStack.Clear();
                 newFrame.BindingEnumerator = enumerable(this, args);
-                _callStack.Push(newFrame);
+                PushCallStack(newFrame);
             } else {
                 for (int i = 0, ilen = _argumentStack.Count; i < ilen; ++i) {
                     newFrame.Memory.Write(i, _argumentStack[i]);
                 }
                 _argumentStack.Clear();
-                _callStack.Push(newFrame);
+                PushCallStack(newFrame);
             }
         }
 
@@ -368,7 +430,7 @@ namespace MonC.VM
 
         private void PopFrame()
         {
-            StackFrame frame = _callStack.Pop();
+            StackFrame frame = PopCallStack();
             frame.BindingEnumerator = null;
             frame.PC = 0;
             _framePool.Push(frame);
