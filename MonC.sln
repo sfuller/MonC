@@ -1,10 +1,10 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonC", "src/MonC/MonC.csproj", "{9BA206D4-CB5B-47D1-9408-3688980895C8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonC", "src\MonC\MonC.csproj", "{9BA206D4-CB5B-47D1-9408-3688980895C8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Frontend", "src\Frontend\Frontend.csproj", "{B5D5F377-FFE8-400A-AAE3-40A6ECADFFB9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoreLib", "CoreLib\CoreLib.csproj", "{EF724D0D-1CFE-4D8A-A092-E2D792BEC2A2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoreLib", "src\CoreLib\CoreLib.csproj", "{EF724D0D-1CFE-4D8A-A092-E2D792BEC2A2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
