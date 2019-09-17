@@ -1,7 +1,5 @@
 # MonC [![Build Status](https://travis-ci.org/sfuller/MonC.svg?branch=master)](https://travis-ci.org/sfuller/MonC)
 "MonC" is a toy programming language. It's heavily inspired by C, but so far it's closer to the B programming language. 
-I'm working on a game behind the scenes that uses this language as part of it's gameplay. The game uses this library
-to help implement this language as part of the game.
 
 ## Design Goals
 * Easy to learn for those not versed in programming.
@@ -21,8 +19,7 @@ to help implement this language as part of the game.
 ## Language 
 
 ## Why is it called MonC?
-The original idea for this game I'm working on (in my spare time) was "RGP game but you battle by writting code instead of 
-navigating through menu systems". "Mon" stands for Monster and "C" stands for C :)
+I don't know.
 
 ## Why is this code public?
 It's fun to show off code :)
@@ -32,8 +29,7 @@ It's fun to show off code :)
 * Lexer
 * Parser
 * VM + IL Code Generator
-
-That's it for now
+* Debugger
 
 ## What's not in this repo?
 * Executable Generation
