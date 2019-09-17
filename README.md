@@ -16,8 +16,6 @@
 * Language Level Memory Addressing, Pointer Operations (Some memory operations might be implemented with poke/peek functions)
 * Indirect Function Calls
 
-## Language 
-
 ## Why is it called MonC?
 I don't know.
 
