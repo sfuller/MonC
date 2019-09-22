@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using MonC.Parsing.ParseTreeLeaves;
 using MonC.SyntaxTree;
 using MonC.VM;
 
@@ -10,23 +9,51 @@ namespace MonC.DotNetInterop
 {
     public class InteropResolver
     {
-        private Dictionary<string, VMEnumerable> _bindings = new Dictionary<string, VMEnumerable>();
-        private readonly Dictionary<string, FunctionDefinitionLeaf> _definitions = new Dictionary<string, FunctionDefinitionLeaf>();
+        private Dictionary<string, Binding> _bindings = new Dictionary<string, Binding>();
         private readonly List<Type> _linkableModules = new List<Type>();
         
-        public IEnumerable<FunctionDefinitionLeaf> Definitions => _definitions.Values;
-        public IEnumerable<KeyValuePair<string, VMEnumerable>> Bindings => _bindings;
-        
-        public void FindBindings(Assembly assembly)
+        public IEnumerable<Binding> Bindings => _bindings.Values;
+
+        public void ImportAssembly(Assembly assembly)
         {
             foreach (Type type in assembly.GetTypes()) {
                 object[] attributes = type.GetCustomAttributes(typeof(LinkableModuleAttribute), inherit: false);
                 if (attributes.Length > 0) {
-                    ImportModule(type);
+                    ImportType(type);
                 }
             }
         }
+        
+        public void ImportType(Type type)
+        {
+            _linkableModules.Add(type);
+            
+            MethodInfo[] methods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly);
 
+            foreach (MethodInfo method in methods) {
+                ImportMethod(method);
+            }
+        }
+        
+        public void ImportMethod(MethodInfo method)
+        {
+            object[] attribs = method.GetCustomAttributes(typeof(LinkableFunctionAttribute), inherit: false);
+            if (attribs.Length == 0) {
+                return;
+            }
+
+            LinkableFunctionAttribute attribute = (LinkableFunctionAttribute) attribs[0];
+            ParameterInfo[] parameters = method.GetParameters();
+
+            if (ProcessSimpleBinding(attribute, method, parameters)) {
+                return;
+            }
+
+            if (ProcessEnumeratorBinding(attribute, method, parameters)) {
+                return;
+            }
+        }
+        
         public bool PrepareForExecution(VMModule module, IList<string> errors)
         {
             Dictionary<string, int> exporetedFunctions = module.Module.ExportedFunctions.ToDictionary(p => p.Key, p => p.Value);
@@ -49,37 +76,7 @@ namespace MonC.DotNetInterop
 
             return success;
         }
-
-        private void ImportModule(Type type)
-        {
-            _linkableModules.Add(type);
-            
-            MethodInfo[] methods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly);
-
-            foreach (MethodInfo method in methods) {
-                ProcessFunction(method);
-            }
-        }
-
-        private void ProcessFunction(MethodInfo method)
-        {
-            object[] attribs = method.GetCustomAttributes(typeof(LinkableFunctionAttribute), inherit: false);
-            if (attribs.Length == 0) {
-                return;
-            }
-
-            LinkableFunctionAttribute attribute = (LinkableFunctionAttribute) attribs[0];
-            ParameterInfo[] parameters = method.GetParameters();
-
-            if (ProcessSimpleBinding(attribute, method, parameters)) {
-                return;
-            }
-
-            if (ProcessEnumeratorBinding(attribute, method, parameters)) {
-                return;
-            }
-        }
-
+        
         private bool ProcessSimpleBinding(LinkableFunctionAttribute attribute, MethodInfo method, ParameterInfo[] parameters)
         {
             if (method.ReturnType != typeof(int)) {
@@ -113,7 +110,7 @@ namespace MonC.DotNetInterop
             return true;
         }
 
-        private void AddBinding(MethodInfo method, LinkableFunctionAttribute attribute, VMEnumerable binding)
+        private void AddBinding(MethodInfo method, LinkableFunctionAttribute attribute, VMEnumerable implementation)
         {
             FunctionDefinitionLeaf def = new FunctionDefinitionLeaf(
                 name: method.Name,
@@ -123,7 +120,10 @@ namespace MonC.DotNetInterop
                 isExported: true
             );
 
-            _definitions[method.Name] = def;
+            Binding binding = new Binding {
+                Prototype = def,
+                Implementation = implementation
+            };
             _bindings[method.Name] = binding;
         }
 

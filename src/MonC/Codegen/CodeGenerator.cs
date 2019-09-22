@@ -11,7 +11,7 @@ namespace MonC.Codegen
         private FunctionManager _manager;
 
         
-        public ILModule Generate(Module module)
+        public ILModule Generate(ParseModule module)
         {
             _manager = new FunctionManager();
 
@@ -33,7 +33,7 @@ namespace MonC.Codegen
 
         }
 
-        private ILFunction GenerateFunction(Module module, FunctionDefinitionLeaf leaf)
+        private ILFunction GenerateFunction(ParseModule module, FunctionDefinitionLeaf leaf)
         {
             StackLayoutGenerator layoutGenerator = new StackLayoutGenerator();
             leaf.Accept(layoutGenerator);

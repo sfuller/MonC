@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using MonC.Codegen;
 using MonC.Debugging;
 using MonC.DotNetInterop;
+using MonC.Parsing;
 using MonC.VM;
-using Module = MonC.Parsing.Module;
 
 namespace MonC.Frontend
 {   
@@ -76,7 +77,7 @@ namespace MonC.Frontend
 
             foreach (string libraryName in libraryNames) {
                 Assembly lib = Assembly.LoadFile(Path.GetFullPath(libraryName));
-                interopResolver.FindBindings(lib);
+                interopResolver.ImportAssembly(lib);
             }
             
             string filename = null;
@@ -114,13 +115,11 @@ namespace MonC.Frontend
             }
             
             Parser parser = new Parser();
-            Module module = new Module();
-            module.Functions.AddRange(interopResolver.Definitions);
+            ParseModule module = new ParseModule();
+            module.Functions.AddRange(interopResolver.Bindings.Select(b => b.Prototype));
             List<ParseError> errors = new List<ParseError>();
             parser.Parse(filename, tokens, module, errors);
 
-            Console.WriteLine();
-            
             for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
                 ParseError error = errors[i];
                 Console.Error.WriteLine($"{error.Token.Line + 1},{error.Token.Column + 1}: {error.Message}");
@@ -146,15 +145,16 @@ namespace MonC.Frontend
             
             Linker linker = new Linker();
             linker.AddModule(ilmodule);
-
-            foreach (KeyValuePair<string, VMEnumerable> binding in interopResolver.Bindings) {
-                linker.AddFunctionBinding(binding.Key, binding.Value);
+            
+            foreach (Binding binding in interopResolver.Bindings) {
+                linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation);
             }
 
-            VMModule vmModule = linker.Link();
+            List<LinkError> linkErrors = new List<LinkError>();
+            VMModule vmModule = linker.Link(linkErrors);
 
-            if (vmModule.Errors.Length > 0) {
-                foreach (LinkError error in vmModule.Errors) {
+            if (linkErrors.Count > 0) {
+                foreach (LinkError error in linkErrors) {
                     Console.Error.WriteLine($"Link error: {error.Message}");
                 }
                 Environment.Exit(1);

@@ -52,8 +52,10 @@
     <Compile Include="Codegen\IVariable.cs" />
     <Compile Include="Codegen\IVariableVisitor.cs" />
     <Compile Include="Codegen\StackLayoutGenerator.cs" />
+    <Compile Include="Compiler.cs" />
     <Compile Include="Debugging\Breakpoint.cs" />
     <Compile Include="Debugging\Debugger.cs" />
+    <Compile Include="DotNetInterop\Binding.cs" />
     <Compile Include="DotNetInterop\InteropResolver.cs" />
     <Compile Include="IASTLeaf.cs" />
     <Compile Include="IASTLeafVisitor.cs" />
@@ -62,7 +64,7 @@
     <Compile Include="Optional.cs" />
     <Compile Include="Parsing\GetTokenVisitor.cs" />
     <Compile Include="Parsing\IParseTreeLeafVisitor.cs" />
-    <Compile Include="Parsing\Module.cs" />
+    <Compile Include="Parsing\ParseModule.cs" />
     <Compile Include="Parsing\NoOpParseTreeVisitor.cs" />
     <Compile Include="Parsing\ParseError.cs" />
     <Compile Include="Parsing\Parser.cs" />

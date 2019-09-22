@@ -13,7 +13,7 @@ namespace MonC.Parsing.Semantics
         private readonly Dictionary<string, FunctionDefinitionLeaf> _functions = new Dictionary<string, FunctionDefinitionLeaf>();
         
 
-        public void Analyze(Module module, IList<ParseError> errors, IEnumerable<FunctionDefinitionLeaf> newFunctions)
+        public void Analyze(ParseModule module, IList<ParseError> errors, IEnumerable<FunctionDefinitionLeaf> newFunctions)
         {
             _functions.Clear();
             _errors = errors;

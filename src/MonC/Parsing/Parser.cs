@@ -17,7 +17,7 @@ namespace MonC
 
         private IDictionary<IASTLeaf, Symbol> _tokenMap;
         
-        public void Parse(string filePath, IEnumerable<Token> tokens, Module module, IList<ParseError> errors)
+        public void Parse(string filePath, IEnumerable<Token> tokens, ParseModule module, IList<ParseError> errors)
         {
             _filePath = filePath;
             _tokens.Clear();
