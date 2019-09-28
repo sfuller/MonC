@@ -51,13 +51,13 @@ namespace MonC.Parsing.Semantics
             VisitChildrenVisitor visitChildrenVisitor = new VisitChildrenVisitor();
 
             VariableDeclarationAnalyzer declarationAnalyzer = new VariableDeclarationAnalyzer(scopes, _errors);
-            function.Accept(visitChildrenVisitor.SetVisitors(declarationAnalyzer));
+            function.Accept(visitChildrenVisitor.SetVisitor(declarationAnalyzer));
 
             ProcessAssignmentsVisitor assignmentsVisitor = new ProcessAssignmentsVisitor(scopes, _errors);
-            function.Accept(visitChildrenVisitor.SetVisitors(replacementsVisitor.SetReplacer(assignmentsVisitor)));
+            function.Accept(visitChildrenVisitor.SetVisitor(replacementsVisitor.SetReplacer(assignmentsVisitor)));
             
             TranslateIdentifiersVisitor identifiersVisitor = new TranslateIdentifiersVisitor(scopes, _functions, _errors, _enumManager);
-            function.Accept(visitChildrenVisitor.SetVisitors(replacementsVisitor.SetReplacer(identifiersVisitor)));
+            function.Accept(visitChildrenVisitor.SetVisitor(replacementsVisitor.SetReplacer(identifiersVisitor)));
         }
         
     }

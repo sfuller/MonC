@@ -6,40 +6,16 @@ namespace MonC.SyntaxTree.Util
 public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
     {
         private IASTLeafVisitor _visitor;
-        private IParseTreeLeafVisitor _parseTreeVisitor;
 
-        public VisitChildrenVisitor SetASTVisitor(IASTLeafVisitor visitor)
+        public VisitChildrenVisitor(IASTLeafVisitor visitor = null)
         {
-            if (visitor == null) {
-                _visitor = new NoOpASTVisitor();
-            } else {
-                _visitor = visitor;                
-            }
-            return this;
+            SetVisitor(visitor);
         }
 
-        public VisitChildrenVisitor SetParseTreeVisitor(IParseTreeLeafVisitor visitor)
+        public VisitChildrenVisitor SetVisitor(IASTLeafVisitor visitor)
         {
-            if (visitor == null) {
-                _parseTreeVisitor = new NoOpParseTreeVisitor();
-            } else {
-                _parseTreeVisitor = visitor;
-            }
-            
+            _visitor = visitor ?? new NoOpASTVisitor();
             return this;
-        }
-
-        public VisitChildrenVisitor SetVisitors(object visitor)
-        {
-            SetASTVisitor(visitor as IASTLeafVisitor);
-            SetParseTreeVisitor(visitor as IParseTreeLeafVisitor);
-            return this;
-        }
-
-        public VisitChildrenVisitor(IASTLeafVisitor visitor = null, IParseTreeLeafVisitor parseTreeVisitor = null)
-        {
-            SetASTVisitor(visitor);
-            SetParseTreeVisitor(parseTreeVisitor);
         }
 
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
@@ -237,17 +213,12 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
 
         public void VisitIdentifier(IdentifierParseLeaf leaf)
         {
-            _parseTreeVisitor.VisitIdentifier(leaf);
-        }
-
-        void IParseTreeLeafVisitor.VisitFunctionCall(FunctionCallParseLeaf leaf)
-        {
-            VisitFunctionCall(leaf);
+            leaf.Accept(_visitor);
         }
 
         public void VisitFunctionCall(FunctionCallParseLeaf leaf)
         {
-            _parseTreeVisitor.VisitFunctionCall(leaf);
+            leaf.Accept(_visitor);
 
             for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
                 leaf.GetArgument(i).Accept(this);

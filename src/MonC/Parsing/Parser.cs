@@ -760,6 +760,7 @@ namespace MonC
             }
             
             Symbol symbol = new Symbol {
+                Leaf = leaf,
                 SourceFile = _filePath,
                 LineStart = startToken.Line,
                 LineEnd = endToken.Line,

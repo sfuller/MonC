@@ -18,6 +18,9 @@ namespace MonC.VM
         private bool _isStepping;
 
         public bool IsRunning => _callStack.Count != 0;
+        public int ReturnValue => _aRegister;
+
+        public event Action Finished;
 
         public void LoadModule(VMModule module)
         {
@@ -127,6 +130,12 @@ namespace MonC.VM
         {
             if (_callStack.Count == 0) {
                 _canContinue = false;
+
+                var finishedHandler = Finished;
+                if (finishedHandler != null) {
+                    finishedHandler();
+                }
+                
                 return;
             }
 
@@ -417,8 +426,7 @@ namespace MonC.VM
                 PushCallStack(newFrame);
             }
         }
-
-        int IVMBindingContext.ReturnValue => _aRegister;
+        
 
         private StackFrame AcquireFrame()
         {
