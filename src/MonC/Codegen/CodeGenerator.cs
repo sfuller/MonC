@@ -9,7 +9,6 @@ namespace MonC.Codegen
     public class CodeGenerator
     {
         private FunctionManager _manager;
-
         
         public ILModule Generate(ParseModule module)
         {
@@ -20,35 +19,33 @@ namespace MonC.Codegen
             }
 
             List<ILFunction> functions = new List<ILFunction>();
-
+            List<string> strings = new List<string>();
+            
             foreach (FunctionDefinitionLeaf function in module.Functions) {
-                functions.Add(GenerateFunction(module, function));
+                functions.Add(GenerateFunction(module, function, strings));
             }
             
             return new ILModule {
                 DefinedFunctions = functions.ToArray(),
                 ExportedFunctions = _manager.ExportedFunctions.ToArray(),
-                UndefinedFunctionNames = _manager.UndefinedFunctions.Keys.ToArray()
+                UndefinedFunctionNames = _manager.UndefinedFunctions.Keys.ToArray(),
+                Strings = strings.ToArray()
             };
 
         }
 
-        private ILFunction GenerateFunction(ParseModule module, FunctionDefinitionLeaf leaf)
+        private ILFunction GenerateFunction(ParseModule module, FunctionDefinitionLeaf leaf, List<string> strings)
         {
             StackLayoutGenerator layoutGenerator = new StackLayoutGenerator();
             leaf.Accept(layoutGenerator);
             FunctionStackLayout layout = layoutGenerator.GetLayout();
             
-            List<Instruction> instructions = new List<Instruction>();
-            Dictionary<int, Symbol> symbols = new Dictionary<int, Symbol>();
-
-            CodeGenVisitor codeGenVisitor = new CodeGenVisitor(layout, instructions, _manager, symbols, module.TokenMap);
+            CodeGenVisitor codeGenVisitor = new CodeGenVisitor(layout, _manager, module.TokenMap);
             leaf.Accept(codeGenVisitor);
 
-            return new ILFunction {
-                Code = instructions.ToArray(),
-                Symbols = symbols
-            };
+            strings.AddRange(codeGenVisitor.GetStrings());
+            
+            return codeGenVisitor.MakeFunction();
         }
         
     }

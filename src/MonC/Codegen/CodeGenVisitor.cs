@@ -9,28 +9,40 @@ namespace MonC.Codegen
     {
         private readonly FunctionStackLayout _layout;
         private readonly FunctionManager _functionManager;
-        private readonly IDictionary<int, Symbol> _addressToTokenMap;
         private readonly IDictionary<IASTLeaf, Symbol> _leafToTokenMap;
         
-        private readonly List<Instruction> _instructions;
+        private readonly IDictionary<int, Symbol> _addressToTokenMap = new Dictionary<int, Symbol>();
+        private readonly List<Instruction> _instructions = new List<Instruction>();
+        private readonly List<String> _strings = new List<string>();
+        private readonly List<int> _stringInstructions = new List<int>();
 
         private readonly Stack<int> _breaks = new Stack<int>();
         
         public CodeGenVisitor(
             FunctionStackLayout layout,
-            List<Instruction> instructions,
             FunctionManager functionManager,
-            IDictionary<int, Symbol> addressToTokenMap,
             IDictionary<IASTLeaf, Symbol> leafToTokenMap
         )
         {
             _layout = layout;
-            _instructions = instructions;
             _functionManager = functionManager;
-            _addressToTokenMap = addressToTokenMap;
             _leafToTokenMap = leafToTokenMap;
         }
 
+        public ILFunction MakeFunction()
+        {
+            return new ILFunction {
+                Code = _instructions.ToArray(),
+                Symbols = _addressToTokenMap,
+                StringInstructions = _stringInstructions.ToArray()
+            };
+        }
+
+        public IEnumerable<string> GetStrings()
+        {
+            return _strings;
+        }
+        
         private int AddInstruction(OpCode op, int immediate = 0)
         {
             int index = _instructions.Count;
@@ -139,7 +151,7 @@ namespace MonC.Codegen
 
         public void VisitEnum(EnumLeaf leaf)
         {
-            throw new NotImplementedException();
+            throw new InvalidOperationException("Enum leaf shouldn't be part of a function AST");
         }
 
         public void VisitEnumValue(EnumValueLeaf leaf)
@@ -246,7 +258,9 @@ namespace MonC.Codegen
 
         public void VisitStringLiteral(StringLiteralLeaf leaf)
         {
-            throw new NotImplementedException();
+            int index = _strings.Count;
+            _strings.Add(leaf.Value);
+            AddInstruction(OpCode.LOAD, index);
         }
 
         public void VisitWhile(WhileLeaf leaf)

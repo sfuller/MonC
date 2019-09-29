@@ -7,6 +7,11 @@ namespace MonC.Codegen
     {
         public Instruction[] Code;
         public IDictionary<int, Symbol> Symbols;
+
+        /// <summary>
+        /// Indices of all instructions which use a string as their value.
+        /// </summary>
+        public int[] StringInstructions;
     }
     
     public class ILModule
@@ -14,5 +19,6 @@ namespace MonC.Codegen
         public ILFunction[] DefinedFunctions;
         public string[] UndefinedFunctionNames;
         public KeyValuePair<string, int>[] ExportedFunctions;
+        public string[] Strings;
     }
 }

@@ -14,6 +14,8 @@ namespace MonC.VM
         private readonly List<ILFunction> _functionImplementations = new List<ILFunction>();
         private readonly List<int> _moduleOffsets = new List<int>();
 
+        private readonly List<string> _strings = new List<string>();
+
         private List<LinkError> _errors;
 
 
@@ -53,7 +55,8 @@ namespace MonC.VM
             ILModule resultModule = new ILModule {
                 DefinedFunctions = _functionImplementations.ToArray(),
                 ExportedFunctions = _exportedFunctionIndices.ToArray(),
-                UndefinedFunctionNames = new string[0]
+                UndefinedFunctionNames = new string[0],
+                Strings = _strings.ToArray()
             };
 
             int vmFunctionsOffset = _functionImplementations.Count;
@@ -73,11 +76,14 @@ namespace MonC.VM
             int baseIndex = _functionImplementations.Count;
             _moduleOffsets.Add(baseIndex);
 
-            // Make copies of implementations for modification
+            // Make copies of implementations for modification and do some modifications while we're currently
+            // iterating over all of the functions.
             for (int i = 0, ilen = inputModule.DefinedFunctions.Length; i < ilen; ++i) {
                 ILFunction function = inputModule.DefinedFunctions[i];
                 function.Code = function.Code.ToArray();
                 _functionImplementations.Add(function);
+                
+                RelocateStrings(function, _strings.Count);
             }
             
             foreach (KeyValuePair<string, int> exportedFunction in inputModule.ExportedFunctions) {
@@ -86,6 +92,18 @@ namespace MonC.VM
                     continue;
                 }
                 _exportedFunctionIndices[exportedFunction.Key] = baseIndex + exportedFunction.Value;
+            }
+            
+            // Import all of the strings (instructions referencing string indices were modified above)
+            _strings.AddRange(inputModule.Strings);
+        }
+
+        private void RelocateStrings(ILFunction function, int newBaseOffset)
+        {
+            foreach (int index in function.StringInstructions) {
+                Instruction ins = function.Code[index];
+                ins.ImmediateValue += newBaseOffset;
+                function.Code[index] = ins;
             }
         }
 
