@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using MonC.Parsing;
 using MonC.Parsing.ParseTreeLeaves;
 using MonC.Parsing.Semantics;
@@ -17,25 +18,26 @@ namespace MonC
 
         private IDictionary<IASTLeaf, Symbol> _tokenMap;
         
-        public void Parse(string filePath, IEnumerable<Token> tokens, ParseModule module, IList<ParseError> errors)
+        public ParseModule Parse(string filePath, IEnumerable<Token> tokens, ParseModule headerModule, IList<ParseError> errors)
         {
             _filePath = filePath;
             _tokens.Clear();
             _tokens.AddRange(tokens);
 
             _errors = errors;
-            _tokenMap = module.TokenMap;
+            _tokenMap = new Dictionary<IASTLeaf, Symbol>();
 
-            IList<FunctionDefinitionLeaf> newFunctions = new List<FunctionDefinitionLeaf>();
+            ParseModule outputModule = new ParseModule();
+            _tokenMap = outputModule.TokenMap;
             
             while (Peek().Type != TokenType.None) {
-                ParseTopLevelStatement(newFunctions, module.Enums);
+                ParseTopLevelStatement(outputModule.Functions, outputModule.Enums);
             }
             
             SemanticAnalyzer analyzer = new SemanticAnalyzer();
-            analyzer.Analyze(module, errors, newFunctions);
-            
-            module.Functions.AddRange(newFunctions);
+            analyzer.Analyze(headerModule, outputModule, errors);
+
+            return outputModule;
         }
 
         private Token Peek(int offset = 0)
@@ -133,7 +135,7 @@ namespace MonC
                 return new Optional<EnumLeaf>();
             }
 
-            List<string> names = new List<string>();
+            List<KeyValuePair<string, int>> enumerations = new List<KeyValuePair<string, int>>();
 
             bool endIsAllowed = true;
             bool nextEnumerationIsAllowed = true;
@@ -164,7 +166,7 @@ namespace MonC
                     break;
                 }
                 
-                names.Add(name.Value);
+                enumerations.Add(new KeyValuePair<string, int>(name.Value, enumerations.Count));
 
                 next = Peek();
                 if (next.Type == TokenType.Syntax && next.Value == ",") {
@@ -176,7 +178,7 @@ namespace MonC
                 }
             }
 
-            return new Optional<EnumLeaf>(NewLeaf(new EnumLeaf(names, isExported), startToken));
+            return new Optional<EnumLeaf>(NewLeaf(new EnumLeaf(enumerations, isExported), startToken));
         }
         
         private Optional<FunctionDefinitionLeaf> ParseFunction(bool isExported)

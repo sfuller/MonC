@@ -19,6 +19,7 @@ namespace MonC.Codegen
         public ILFunction[] DefinedFunctions;
         public string[] UndefinedFunctionNames;
         public KeyValuePair<string, int>[] ExportedFunctions;
+        public KeyValuePair<string, int>[] ExportedEnumValues;
         public string[] Strings;
     }
 }

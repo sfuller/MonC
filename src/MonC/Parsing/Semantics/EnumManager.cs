@@ -22,12 +22,12 @@ namespace MonC.Parsing.Semantics
         
         public void RegisterEnum(EnumLeaf leaf)
         {
-            foreach (string enumeration in leaf.Enumerations) {
-                if (_map.ContainsKey(enumeration)) {
+            foreach (KeyValuePair<string, int> enumeration in leaf.Enumerations) {
+                if (_map.ContainsKey(enumeration.Key)) {
                     _errors.Add(new ParseError { Message = $"Duplicate declaration of symbol ${enumeration}" });
                     continue;
                 }
-                _map.Add(enumeration, leaf);
+                _map.Add(enumeration.Key, leaf);
             }
         }
     }

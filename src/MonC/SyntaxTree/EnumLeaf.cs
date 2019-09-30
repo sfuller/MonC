@@ -5,10 +5,10 @@ namespace MonC.SyntaxTree
 {
     public class EnumLeaf : IASTLeaf
     {
-        public readonly string[] Enumerations;
+        public readonly KeyValuePair<string, int>[] Enumerations;
         public readonly bool IsExported;
 
-        public EnumLeaf(IEnumerable<string> enumerations, bool isExported)
+        public EnumLeaf(IEnumerable<KeyValuePair<string, int>> enumerations, bool isExported)
         {
             Enumerations = enumerations.ToArray();
             IsExported = isExported;

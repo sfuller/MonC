@@ -1,5 +1,4 @@
 using System;
-using MonC.SyntaxTree;
 
 namespace MonC
 {
@@ -22,6 +21,11 @@ namespace MonC
         {
             item = _item;
             return item != null;
+        }
+
+        public bool IsGiven()
+        {
+            return _item != null;
         }
 
         public Optional<BT> Abstract<BT>() where BT : class

@@ -13,21 +13,23 @@ namespace MonC.Parsing.Semantics
         private readonly Dictionary<string, FunctionDefinitionLeaf> _functions = new Dictionary<string, FunctionDefinitionLeaf>();
         
 
-        public void Analyze(ParseModule module, IList<ParseError> errors, IEnumerable<FunctionDefinitionLeaf> newFunctions)
+        public void Analyze(ParseModule headerModule, ParseModule newModule, IList<ParseError> errors)
         {
             _functions.Clear();
             _errors = errors;
             
             _enumManager = new EnumManager(_errors);
-            foreach (EnumLeaf enumLeaf in module.Enums) {
+            foreach (EnumLeaf enumLeaf in headerModule.Enums) {
+                _enumManager.RegisterEnum(enumLeaf);
+            }
+            foreach (EnumLeaf enumLeaf in newModule.Enums) {
                 _enumManager.RegisterEnum(enumLeaf);
             }
 
-            foreach (FunctionDefinitionLeaf externalFunction in module.Functions) {
+            foreach (FunctionDefinitionLeaf externalFunction in headerModule.Functions) {
                 _functions.Add(externalFunction.Name, externalFunction);
             }
-
-            foreach (FunctionDefinitionLeaf function in newFunctions) {
+            foreach (FunctionDefinitionLeaf function in newModule.Functions) {
                 if (_functions.ContainsKey(function.Name)) {
                     _errors.Add(new ParseError {
                         Message = "Redefinition of function " + function.Name
@@ -36,7 +38,7 @@ namespace MonC.Parsing.Semantics
                 _functions[function.Name] = function;
             } 
             
-            foreach (FunctionDefinitionLeaf function in newFunctions) {
+            foreach (FunctionDefinitionLeaf function in newModule.Functions) {
                 AnalyzeFunction(function);
             }
         }

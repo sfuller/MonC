@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using MonC.Codegen;
 using MonC.DotNetInterop;
 using MonC.Parsing;
@@ -16,39 +17,35 @@ namespace MonC
             string source,
             string filename,
             List<ParseError> errors,
-            Optional<ParseModule> targetModule = default(Optional<ParseModule>)
+            Optional<ParseModule> optionalHeaderModule = default(Optional<ParseModule>)
         )
         {
             Lexer lexer = new Lexer();
             List<Token> tokens = new List<Token>();
             lexer.Lex(source, tokens);
-            
-            Parser parser = new Parser();
 
-            ParseModule module;
-            if (!targetModule.Get(out module)) {
-                module = new ParseModule();
+            ParseModule headerModule;
+            if (!optionalHeaderModule.Get(out headerModule)) {
+                headerModule = new ParseModule();
             }
             
-            parser.Parse(filename, tokens, module, errors);
+            Parser parser = new Parser();
+            ParseModule outputModule = parser.Parse(filename, tokens, headerModule, errors);
             
             if (errors.Count > 0) {
                 return new Optional<ParseModule>();
             }
-            return new Optional<ParseModule>(module);
+            return new Optional<ParseModule>(outputModule);
         }
 
         public Optional<ParseModule> Parse(
             string source,
             string filename,
             List<ParseError> errors,
-            IEnumerable<Binding> bindings
+            InteropResolver resolver
         )
         {
-            ParseModule module = new ParseModule();
-            foreach (Binding binding in bindings) {
-                module.Functions.Add(binding.Prototype);
-            }
+            ParseModule module = CreateInputParseModuleFromInteropResolver(resolver);
             return Parse(source, filename, errors, new Optional<ParseModule>(module));
         }
             
@@ -76,19 +73,15 @@ namespace MonC
         public Optional<VMModule> CompileAndLink(
             string source,
             string filename,
-            IEnumerable<Binding> bindings,
+            InteropResolver resolver,
             List<ParseError> parseErrors,
             List<LinkError> linkErrors
         )
         {
             Linker linker = new Linker();
+            ParseModule parsedModule = CreateInputParseModuleFromInteropResolver(resolver);
             
-            ParseModule parsedModule = new ParseModule();
-            
-            foreach (Binding binding in bindings) {
-                parsedModule.Functions.Add(binding.Prototype);
-                linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation);
-            }
+            SetupLinkerWithInteropResolver(linker, resolver);
 
             ILModule compiledModule;
             if (!Compile(source, filename, parseErrors, new Optional<ParseModule>(parsedModule)).Get(out compiledModule)) {
@@ -107,16 +100,12 @@ namespace MonC
         
         public Optional<VMModule> CompileAndLink(
             ParseModule parsedModule,
-            IEnumerable<Binding> bindings,
+            InteropResolver resolver,
             List<LinkError> linkErrors
         )
         {
             Linker linker = new Linker();
-            
-            foreach (Binding binding in bindings) {
-                linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation);
-            }
-
+            SetupLinkerWithInteropResolver(linker, resolver);
             ILModule compiledModule = Compile(parsedModule);
 
             linker.AddModule(compiledModule);
@@ -127,6 +116,21 @@ namespace MonC
             }
 
             return new Optional<VMModule>(linkedModule);
+        }
+        
+        private ParseModule CreateInputParseModuleFromInteropResolver(InteropResolver resolver)
+        {
+            ParseModule module = new ParseModule();
+            module.Functions.AddRange(resolver.Bindings.Select(b => b.Prototype));
+            module.Enums.AddRange(resolver.Enums);
+            return module;
+        }
+
+        private void SetupLinkerWithInteropResolver(Linker linker, InteropResolver resolver)
+        {
+            foreach (Binding binding in resolver.Bindings) {
+                linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation);
+            }
         }
 
     }

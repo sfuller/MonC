@@ -30,7 +30,7 @@ namespace MonC.VM
             _module = module;
         }
 
-        public void Call(string functionName, IEnumerable<int> arguments, bool start = true)
+        public bool Call(string functionName, IEnumerable<int> arguments, bool start = true)
         {
             if (IsRunning) {
                 throw new InvalidOperationException("Cannot call function while running");
@@ -39,9 +39,7 @@ namespace MonC.VM
             int functionIndex = LookupFunction(functionName);
 
             if (functionIndex == -1) {
-                throw new ArgumentException(
-                    message:   "No function by the given name was found in the loaded module",
-                    paramName: nameof(functionName));
+                return false;
             }
             
             _argumentStack.AddRange(arguments);
@@ -51,11 +49,22 @@ namespace MonC.VM
             if (start) {
                 Continue();    
             }
+
+            return true;
         }
 
         public void SetBreakHandler(Action handler)
         {
             _breakHandler = handler;
+        }
+
+        string IVMBindingContext.GetString(int id)
+        {
+            var strings = _module.Module.Strings;
+            if (id < 0 || id >= strings.Length) {
+                return "";
+            }
+            return strings[id];
         }
 
         private int LookupFunction(string functionName)

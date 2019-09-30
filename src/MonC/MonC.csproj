@@ -36,6 +36,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="JetBrains.Annotations, Version=7.1.3000.2254, Culture=neutral, PublicKeyToken=1010a0d8d6380325">
+      <HintPath>..\..\packages\ReSharper.Annotations.7.1.3.130415\lib\net\JetBrains.Annotations.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
@@ -80,7 +84,6 @@
     <Compile Include="Parsing\Semantics\ProcessAssignmentsVisitor.cs" />
     <Compile Include="Parsing\Semantics\SemanticAnalyzer.cs" />
     <Compile Include="Parsing\Semantics\VariableDeclarationAnalyzer.cs" />
-    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Syntax.cs" />
     <Compile Include="SyntaxTree\AssignmentLeaf.cs" />
@@ -111,6 +114,7 @@
     <Compile Include="VM\IVMBindingContext.cs" />
     <Compile Include="VM\IYieldToken.cs" />
     <Compile Include="VM\ExternalFunctionAttribute.cs" />
+    <Compile Include="VM\LinkableEnumAttribute.cs" />
     <Compile Include="VM\LinkableFunctionAttribute.cs" />
     <Compile Include="VM\LinkableModuleAttribute.cs" />
     <Compile Include="VM\Linker.cs" />
@@ -124,6 +128,9 @@
     <Compile Include="VM\VMFunction.cs" />
     <Compile Include="VM\VMModule.cs" />
     <Compile Include="VM\YieldToken.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

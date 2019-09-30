@@ -77,8 +77,10 @@ namespace MonC.Frontend
 
             foreach (string libraryName in libraryNames) {
                 Assembly lib = Assembly.LoadFile(Path.GetFullPath(libraryName));
-                interopResolver.ImportAssembly(lib);
+                interopResolver.ImportAssembly(lib, BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static);
             }
+
+            ParseModule interopHeaderModule = interopResolver.CreateHeaderModule(); 
             
             string filename = null;
 
@@ -115,10 +117,8 @@ namespace MonC.Frontend
             }
             
             Parser parser = new Parser();
-            ParseModule module = new ParseModule();
-            module.Functions.AddRange(interopResolver.Bindings.Select(b => b.Prototype));
             List<ParseError> errors = new List<ParseError>();
-            parser.Parse(filename, tokens, module, errors);
+            ParseModule module = parser.Parse(filename, tokens, interopHeaderModule, errors);
 
             for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
                 ParseError error = errors[i];
@@ -145,7 +145,7 @@ namespace MonC.Frontend
             
             Linker linker = new Linker();
             linker.AddModule(ilmodule);
-            
+
             foreach (Binding binding in interopResolver.Bindings) {
                 linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation);
             }

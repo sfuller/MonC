@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using MonC.Codegen;
+using MonC.Parsing;
 using MonC.SyntaxTree;
 using MonC.VM;
 
@@ -9,33 +11,70 @@ namespace MonC.DotNetInterop
 {
     public class InteropResolver
     {
-        private Dictionary<string, Binding> _bindings = new Dictionary<string, Binding>();
-        private readonly List<Type> _linkableModules = new List<Type>();
+        private readonly bool _includeImplementations;
+        private readonly Dictionary<string, Binding> _bindings = new Dictionary<string, Binding>();
+        private readonly HashSet<Type> _linkableModules = new HashSet<Type>();
+        private readonly List<EnumLeaf> _enums = new List<EnumLeaf>();
+        private readonly List<string> _errors = new List<string>();
+
+        public InteropResolver(bool includeImplementations = true)
+        {
+            _includeImplementations = includeImplementations;
+        }
         
         public IEnumerable<Binding> Bindings => _bindings.Values;
+        public IEnumerable<EnumLeaf> Enums => _enums;
+        public IEnumerable<string> Errors => _errors;
 
-        public void ImportAssembly(Assembly assembly)
+        public ParseModule CreateHeaderModule()
+        {
+            ParseModule module = new ParseModule();
+            module.Functions.AddRange(_bindings.Values.Select(binding => binding.Prototype));
+            module.Enums.AddRange(_enums);
+            return module;
+        }
+        
+        public ILModule
+
+        public void ImportAssembly(Assembly assembly, BindingFlags flags)
         {
             foreach (Type type in assembly.GetTypes()) {
                 object[] attributes = type.GetCustomAttributes(typeof(LinkableModuleAttribute), inherit: false);
                 if (attributes.Length > 0) {
-                    ImportType(type);
+                    ImportType(type, flags);
                 }
             }
         }
         
-        public void ImportType(Type type)
+        public void ImportType(Type type, BindingFlags flags, Optional<object> target = default(Optional<object>))
         {
             _linkableModules.Add(type);
-            
-            MethodInfo[] methods = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly);
 
-            foreach (MethodInfo method in methods) {
-                ImportMethod(method);
+            if ((flags & BindingFlags.Static) > 0) {
+                MethodInfo[] staticMethods = type.GetMethods((flags | BindingFlags.Instance) ^ BindingFlags.Instance);
+                foreach (MethodInfo method in staticMethods) {
+                    ImportMethod(method);
+                }
+            }
+
+            if ((flags & BindingFlags.Instance) > 0) {
+                if (!target.IsGiven() && _includeImplementations) {
+                    _errors.Add($"Attempted to include implementations for instance methods of type {type.Name}, but no target was given.");
+                    return;
+                }
+            
+                MethodInfo[] instanceMethods = type.GetMethods((flags | BindingFlags.Static) ^ BindingFlags.Static);
+                foreach (MethodInfo method in instanceMethods) {
+                    ImportMethod(method, target);
+                }
+            }
+
+            if (type.IsEnum) {
+                ImportEnum(type);
             }
         }
-        
-        public void ImportMethod(MethodInfo method)
+
+        public void ImportMethod(MethodInfo method, Optional<object> target = default(Optional<object>))
         {
             object[] attribs = method.GetCustomAttributes(typeof(LinkableFunctionAttribute), inherit: false);
             if (attribs.Length == 0) {
@@ -45,15 +84,17 @@ namespace MonC.DotNetInterop
             LinkableFunctionAttribute attribute = (LinkableFunctionAttribute) attribs[0];
             ParameterInfo[] parameters = method.GetParameters();
 
-            if (ProcessSimpleBinding(attribute, method, parameters)) {
+            if (ProcessSimpleBinding(attribute, method, parameters, target)) {
                 return;
             }
 
-            if (ProcessEnumeratorBinding(attribute, method, parameters)) {
+            if (ProcessEnumeratorBinding(attribute, method, parameters, target)) {
                 return;
             }
+            
+            _errors.Add($"Could not import method {method.Name}, please check that it's signature is compatible.");
         }
-        
+
         public bool PrepareForExecution(VMModule module, IList<string> errors)
         {
             Dictionary<string, int> exporetedFunctions = module.Module.ExportedFunctions.ToDictionary(p => p.Key, p => p.Value);
@@ -77,7 +118,7 @@ namespace MonC.DotNetInterop
             return success;
         }
         
-        private bool ProcessSimpleBinding(LinkableFunctionAttribute attribute, MethodInfo method, ParameterInfo[] parameters)
+        private bool ProcessSimpleBinding(LinkableFunctionAttribute attribute, MethodInfo method, ParameterInfo[] parameters, Optional<object> target)
         {
             if (method.ReturnType != typeof(int)) {
                 return false;
@@ -86,11 +127,18 @@ namespace MonC.DotNetInterop
                 return false;
             }
 
-            AddBinding(method, attribute, WrapSimpleBinding(method));
+            VMEnumerable impl;
+            if (_includeImplementations) {
+                impl = WrapSimpleBinding(method, target);
+            } else {
+                impl = NoOpBinding;
+            }
+            
+            AddBinding(method, attribute, impl);
             return true;
         }
 
-        private bool ProcessEnumeratorBinding(LinkableFunctionAttribute attribute, MethodInfo method, ParameterInfo[] parameters)
+        private bool ProcessEnumeratorBinding(LinkableFunctionAttribute attribute, MethodInfo method, ParameterInfo[] parameters, Optional<object> target)
         {
             if (method.ReturnType != typeof(IEnumerator<Continuation>)) {
                 return false;
@@ -106,7 +154,14 @@ namespace MonC.DotNetInterop
                 return false;
             }
 
-            AddBinding(method, attribute, (VMEnumerable) Delegate.CreateDelegate(typeof(VMEnumerable), method));
+            VMEnumerable impl;
+            if (_includeImplementations) {
+                impl = CreateDelegate<VMEnumerable>(method, target);
+            } else {
+                impl = NoOpBinding;
+            }
+            
+            AddBinding(method, attribute, impl);
             return true;
         }
 
@@ -127,10 +182,18 @@ namespace MonC.DotNetInterop
             _bindings[method.Name] = binding;
         }
 
-        private static VMEnumerable WrapSimpleBinding(MethodInfo info)
+        private static T CreateDelegate<T>(MethodInfo method, Optional<object> target) where T : class
         {
-            VMFunction func = (VMFunction)Delegate.CreateDelegate(typeof(VMFunction), info);
-            return (context, args) => SimpleBindingEnumerator(func, args);
+            object targetObject;
+            if (target.Get(out targetObject)) {
+                return Delegate.CreateDelegate(typeof(T), targetObject, method) as T;
+            }
+            return  Delegate.CreateDelegate(typeof(T), method) as T;
+        }
+
+        private static VMEnumerable WrapSimpleBinding(MethodInfo info, Optional<object> target)
+        {
+            return (context, args) => SimpleBindingEnumerator(CreateDelegate<VMFunction>(info, target), args);
         }
 
         private static IEnumerator<Continuation> SimpleBindingEnumerator(VMFunction func, int[] arguments)
@@ -144,6 +207,31 @@ namespace MonC.DotNetInterop
             for (int i = 0, ilen = attribute.ArgumentCount; i < ilen; ++i) {
                 yield return new DeclarationLeaf("int", "", new Optional<IASTLeaf>()); 
             }
+        }
+
+        private static IEnumerator<Continuation> NoOpBinding(IVMBindingContext context, int[] args)
+        {
+            yield break;
+        }
+
+        private void ImportEnum(Type type)
+        {
+            object[] customAttributes = type.GetCustomAttributes(typeof(LinkableEnumAttribute), inherit: false);
+            if (customAttributes.Length == 0) {
+                return;
+            }
+
+            LinkableEnumAttribute attribute = (LinkableEnumAttribute) customAttributes[0];
+            string[] names = Enum.GetNames(type);
+            List<KeyValuePair<string, int>> enumerations = new List<KeyValuePair<string, int>>();
+
+            string prefix = attribute.Prefix ?? "";
+            
+            foreach (string name in names) {
+                enumerations.Add(new KeyValuePair<string, int>(prefix + name, (int)Enum.Parse(type, name)));                
+            }
+            
+            _enums.Add(new EnumLeaf(enumerations, isExported: true));
         }
 
     }
