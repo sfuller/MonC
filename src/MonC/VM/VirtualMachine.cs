@@ -19,7 +19,8 @@ namespace MonC.VM
 
         public bool IsRunning => _callStack.Count != 0;
         public int ReturnValue => _aRegister;
-
+        public int CallStackFrameCount => _callStack.Count;
+        
         public event Action Finished;
 
         public void LoadModule(VMModule module)

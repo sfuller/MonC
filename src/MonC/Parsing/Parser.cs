@@ -25,7 +25,6 @@ namespace MonC
             _tokens.AddRange(tokens);
 
             _errors = errors;
-            _tokenMap = new Dictionary<IASTLeaf, Symbol>();
 
             ParseModule outputModule = new ParseModule();
             _tokenMap = outputModule.TokenMap;

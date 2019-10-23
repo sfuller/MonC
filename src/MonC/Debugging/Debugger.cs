@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MonC.Bytecode;
 using MonC.Codegen;
 using MonC.SyntaxTree;
@@ -16,6 +17,8 @@ namespace MonC.Debugging
         private readonly List<Breakpoint> _breakpoints = new List<Breakpoint>();
         
         private bool _isActive;
+
+        public event Action Break;
         
         public void Setup(VMModule module, VirtualMachine vm)
         {
@@ -37,13 +40,96 @@ namespace MonC.Debugging
 
         public void SetBreakpoint(int function, int address)
         {
-            _breakpoints.Add(new Breakpoint {Function = function, Address = address});
+            Breakpoint breakpoint = new Breakpoint {Function = function, Address = address}; 
+            _breakpoints.Add(breakpoint);
+            ReplaceInstruction(breakpoint);
         }
 
-        public void SetBreakpoint(string sourcePath, int lineNumber)
+        public void RemoveBreakpoint(int function, int address)
         {
-            // TODO: Lookup address
-            throw new NotImplementedException();
+            _breakpoints.Remove(new Breakpoint {Function = function, Address = address});
+            RestoreInstruction(new StackFrameInfo {Function = function, PC = address});
+            // TODO: Assert instruction restore was successful? 
+        }
+
+        public bool SetBreakpoint(string sourcePath, int lineNumber)
+        {
+            int func, addr;
+            bool result = LookupSymbol(sourcePath, lineNumber, out func, out addr); 
+            if (result) {
+                SetBreakpoint(func, addr);
+            }
+            return result;
+        }
+
+        public bool RemoveBreakpoint(string sourcePath, int lineNumber)
+        {
+            int func, addr;
+            bool result = LookupSymbol(sourcePath, lineNumber, out func, out addr);
+            if (result) {
+                RemoveBreakpoint(func, addr);
+            }
+            return result;
+        }
+
+        public bool LookupSymbol(string sourcePath, int lineNumber, out int functionIndexResult, out int addressResult)
+        {
+            // TODO: Caching might be necesary if this becomes too slow.
+            for (int functionIndex = 0, funcLen = _module.Module.DefinedFunctions.Length; functionIndex < funcLen; ++functionIndex) {
+                ILFunction function = _module.Module.DefinedFunctions[functionIndex];
+                
+                for (int i = 0, ilen = function.Code.Length; i < ilen; ++i) {
+                    Symbol symbol;
+                    if (!function.Symbols.TryGetValue(i, out symbol)) {
+                        continue;
+                    }
+                    
+                    if (symbol.SourceFile == null) {
+                        continue;
+                    }
+                    
+                    // TODO: More permissive path matching
+                    if (symbol.SourceFile != sourcePath) {
+                        // Assume that if the first symbol doesn't match the source path, none of them do.
+                        break;
+                    }
+
+                    if (lineNumber >= symbol.LineStart && lineNumber <= symbol.LineEnd) {
+                        functionIndexResult = functionIndex;
+                        addressResult = i;
+                        return true;
+                    }
+                }
+            }
+
+            functionIndexResult = 0;
+            addressResult = 0;
+            return false;
+        }
+
+        public bool GetSourceLocation(StackFrameInfo frame, out string sourcePath, out int lineNumber)
+        {
+            sourcePath = "";
+            lineNumber = 0;
+            
+            if (frame.Function < 0 || frame.Function >= _module.Module.DefinedFunctions.Length) {
+                return false;
+            }
+            
+            ILFunction function = _module.Module.DefinedFunctions[frame.Function];
+
+            for (int i = frame.PC; i < function.Code.Length; ++i) {
+                Symbol symbol;
+                if (!function.Symbols.TryGetValue(i, out symbol)) {
+                    continue;
+                }
+
+                sourcePath = symbol.SourceFile;
+                lineNumber = (int)symbol.LineStart;
+                return true;
+            }
+
+            return false;
         }
 
         public void StepInto()
@@ -51,7 +137,7 @@ namespace MonC.Debugging
             if (!_isActive) {
                 throw new InvalidOperationException("Cannot StepInto while debugger is inactive");
             }
-
+            
             // Step and re-apply breakpoints
             _vm.Continue();
             ApplyBreakpoints();
@@ -93,6 +179,8 @@ namespace MonC.Debugging
             if (!_isActive) {
                 throw new InvalidOperationException("Cannot Continue while debugger is inactive");
             }
+            
+            
 
             // Step once and re-apply breakpoints
             _vm.Continue();
@@ -107,8 +195,18 @@ namespace MonC.Debugging
         {
             StackFrameInfo frame = _vm.GetStackFrame(0);
             if (RestoreInstruction(frame)) {
+
+                bool wasActive = _isActive;
+                
                 _vm.SetStepping(true);
-                _isActive = true;    
+                _isActive = true;
+
+                if (!wasActive) {
+                    var handler = Break;
+                    if (handler != null) {
+                        handler();
+                    }
+                }
             }
             
 //            // Is there a breakpoint set for this address?

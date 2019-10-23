@@ -125,10 +125,6 @@ namespace MonC.Frontend
                 Console.Error.WriteLine($"{error.Token.Line + 1},{error.Token.Column + 1}: {error.Message}");
             }
 
-            if (errors.Count > 0) {
-                Environment.Exit(1);
-            }
-
             if (showAST) {
                 PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
                 for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
@@ -142,7 +138,11 @@ namespace MonC.Frontend
                 IntermediateLanguageWriter writer = new IntermediateLanguageWriter();
                 writer.Write(ilmodule, Console.Out);    
             }
-            
+
+            if (errors.Count > 0) {
+                Environment.Exit(1);
+            }
+
             Linker linker = new Linker();
             linker.AddModule(ilmodule);
 
@@ -219,6 +219,11 @@ namespace MonC.Frontend
                 case "pc":
                     StackFrameInfo frame = vm.GetStackFrame(0);
                     Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}");
+                    string sourcePath;
+                    int lineNumber;
+                    if (debugger.GetSourceLocation(frame, out sourcePath, out lineNumber)) {
+                        Console.WriteLine($"File: {sourcePath}, Line: {lineNumber + 1}");
+                    }
                     break;
                 
                 case "next":

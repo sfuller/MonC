@@ -33,8 +33,6 @@ namespace MonC.DotNetInterop
             module.Enums.AddRange(_enums);
             return module;
         }
-        
-        public ILModule
 
         public void ImportAssembly(Assembly assembly, BindingFlags flags)
         {
