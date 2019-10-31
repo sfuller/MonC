@@ -7,6 +7,6 @@ namespace MonC.VM
     [AttributeUsage(AttributeTargets.Enum)]
     public class LinkableEnumAttribute : Attribute
     {
-        public string Prefix;
+        public string? Prefix;
     }
 }

@@ -9,17 +9,20 @@ namespace MonC.Frontend
 {
     public class IntermediateLanguageWriter
     {
-        private TextWriter _writer;
+        private readonly TextWriter _writer;
         private readonly Dictionary<string, string[]> _files = new Dictionary<string, string[]>();
-        
-        public void Write(ILModule module, TextWriter writer)
+
+        public IntermediateLanguageWriter(TextWriter writer)
         {
             _writer = writer;
-
+        }
+        
+        public void Write(ILModule module)
+        {
             Dictionary<int, string> exportedFunctionNames = module.ExportedFunctions.ToDictionary(x => x.Value, x => x.Key);
             
             for (int i = 0, ilen = module.DefinedFunctions.Length; i < ilen; ++i) {
-                string name;
+                string? name;
                 if (!exportedFunctionNames.TryGetValue(i, out name)) {
                     name = "";
                 }
@@ -27,7 +30,7 @@ namespace MonC.Frontend
             }
         }
 
-        public void WriteFunction(string name, int index, ILFunction function)
+        private void WriteFunction(string name, int index, ILFunction function)
         {
             _writer.WriteLine($"[{index}] {name}");
 
@@ -57,16 +60,16 @@ namespace MonC.Frontend
                 return GetDefaultSnippet(symbol);
             }
 
-            if (symbol.LineStart >= file.Length) {
+            if (symbol.Start.Line >= file.Length) {
                 return GetDefaultSnippet(symbol);
             }
 
-            string line = file[symbol.LineStart];
+            string line = file[symbol.Start.Line];
 
-            uint colStart = symbol.ColumnStart;
-            uint colEnd = symbol.ColumnEnd;
+            uint colStart = symbol.Start.Column;
+            uint colEnd = symbol.End.Column;
             
-            if (symbol.LineEnd != symbol.LineStart) {
+            if (symbol.End.Line != symbol.Start.Line) {
                 colEnd = (uint)line.Length - 1;
             }
 
@@ -79,16 +82,16 @@ namespace MonC.Frontend
 
         private string GetDefaultSnippet(Symbol symbol)
         {
-            return $"<{symbol.SourceFile}; {symbol.LineStart},{symbol.ColumnStart} : {symbol.LineEnd},{symbol.ColumnEnd}>";
+            return $"<{symbol.SourceFile}; {symbol.Start.Line},{symbol.Start.Column} : {symbol.End.Line},{symbol.End.Column}>";
         }
 
-        private Optional<string[]> GetFile(string path)
+        private Optional<string[]> GetFile(string? path)
         {
             if (path == null) {
                 return new Optional<string[]>();
             }
             
-            string[] file;
+            string[]? file;
             if (_files.TryGetValue(path, out file)) {
                 return new Optional<string[]>(file);
             }

@@ -12,13 +12,13 @@ namespace MonC
     {   
         private readonly List<Token> _tokens = new List<Token>();
         private int _currentTokenIndex;
-        private string _filePath;
+        private string? _filePath;
 
-        private IList<ParseError> _errors;
+        private IList<ParseError> _errors = new List<ParseError>();
 
-        private IDictionary<IASTLeaf, Symbol> _tokenMap;
+        private IDictionary<IASTLeaf, Symbol> _tokenMap = new Dictionary<IASTLeaf, Symbol>();
         
-        public ParseModule Parse(string filePath, IEnumerable<Token> tokens, ParseModule headerModule, IList<ParseError> errors)
+        public ParseModule Parse(string? filePath, IEnumerable<Token> tokens, ParseModule headerModule, IList<ParseError> errors)
         {
             _filePath = filePath;
             _tokens.Clear();
@@ -33,8 +33,8 @@ namespace MonC
                 ParseTopLevelStatement(outputModule.Functions, outputModule.Enums);
             }
             
-            SemanticAnalyzer analyzer = new SemanticAnalyzer();
-            analyzer.Analyze(headerModule, outputModule, errors);
+            SemanticAnalyzer analyzer = new SemanticAnalyzer(errors,_tokenMap);
+            analyzer.Analyze(headerModule, outputModule);
 
             return outputModule;
         }
@@ -67,7 +67,8 @@ namespace MonC
             if (token.Type != type) {
                 _errors.Add(new ParseError {
                     Message = $"Expecting token of type {type}, got {token.Type}",
-                    Token = token
+                    Start = token.Location,
+                    End = token.DeriveEndLocation()
                 });
                 return false;
             }
@@ -82,7 +83,8 @@ namespace MonC
             if (token.Type != type || token.Value != value) {
                 _errors.Add(new ParseError {
                     Message = $"Expecting token of type {type} with value {value}, got {token.Type} with value {token.Value}",
-                    Token = token
+                    Start = token.Location,
+                    End = token.DeriveEndLocation()
                 });
                 return false;
             }
@@ -92,7 +94,11 @@ namespace MonC
 
         private void AddError(string message, Token token)
         {
-            _errors.Add(new ParseError {Message = message, Token = token});
+            _errors.Add(new ParseError {
+                Message = message,
+                Start = token.Location,
+                End = token.DeriveEndLocation()
+            });
         }
 
         private IASTLeaf ParseTopLevelStatement(IList<FunctionDefinitionLeaf> functions, IList<EnumLeaf> enums)
@@ -622,7 +628,7 @@ namespace MonC
             }
             
             return new Optional<FunctionCallParseLeaf>(
-                NewLeaf(new FunctionCallParseLeaf(lhs, arguments, leftParen), leftParen)
+                NewLeaf(new FunctionCallParseLeaf(lhs, arguments), leftParen)
             );
         }
 
@@ -763,10 +769,8 @@ namespace MonC
             Symbol symbol = new Symbol {
                 Leaf = leaf,
                 SourceFile = _filePath,
-                LineStart = startToken.Line,
-                LineEnd = endToken.Line,
-                ColumnStart = startToken.Column,
-                ColumnEnd = endToken.Column + (uint)endVal.Length
+                Start = startToken.Location,
+                End = endToken.DeriveEndLocation()
             };
 
             _tokenMap[leaf] = symbol;

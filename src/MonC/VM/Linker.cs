@@ -16,8 +16,12 @@ namespace MonC.VM
 
         private readonly List<string> _strings = new List<string>();
 
-        private List<LinkError> _errors;
+        private readonly List<LinkError> _errors;
 
+        public Linker(List<LinkError> errors)
+        {
+            _errors = errors;
+        }
 
         public void AddModule(ILModule module)
         {
@@ -34,10 +38,8 @@ namespace MonC.VM
             _boundFunctions.Add(new KeyValuePair<string, VMEnumerable>(name, enumerable));
         }
 
-        public VMModule Link(List<LinkError> errors)
+        public VMModule Link()
         {
-            _errors = errors;
-            
             _exportedFunctionIndices.Clear();
             _functionImplementations.Clear();
             _moduleOffsets.Clear();
@@ -65,10 +67,7 @@ namespace MonC.VM
                 vmFunctions.Add(vmFunctionsOffset + i, _boundFunctions[i].Value);    
             }
 
-            return new VMModule {
-                Module = resultModule,
-                VMFunctions = vmFunctions
-            };
+            return new VMModule(resultModule, vmFunctions);
         }
 
         public void ImportModule(ILModule inputModule)

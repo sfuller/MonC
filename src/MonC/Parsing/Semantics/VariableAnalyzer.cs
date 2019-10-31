@@ -16,7 +16,7 @@ namespace MonC.Parsing.Semantics
         }
 
         public bool ShouldReplace { get; private set; }
-        public IASTLeaf NewLeaf { get; private set; }
+        public IASTLeaf? NewLeaf { get; private set; }
 
         public override void VisitDefault(IASTLeaf leaf)
         {

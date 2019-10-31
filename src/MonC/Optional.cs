@@ -36,7 +36,13 @@ namespace MonC
             
             // NOTE: Thanks to the null check, the JIT/AOT compiler may be able to optimize out the type check invoked
             // by `item as BT`
-            return new Optional<BT>(_item as BT);
+
+            // TODO: Verify this is optimized as expected by il2cpp
+
+            if (_item is BT item) {
+                return new Optional<BT>(item);
+            }
+            return new Optional<BT>();
         }
 
     }

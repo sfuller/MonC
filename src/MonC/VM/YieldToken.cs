@@ -9,7 +9,7 @@ namespace MonC.VM
     {
         private bool _ready;
         private bool _finished;
-        private Action _callback;
+        private Action? _callback;
         
         public void OnFinished(Action handler)
         {
@@ -19,7 +19,9 @@ namespace MonC.VM
             }
             
             if (_callback != null) {
-                handler = (Action)Action.Combine(_callback, handler);
+                // TODO: What are the performance characteristics of multicast delegates?
+                // Is this a simple list? A hash set?
+                handler = _callback + handler;
             }
             _callback = handler;
         }

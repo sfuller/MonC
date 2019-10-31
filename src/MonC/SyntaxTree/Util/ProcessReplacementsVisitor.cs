@@ -5,12 +5,13 @@ namespace MonC.SyntaxTree.Util
 {
     public class ProcessReplacementsVisitor : IASTLeafVisitor
     {
-        private readonly ScopeCache _scopes;
+        private readonly ScopeCache? _scopes;
         private IReplacementVisitor _replacer;
 
-        public ProcessReplacementsVisitor(ScopeCache scopes = null)
+        public ProcessReplacementsVisitor(IReplacementVisitor replacer, ScopeCache? scopes = null)
         {
             _scopes = scopes;
+            _replacer = replacer;
         }
 
         public ProcessReplacementsVisitor SetReplacer(IReplacementVisitor replacer)
@@ -134,19 +135,19 @@ namespace MonC.SyntaxTree.Util
             }
             
             if (_replacer.ShouldReplace) {
-                IASTLeaf newLeaf = _replacer.NewLeaf;
+                IASTLeaf? newLeaf = _replacer.NewLeaf;
+                
+                if (newLeaf == null) {
+                    return new Optional<T>();
+                }
                 
                 if (_scopes != null) {
                     ScopeResolver resolver = new ScopeResolver(_scopes, _scopes.GetScope(nonNullLeaf));
                     newLeaf.Accept(resolver);
                 }
-
-                if (newLeaf == null) {
-                    return new Optional<T>();
-                }
                 
                 // TODO: This sucks, considering making separate visitors for different types.
-                T newTypedLeaf = newLeaf as T;
+                T? newTypedLeaf = newLeaf as T;
 
                 if (newTypedLeaf == null) {
                     return new Optional<T>();

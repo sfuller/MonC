@@ -8,20 +8,20 @@ namespace MonC.VM
     {
         private readonly List<StackFrame> _callStack = new List<StackFrame>();
         private readonly List<int> _argumentStack = new List<int>();
-        private VMModule _module;
+        private VMModule _module = new VMModule();
         private int _aRegister;
         private int _bRegister;
         
         private bool _canContinue;
 
-        private Action _breakHandler;
+        private Action? _breakHandler;
         private bool _isStepping;
 
         public bool IsRunning => _callStack.Count != 0;
         public int ReturnValue => _aRegister;
         public int CallStackFrameCount => _callStack.Count;
         
-        public event Action Finished;
+        public event Action? Finished;
 
         public void LoadModule(VMModule module)
         {
@@ -167,13 +167,16 @@ namespace MonC.VM
 
         private void InterpretBoundFunctionCall(StackFrame frame)
         {
-            if (!frame.BindingEnumerator.MoveNext()) {
+            // This method should only be called after checking that a binding enumerator exists on the given frame.
+            IEnumerator<Continuation> bindingEnumerator = frame.BindingEnumerator!;
+            
+            if (!bindingEnumerator.MoveNext()) {
                 // Function has finished
                 PopFrame();
                 return;
             }
 
-            Continuation continuation = frame.BindingEnumerator.Current;
+            Continuation continuation = bindingEnumerator.Current;
 
             if (continuation.Action == ContinuationAction.CALL) {
                 _argumentStack.AddRange(continuation.Arguments);

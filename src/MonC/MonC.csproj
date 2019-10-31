@@ -1,143 +1,17 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{9BA206D4-CB5B-47D1-9408-3688980895C8}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>MonC</RootNamespace>
-    <AssemblyName>MonC</AssemblyName>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>default</LangVersion>
+    <Nullable>enable</Nullable>
+
+    <!-- Null-related warnings are errors -->
+    <WarningsAsErrors>CS8603,CS8618,CS8600,CS8625,CS8604,CS8602</WarningsAsErrors>
+    
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <BaseIntermediateOutputPath>..\..\obj</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>$(BaseIntermediateOutputPath)\$(Configuration)\</IntermediateOutputPath>
-    <OutputPath>..\..\bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <BaseIntermediateOutputPath>..\..\obj</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>$(BaseIntermediateOutputPath)\$(Configuration)\</IntermediateOutputPath>
-    <OutputPath>..\..\bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="JetBrains.Annotations, Version=7.1.3000.2254, Culture=neutral, PublicKeyToken=1010a0d8d6380325">
-      <HintPath>..\..\packages\ReSharper.Annotations.7.1.3.130415\lib\net\JetBrains.Annotations.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
+    <PackageReference Include="JetBrains.Annotations" Version="2019.1.3" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Bytecode\Instruction.cs" />
-    <Compile Include="Bytecode\OpCode.cs" />
-    <Compile Include="Codegen\CodeGenerator.cs" />
-    <Compile Include="Codegen\CodeGenVisitor.cs" />
-    <Compile Include="Codegen\FunctionManager.cs" />
-    <Compile Include="Codegen\FunctionStackLayout.cs" />
-    <Compile Include="Codegen\ILModule.cs" />
-    <Compile Include="Codegen\IVariable.cs" />
-    <Compile Include="Codegen\IVariableVisitor.cs" />
-    <Compile Include="Codegen\StackLayoutGenerator.cs" />
-    <Compile Include="Compiler.cs" />
-    <Compile Include="Debugging\Breakpoint.cs" />
-    <Compile Include="Debugging\Debugger.cs" />
-    <Compile Include="DotNetInterop\Binding.cs" />
-    <Compile Include="DotNetInterop\InteropResolver.cs" />
-    <Compile Include="IASTLeaf.cs" />
-    <Compile Include="IASTLeafVisitor.cs" />
-    <Compile Include="Keyword.cs" />
-    <Compile Include="Lexer.cs" />
-    <Compile Include="Optional.cs" />
-    <Compile Include="Parsing\GetTokenVisitor.cs" />
-    <Compile Include="Parsing\IParseTreeLeafVisitor.cs" />
-    <Compile Include="Parsing\ParseModule.cs" />
-    <Compile Include="Parsing\NoOpParseTreeVisitor.cs" />
-    <Compile Include="Parsing\ParseError.cs" />
-    <Compile Include="Parsing\Parser.cs" />
-    <Compile Include="Parsing\ParseTreeLeaves\FunctionCallParseLeaf.cs" />
-    <Compile Include="Parsing\ParseTreeLeaves\IdentifierParseLeaf.cs" />
-    <Compile Include="Parsing\ParseTreeLeaves\PlaceholderLeaf.cs" />
-    <Compile Include="Parsing\Scoping\Scope.cs" />
-    <Compile Include="Parsing\Scoping\ScopeCache.cs" />
-    <Compile Include="Parsing\Scoping\ScopeResolver.cs" />
-    <Compile Include="Parsing\Semantics\EnumManager.cs" />
-    <Compile Include="Parsing\Semantics\TranslateIdentifiersVisitor.cs" />
-    <Compile Include="Parsing\Semantics\VariableAnalyzer.cs" />
-    <Compile Include="Parsing\Semantics\ProcessAssignmentsVisitor.cs" />
-    <Compile Include="Parsing\Semantics\SemanticAnalyzer.cs" />
-    <Compile Include="Parsing\Semantics\VariableDeclarationAnalyzer.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Syntax.cs" />
-    <Compile Include="SyntaxTree\AssignmentLeaf.cs" />
-    <Compile Include="SyntaxTree\BinaryOperationExpressionLeaf.cs" />
-    <Compile Include="SyntaxTree\BodyLeaf.cs" />
-    <Compile Include="SyntaxTree\BreakLeaf.cs" />
-    <Compile Include="SyntaxTree\DeclarationLeaf.cs" />
-    <Compile Include="SyntaxTree\EnumLeaf.cs" />
-    <Compile Include="SyntaxTree\EnumValueLeaf.cs" />
-    <Compile Include="SyntaxTree\ForLeaf.cs" />
-    <Compile Include="SyntaxTree\FunctionCallLeaf.cs" />
-    <Compile Include="SyntaxTree\UnaryOperationLeaf.cs" />
-    <Compile Include="SyntaxTree\Util\IReplacementVisitor.cs" />
-    <Compile Include="SyntaxTree\Util\NoOpASTVisitor.cs" />
-    <Compile Include="SyntaxTree\Util\ProcessReplacementsVisitor.cs" />
-    <Compile Include="SyntaxTree\Util\VisitChildrenVisitor.cs" />
-    <Compile Include="SyntaxTree\VariableLeaf.cs" />
-    <Compile Include="SyntaxTree\IfElseLeaf.cs" />
-    <Compile Include="SyntaxTree\NumericLiteralLeaf.cs" />
-    <Compile Include="SyntaxTree\FunctionDefinitionLeaf.cs" />
-    <Compile Include="SyntaxTree\ReturnLeaf.cs" />
-    <Compile Include="SyntaxTree\StringLiteralLeaf.cs" />
-    <Compile Include="SyntaxTree\WhileLeaf.cs" />
-    <Compile Include="Token.cs" />
-    <Compile Include="Symbol.cs" />
-    <Compile Include="TokenType.cs" />
-    <Compile Include="VM\Continuation.cs" />
-    <Compile Include="VM\IVMBindingContext.cs" />
-    <Compile Include="VM\IYieldToken.cs" />
-    <Compile Include="VM\ExternalFunctionAttribute.cs" />
-    <Compile Include="VM\LinkableEnumAttribute.cs" />
-    <Compile Include="VM\LinkableFunctionAttribute.cs" />
-    <Compile Include="VM\LinkableModuleAttribute.cs" />
-    <Compile Include="VM\Linker.cs" />
-    <Compile Include="VM\LinkError.cs" />
-    <Compile Include="VM\StackFrame.cs" />
-    <Compile Include="VM\StackFrameInfo.cs" />
-    <Compile Include="VM\StackFrameMemory.cs" />
-    <Compile Include="VM\VirtualMachine.cs" />
-    <Compile Include="VM\VMBindingContext.cs" />
-    <Compile Include="VM\VMEnumerableWrapper.cs" />
-    <Compile Include="VM\VMFunction.cs" />
-    <Compile Include="VM\VMModule.cs" />
-    <Compile Include="VM\YieldToken.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-         Other similar extension points exist, see Microsoft.Common.targets.
-    <Target Name="BeforeBuild">
-    </Target>
-    <Target Name="AfterBuild">
-    </Target>
-    -->
+
 </Project>

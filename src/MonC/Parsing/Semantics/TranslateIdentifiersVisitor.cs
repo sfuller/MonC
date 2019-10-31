@@ -12,10 +12,10 @@ namespace MonC.Parsing.Semantics
         private readonly ScopeCache _scopes;
         private readonly Dictionary<string, FunctionDefinitionLeaf> _functions;
         private readonly EnumManager _enums;
-
-        private IList<ParseError> _errors;
-
-        public TranslateIdentifiersVisitor(ScopeCache scopes, Dictionary<string, FunctionDefinitionLeaf> functions, IList<ParseError> errors, EnumManager enums)
+        
+        private readonly IList<(string name, IASTLeaf leaf)> _errors;
+        
+        public TranslateIdentifiersVisitor(ScopeCache scopes, Dictionary<string, FunctionDefinitionLeaf> functions, IList<(string name, IASTLeaf leaf)> errors, EnumManager enums)
         {
             _scopes = scopes;
             _functions = functions;
@@ -24,7 +24,7 @@ namespace MonC.Parsing.Semantics
         }
 
         public bool ShouldReplace { get; private set; }
-        public IASTLeaf NewLeaf { get; private set; }
+        public IASTLeaf? NewLeaf { get; private set; }
         
         public void VisitIdentifier(IdentifierParseLeaf leaf)
         {
@@ -43,29 +43,24 @@ namespace MonC.Parsing.Semantics
                 return;
             }
 
+            
+            
             ShouldReplace = false;
-            //_errors.Add(new ParseError { Message = $"Undeclared identifier {leaf.Name}", Token = leaf.Token});
-            _errors.Add(new ParseError { Message = $"Undeclared identifier {leaf.Name}", Token = new Token()});
+            _errors.Add(($"Undeclared identifier {leaf.Name}", leaf));
         }
 
         public void VisitFunctionCall(FunctionCallParseLeaf leaf)
         {
-            IdentifierParseLeaf identifier = leaf.LHS as IdentifierParseLeaf;
+            IdentifierParseLeaf? identifier = leaf.LHS as IdentifierParseLeaf;
 
             if (identifier == null) {
-                _errors.Add(new ParseError {
-                    Message = "LHS of function call operator is not an identifier.",
-                    Token = leaf.Token
-                });
+                _errors.Add(("LHS of function call operator is not an identifier.", leaf));
                 return;
             }
 
             FunctionDefinitionLeaf function;
             if (!_functions.TryGetValue(identifier.Name, out function)) {
-                _errors.Add(new ParseError {
-                    Message = "Undefined function " + identifier.Name,
-                    Token = leaf.Token
-                });
+                _errors.Add(("Undefined function " + identifier.Name, leaf));
                 return;
             }
 

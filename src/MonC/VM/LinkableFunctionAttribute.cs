@@ -7,7 +7,7 @@ namespace MonC.VM
     [AttributeUsage(AttributeTargets.Method)]
     public class LinkableFunctionAttribute : Attribute
     {
-        public string Name;
+        public string? Name;
         public int ArgumentCount;
     }
 }

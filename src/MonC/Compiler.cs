@@ -78,7 +78,7 @@ namespace MonC
             List<LinkError> linkErrors
         )
         {
-            Linker linker = new Linker();
+            Linker linker = new Linker(linkErrors);
             ParseModule parsedModule = CreateInputParseModuleFromInteropResolver(resolver);
             
             SetupLinkerWithInteropResolver(linker, resolver);
@@ -90,7 +90,7 @@ namespace MonC
             
             linker.AddModule(compiledModule);
 
-            VMModule linkedModule = linker.Link(linkErrors);
+            VMModule linkedModule = linker.Link();
             if (linkErrors.Count > 0) {
                 return new Optional<VMModule>();
             }
@@ -104,13 +104,13 @@ namespace MonC
             List<LinkError> linkErrors
         )
         {
-            Linker linker = new Linker();
+            Linker linker = new Linker(linkErrors);
             SetupLinkerWithInteropResolver(linker, resolver);
             ILModule compiledModule = Compile(parsedModule);
 
             linker.AddModule(compiledModule);
 
-            VMModule linkedModule = linker.Link(linkErrors);
+            VMModule linkedModule = linker.Link();
             if (linkErrors.Count > 0) {
                 return new Optional<VMModule>();
             }

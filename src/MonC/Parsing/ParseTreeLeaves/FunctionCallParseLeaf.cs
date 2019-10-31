@@ -5,7 +5,6 @@ namespace MonC.Parsing.ParseTreeLeaves
 {
     public class FunctionCallParseLeaf : IASTLeaf
     {
-        public readonly Token Token;
         public readonly IASTLeaf LHS;
         private readonly IASTLeaf[] _arguments;
 
@@ -17,17 +16,15 @@ namespace MonC.Parsing.ParseTreeLeaves
             return new List<IASTLeaf>(_arguments).ToArray();
         }
 
-        public FunctionCallParseLeaf(IASTLeaf lhs, IEnumerable<IASTLeaf> arguments, Token token)
+        public FunctionCallParseLeaf(IASTLeaf lhs, IEnumerable<IASTLeaf> arguments)
         {
             LHS = lhs;
             _arguments = arguments.ToArray();
-            Token = token;
         }
 
         public void Accept(IASTLeafVisitor visitor)
         {
-            IParseTreeLeafVisitor specificVisitor = visitor as IParseTreeLeafVisitor;
-            if (specificVisitor != null) {
+            if (visitor is IParseTreeLeafVisitor specificVisitor) {
                 specificVisitor.VisitFunctionCall(this);
             }
         }

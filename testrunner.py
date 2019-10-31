@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 TEST_DIR = os.path.normpath(os.path.join(__file__, '..', 'test'))
-FRONTEND_BINARY = os.path.normpath(os.path.join(__file__, '..', 'bin/Debug/Frontend.exe'))
+FRONTEND_BINARY = os.path.normpath(os.path.join(__file__, '..', 'bin', 'Debug', 'Frontend'))
 
 
 TERM_COLOR_RED =   '\033[0;31m'
@@ -25,7 +25,7 @@ def main():
         showall = True
         sys.argv.remove('--showall')
 
-    test_files = [os.path.join(TEST_DIR, p) for p in  os.listdir(TEST_DIR)]
+    test_files = [os.path.join(TEST_DIR, p) for p in os.listdir(TEST_DIR) if os.path.splitext(p)[1] == '.monc']
 
     failed_files = []
 
@@ -56,7 +56,7 @@ def test(path, showall: bool) -> bool:
     sys.stdout.flush()
     
     with open(path) as f:
-        args = ['mono', FRONTEND_BINARY, path]
+        args = [FRONTEND_BINARY, path]
         args.extend(sys.argv[1:])
         result = subprocess.run(args, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     

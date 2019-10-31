@@ -1,4 +1,4 @@
-FROM mono:latest
+FROM mcr.microsoft.com/dotnet/core/sdk:3.0
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -10,10 +10,11 @@ RUN apt-get -t testing install -y python3
 
 WORKDIR /root
 
+COPY Directory.Build.props Directory.Build.props
 COPY MonC.sln MonC.sln
 COPY src src
 COPY test test
 COPY testrunner.py testrunner.py
 
-CMD msbuild && ./testrunner.py --showlex --showast --showil
+CMD dotnet build && ./testrunner.py --showlex --showast --showil
 

@@ -184,9 +184,9 @@ namespace MonC.DotNetInterop
         {
             object targetObject;
             if (target.Get(out targetObject)) {
-                return Delegate.CreateDelegate(typeof(T), targetObject, method) as T;
+                return (Delegate.CreateDelegate(typeof(T), targetObject, method) as T)!;
             }
-            return  Delegate.CreateDelegate(typeof(T), method) as T;
+            return (Delegate.CreateDelegate(typeof(T), method) as T)!;
         }
 
         private static VMEnumerable WrapSimpleBinding(MethodInfo info, Optional<object> target)

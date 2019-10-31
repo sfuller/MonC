@@ -10,28 +10,28 @@ namespace MonC.Parsing.Semantics
     public class ProcessAssignmentsVisitor : NoOpASTVisitor, IReplacementVisitor, IParseTreeLeafVisitor
     {
         private readonly ScopeCache _scopes;
-        private readonly IList<ParseError> _errors;
+        private readonly IList<(string message, IASTLeaf leaf)> _errors;
 
-        public ProcessAssignmentsVisitor(ScopeCache scopes, IList<ParseError> errors)
+        public ProcessAssignmentsVisitor(ScopeCache scopes, IList<(string message, IASTLeaf leaf)> errors)
         {
             _scopes = scopes;
             _errors = errors;
         }
 
         public bool ShouldReplace { get; private set; }
-        public IASTLeaf NewLeaf { get; private set; }
+        public IASTLeaf? NewLeaf { get; private set; }
 
         public override void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
             base.VisitBinaryOperation(leaf);
             
             if (leaf.Op.Value == "=") {
-                IdentifierParseLeaf identifier = leaf.LHS as IdentifierParseLeaf;
+                IdentifierParseLeaf? identifier = leaf.LHS as IdentifierParseLeaf;
                 if (identifier == null) {
                     // TODO: Make this shared functionality
                     GetTokenVisitor tokenVisitor = new GetTokenVisitor();
                     leaf.LHS.Accept(tokenVisitor);
-                    _errors.Add(new ParseError {Message = "Expecting identifier", Token = tokenVisitor.Token} );
+                    _errors.Add(("Expecting identifier", leaf.LHS));
                     return;
                 }
 
@@ -39,13 +39,12 @@ namespace MonC.Parsing.Semantics
                 
                 DeclarationLeaf declaration = scope.Variables.Find(d => d.Name == identifier.Name);
                 if (declaration == null) {
-                    //_errors.Add(new ParseError {Message = $"Undeclared identifier {identifier.Name}", Token = identifier.Token} );
-                    _errors.Add(new ParseError {Message = $"Undeclared identifier {identifier.Name}", Token = new Token()} );
+                    _errors.Add(($"Undeclared identifier {identifier.Name}", identifier));
                     return;
                 }
 
                 ShouldReplace = true;
-                NewLeaf = new AssignmentLeaf {Declaration = declaration, RHS = leaf.RHS};
+                NewLeaf = new AssignmentLeaf(declaration, leaf.RHS);
             }
         }
 

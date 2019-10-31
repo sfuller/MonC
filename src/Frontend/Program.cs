@@ -82,7 +82,7 @@ namespace MonC.Frontend
 
             ParseModule interopHeaderModule = interopResolver.CreateHeaderModule(); 
             
-            string filename = null;
+            string? filename = null;
 
             if (positionals.Count > 0) {
                 filename = positionals[0];
@@ -102,7 +102,7 @@ namespace MonC.Frontend
                 }    
             } else {
                 if (filename == null) {
-                    string line;
+                    string? line;
                     StringBuilder inputBuilder = new StringBuilder();
                     while ((line = Console.In.ReadLine()) != null) {
                         inputBuilder.AppendLine(line);
@@ -122,7 +122,7 @@ namespace MonC.Frontend
 
             for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
                 ParseError error = errors[i];
-                Console.Error.WriteLine($"{error.Token.Line + 1},{error.Token.Column + 1}: {error.Message}");
+                Console.Error.WriteLine($"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
             }
 
             if (showAST) {
@@ -135,23 +135,23 @@ namespace MonC.Frontend
             CodeGenerator generator = new CodeGenerator();
             ILModule ilmodule = generator.Generate(module);
             if (showIL) {
-                IntermediateLanguageWriter writer = new IntermediateLanguageWriter();
-                writer.Write(ilmodule, Console.Out);    
+                IntermediateLanguageWriter writer = new IntermediateLanguageWriter(Console.Out);
+                writer.Write(ilmodule);    
             }
 
             if (errors.Count > 0) {
                 Environment.Exit(1);
             }
 
-            Linker linker = new Linker();
+            List<LinkError> linkErrors = new List<LinkError>();
+            Linker linker = new Linker(linkErrors);
             linker.AddModule(ilmodule);
 
             foreach (Binding binding in interopResolver.Bindings) {
                 linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation);
             }
-
-            List<LinkError> linkErrors = new List<LinkError>();
-            VMModule vmModule = linker.Link(linkErrors);
+            
+            VMModule vmModule = linker.Link();
 
             if (linkErrors.Count > 0) {
                 foreach (LinkError error in linkErrors) {
@@ -171,10 +171,10 @@ namespace MonC.Frontend
             VirtualMachine vm = new VirtualMachine();
             vm.LoadModule(vmModule);
 
-            Debugger debugger = null;
+            Debugger? debugger = null;
             if (withDebugger) {
-                debugger = new Debugger();
-                debugger.Setup(vmModule, vm);
+                debugger = new Debugger(vmModule, vm);
+                //debugger.Setup(vmModule, vm);
                 debugger.Pause();
             }
 
@@ -219,7 +219,7 @@ namespace MonC.Frontend
                 case "pc":
                     StackFrameInfo frame = vm.GetStackFrame(0);
                     Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}");
-                    string sourcePath;
+                    string? sourcePath;
                     int lineNumber;
                     if (debugger.GetSourceLocation(frame, out sourcePath, out lineNumber)) {
                         Console.WriteLine($"File: {sourcePath}, Line: {lineNumber + 1}");

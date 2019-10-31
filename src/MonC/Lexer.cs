@@ -42,7 +42,7 @@ namespace MonC
             
             switch (_currentTokenType) {
                 default:
-                    tokens.Add(MakeToken());
+                    tokens.Add(new Token(TokenType.None, "", GetCurrentLocation()));
                     canContinue = false;
                     break;
                 case TokenType.Identifier:
@@ -154,7 +154,7 @@ namespace MonC
 
         private bool ProcessIdentifier(IList<Token> tokens)
         {
-            Token token = MakeToken();
+            FileLocation location = GetCurrentLocation();
             int next;
             
             while ((next = Peek()) != -1) {
@@ -163,17 +163,17 @@ namespace MonC
                 if (!IsValidIdentifierCharacter(nextChar)) {
                     // Token is finished. Determine whether it is a reserved keyword or a normal identifier. 
                     string value = _valueBuffer.ToString();
-                    token.Value = value;
+                    TokenType type;
                     
                     if (Keyword.IsKeyword(value)) {
-                        token.Type = TokenType.Keyword;
+                        type = TokenType.Keyword;
                     } else {
-                        token.Type = TokenType.Identifier;
+                        type = TokenType.Identifier;
                     }
                     
                     // All done!
                     _valueBuffer.Length = 0;
-                    tokens.Add(token);
+                    tokens.Add(new Token(type, value, location));
                     return true;
                 }
 
@@ -187,7 +187,7 @@ namespace MonC
 
         private bool ProcessNumber(IList<Token> tokens)
         {
-            Token token = MakeToken();
+            FileLocation location = GetCurrentLocation();
             int next;
 
             while ((next = Peek()) != -1) {
@@ -197,9 +197,7 @@ namespace MonC
                     // Number is finished
                     string value = _valueBuffer.ToString();
                     _valueBuffer.Length = 0;
-                    token.Type = TokenType.Number;
-                    token.Value = value;
-                    tokens.Add(token);
+                    tokens.Add(new Token(TokenType.Number, value, location));
                     return true;
                 }
 
@@ -213,7 +211,7 @@ namespace MonC
         
         private bool ProcessString(IList<Token> tokens)
         {
-            Token token = MakeToken();
+            FileLocation location = GetCurrentLocation();
             int next;
 
             if (!_stringState.ConsumedFirstQuote) {
@@ -237,10 +235,8 @@ namespace MonC
                         if (nextChar == '"') {
                             // String finished.
                             Consume();
-                            token.Type = TokenType.String;
-                            token.Value = _valueBuffer.ToString();
                             _valueBuffer.Length = 0;
-                            tokens.Add(token);
+                            tokens.Add(new Token(TokenType.String, _valueBuffer.ToString(), location));
                             return true;
                         }
 
@@ -256,10 +252,8 @@ namespace MonC
 
         private bool ProcessSyntax(IList<Token> tokens)
         {
-            Token baseToken = MakeToken();
-            
             StringBuilder blockBuilder = new StringBuilder();
-            List<Token> blockTokenStubs = new List<Token>(); 
+            List<FileLocation> blockTokenLocations = new List<FileLocation>(); 
             
             while (GetNextTokenType(ignoreSpace: false) == TokenType.Syntax) {
                 int next = Peek();
@@ -268,9 +262,7 @@ namespace MonC
                     break;
                 }
                 blockBuilder.Append((char) next);
-                Token stub = MakeToken();
-                stub.Type = TokenType.Syntax;
-                blockTokenStubs.Add(stub);
+                blockTokenLocations.Add(GetCurrentLocation());
                 Consume();
             }
             
@@ -279,7 +271,7 @@ namespace MonC
             
             while (!string.IsNullOrEmpty(block)) {
                 Token token;
-                int offset = ProcessSyntaxBlock(blockTokenStubs[stubOffset], block, out token);
+                int offset = ProcessSyntaxBlock(blockTokenLocations[stubOffset], block, out token);
                 tokens.Add(token);
                 stubOffset += offset;
                 block = block.Substring(offset);
@@ -288,7 +280,7 @@ namespace MonC
             return true;
         }
 
-        private int ProcessSyntaxBlock(Token baseToken, string value, out Token lexedToken)
+        private int ProcessSyntaxBlock(FileLocation location, string value, out Token lexedToken)
         {
             for (int i = value.Length; i > 1; --i) {
                 string subValue = value.Substring(0, i);
@@ -296,15 +288,13 @@ namespace MonC
                 
                 for (int j = 0, jlen = possibleValues.Length; j < jlen ; ++j) {
                     if (subValue == possibleValues[j]) {
-                        lexedToken = baseToken;
-                        lexedToken.Value = subValue;
+                        lexedToken = new Token(TokenType.Syntax, subValue, location);
                         return i;
                     }
                 }
             }
-
-            lexedToken = baseToken;
-            lexedToken.Value = value.Substring(0, 1);
+            
+            lexedToken = new Token(TokenType.Syntax, value.Substring(0, 1), location);
             return 1;
         }
 
@@ -361,12 +351,18 @@ namespace MonC
             return _sourceString[index];
         }
 
-        private Token MakeToken()
+//        private Token MakeToken()
+//        {
+//            return new Token {
+//                Location = GetCurrentLocation()
+//            };
+//        }
+
+        
+
+        private FileLocation GetCurrentLocation()
         {
-            return new Token {
-                Line = _currentLine,
-                Column = _currentColumn
-            };
+            return new FileLocation {Line = _currentLine, Column = _currentColumn};
         }
     }
 }

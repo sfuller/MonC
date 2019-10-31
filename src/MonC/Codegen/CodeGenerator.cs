@@ -8,12 +8,10 @@ namespace MonC.Codegen
 {
     public class CodeGenerator
     {
-        private FunctionManager _manager;
+        private readonly FunctionManager _manager = new FunctionManager();
         
         public ILModule Generate(ParseModule module)
         {
-            _manager = new FunctionManager();
-
             foreach (FunctionDefinitionLeaf function in module.Functions) {
                 _manager.RegisterFunction(function);
             }

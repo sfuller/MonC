@@ -9,9 +9,9 @@ namespace MonC.Parsing.Semantics
     public class VariableDeclarationAnalyzer : NoOpASTVisitor
     {
         private readonly ScopeCache _scopes;
-        private readonly IList<ParseError> _errors;
+        private readonly IList<(string message, IASTLeaf leaf)> _errors;
         
-        public VariableDeclarationAnalyzer(ScopeCache scopes, IList<ParseError> errors)
+        public VariableDeclarationAnalyzer(ScopeCache scopes, IList<(string message, IASTLeaf leaf)> errors)
         {
             _scopes = scopes;
             _errors = errors;
@@ -24,7 +24,7 @@ namespace MonC.Parsing.Semantics
             DeclarationLeaf previousLeaf = scope.Variables.Find(existingLeaf => leaf.Name == existingLeaf.Name);
 
             if (previousLeaf != null) {
-                _errors.Add(new ParseError { Message = $"Duplicate declaration {leaf.Name}"});
+                _errors.Add(($"Duplicate declaration {leaf.Name}", leaf));
             }
         }
     }

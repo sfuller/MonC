@@ -8,6 +8,6 @@ namespace MonC.VM
         public int Function;
         public int PC;
         public StackFrameMemory Memory = new StackFrameMemory();
-        public IEnumerator<Continuation> BindingEnumerator;
+        public IEnumerator<Continuation>? BindingEnumerator;
     }
 }

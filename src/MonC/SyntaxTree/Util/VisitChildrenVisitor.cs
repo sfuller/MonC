@@ -5,14 +5,16 @@ namespace MonC.SyntaxTree.Util
 {
 public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
     {
+        #nullable disable // https://github.com/dotnet/roslyn/issues/32358
         private IASTLeafVisitor _visitor;
+        #nullable restore
 
-        public VisitChildrenVisitor(IASTLeafVisitor visitor = null)
+        public VisitChildrenVisitor(IASTLeafVisitor? visitor = null)
         {
             SetVisitor(visitor);
         }
 
-        public VisitChildrenVisitor SetVisitor(IASTLeafVisitor visitor)
+        public VisitChildrenVisitor SetVisitor(IASTLeafVisitor? visitor)
         {
             _visitor = visitor ?? new NoOpASTVisitor();
             return this;

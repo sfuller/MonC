@@ -18,9 +18,11 @@ namespace MonC.Debugging
         
         private bool _isActive;
 
-        public event Action Break;
-        
-        public void Setup(VMModule module, VirtualMachine vm)
+        public event Action? Break;
+
+        public bool IsActive => _isActive;
+
+        public Debugger(VMModule module, VirtualMachine vm)
         {
             _replacedInstructions.Clear();
             for (int i = 0, ilen = module.Module.DefinedFunctions.Length; i < ilen; ++i) {
@@ -31,6 +33,11 @@ namespace MonC.Debugging
             _module = module;
             _vm.SetBreakHandler(HandleBreak);
         }
+        
+//        public void Setup(VMModule module, VirtualMachine vm)
+//        {
+//            
+//        }
 
         public void Pause()
         {
@@ -94,7 +101,7 @@ namespace MonC.Debugging
                         break;
                     }
 
-                    if (lineNumber >= symbol.LineStart && lineNumber <= symbol.LineEnd) {
+                    if (lineNumber >= symbol.Start.Line && lineNumber <= symbol.End.Line) {
                         functionIndexResult = functionIndex;
                         addressResult = i;
                         return true;
@@ -107,7 +114,7 @@ namespace MonC.Debugging
             return false;
         }
 
-        public bool GetSourceLocation(StackFrameInfo frame, out string sourcePath, out int lineNumber)
+        public bool GetSourceLocation(StackFrameInfo frame, out string? sourcePath, out int lineNumber)
         {
             sourcePath = "";
             lineNumber = 0;
@@ -125,7 +132,7 @@ namespace MonC.Debugging
                 }
 
                 sourcePath = symbol.SourceFile;
-                lineNumber = (int)symbol.LineStart;
+                lineNumber = (int)symbol.Start.Line;
                 return true;
             }
 

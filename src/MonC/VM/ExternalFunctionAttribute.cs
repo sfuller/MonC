@@ -7,8 +7,11 @@ namespace MonC.VM
     {
         public readonly string Name;
 
-        public ExternalFunctionAttribute(string name = null)
+        public ExternalFunctionAttribute(string? name = null)
         {
+            if (name == null) {
+                name = string.Empty;
+            }
             Name = name;
         }
     }

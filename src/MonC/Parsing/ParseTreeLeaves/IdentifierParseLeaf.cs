@@ -11,8 +11,7 @@ namespace MonC.Parsing.ParseTreeLeaves
 
         public void Accept(IASTLeafVisitor visitor)
         {
-            IParseTreeLeafVisitor specializedVisitor = visitor as IParseTreeLeafVisitor;
-            if (specializedVisitor != null) {
+            if (visitor is IParseTreeLeafVisitor specializedVisitor) {
                 specializedVisitor.VisitIdentifier(this);
             }
         }
