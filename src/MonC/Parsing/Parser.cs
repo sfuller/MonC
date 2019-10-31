@@ -628,7 +628,7 @@ namespace MonC
             }
             
             return new Optional<FunctionCallParseLeaf>(
-                NewLeaf(new FunctionCallParseLeaf(lhs, arguments), leftParen)
+                NewLeaf(new FunctionCallParseLeaf(lhs, arguments), lhs)
             );
         }
 
@@ -761,16 +761,16 @@ namespace MonC
 
         private T NewLeaf<T>(T leaf, Token startToken, Token endToken) where T : IASTLeaf
         {
-            string endVal = endToken.Value;
-            if (string.IsNullOrEmpty(endVal)) {
-                endVal = "";
-            }
-            
+            return NewLeaf(leaf, startToken.Location, endToken.DeriveEndLocation());
+        }
+
+        private T NewLeaf<T>(T leaf, FileLocation start, FileLocation end) where T : IASTLeaf
+        {
             Symbol symbol = new Symbol {
                 Leaf = leaf,
                 SourceFile = _filePath,
-                Start = startToken.Location,
-                End = endToken.DeriveEndLocation()
+                Start = start,
+                End = end
             };
 
             _tokenMap[leaf] = symbol;
@@ -781,6 +781,12 @@ namespace MonC
         {
             return NewLeaf(leaf, startToken, Peek());
         }
-        
+
+        private T NewLeaf<T>(T leaf, IASTLeaf startLeaf) where T : IASTLeaf
+        {
+            Symbol symbol;
+            _tokenMap.TryGetValue(startLeaf, out symbol);
+            return NewLeaf(leaf, symbol.Start, Peek().DeriveEndLocation());
+        }
     }
 }

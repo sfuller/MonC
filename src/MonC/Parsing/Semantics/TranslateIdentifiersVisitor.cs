@@ -42,8 +42,6 @@ namespace MonC.Parsing.Semantics
                 NewLeaf = new EnumValueLeaf(enumLeaf, leaf.Name);
                 return;
             }
-
-            
             
             ShouldReplace = false;
             _errors.Add(($"Undeclared identifier {leaf.Name}", leaf));

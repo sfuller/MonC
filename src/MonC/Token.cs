@@ -2,20 +2,23 @@ namespace MonC
 {
     public struct Token
     {
-        public readonly TokenType Type;
-        public readonly string Value;
-        public readonly FileLocation Location;
+        public TokenType Type;
+        public string? RawValue;
+        public FileLocation Location;
 
         public Token(TokenType type, string value, FileLocation location)
         {
             Type = type;
-            Value = value;
+            RawValue = value;
             Location = location;
         }
-        
+
+        public readonly string Value => RawValue ?? "";
+
         public override string ToString()
         {
-            return $"MonC.Token(Type={Type}, Value=\"{Value}\", Location={Location})";
+            string valueDisplay = Value != null ? $"\"{Value}\"" : "null";
+            return $"MonC.Token(Type={Type}, Value={valueDisplay}, Location={Location})";
         }
         
         public readonly FileLocation DeriveEndLocation()
