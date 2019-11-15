@@ -64,14 +64,24 @@ namespace MonC.Parsing.Semantics
             }
 
             ShouldReplace = true;
+
+            FunctionCallLeaf? resultLeaf = null;
             
             FunctionDefinitionLeaf function;
             if (!_functions.TryGetValue(identifier.Name, out function)) {
                 _errors.Add(("Undefined function " + identifier.Name, leaf));
-                NewLeaf = MakeFakeFunctionCall(identifier, leaf);
+            } else if (function.Parameters.Length != leaf.ArgumentCount) {
+                _errors.Add(($"Expected {function.Parameters.Length} argument(s), got {leaf.ArgumentCount}", leaf));
             } else {
-                NewLeaf = UpdateSymbolMap(new FunctionCallLeaf(function, leaf.GetArguments()), leaf);   
+                resultLeaf = new FunctionCallLeaf(function, leaf.GetArguments());    
             }
+
+            if (resultLeaf == null) {
+                resultLeaf = MakeFakeFunctionCall(identifier, leaf);
+            }
+            
+            UpdateSymbolMap(resultLeaf, leaf);
+            NewLeaf = resultLeaf;
         }
 
         private FunctionCallLeaf MakeFakeFunctionCall(IdentifierParseLeaf identifier, FunctionCallParseLeaf call)
@@ -86,7 +96,6 @@ namespace MonC.Parsing.Semantics
                 ),
                 arguments: Array.Empty<IASTLeaf>());
             
-            UpdateSymbolMap(fakeFunctionCall, call);
             return fakeFunctionCall;
         }
 

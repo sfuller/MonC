@@ -63,7 +63,7 @@ def test(path, showall: bool) -> bool:
     filename = os.path.basename(path)
    
     status = result.returncode is 0
-    
+
     if filename.startswith('fail_'):
         status = not status
 

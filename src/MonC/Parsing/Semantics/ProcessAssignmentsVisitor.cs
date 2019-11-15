@@ -35,15 +35,27 @@ namespace MonC.Parsing.Semantics
                 }
 
                 Scope scope = _scopes.GetScope(leaf);
+
+                ShouldReplace = true;
+                AssignmentLeaf? resultLeaf = null;
                 
                 DeclarationLeaf declaration = scope.Variables.Find(d => d.Name == identifier.Name);
                 if (declaration == null) {
                     _errors.Add(($"Undeclared identifier {identifier.Name}", identifier));
-                    return;
+                } else {
+                    resultLeaf = new AssignmentLeaf(declaration, leaf.RHS);
                 }
 
-                ShouldReplace = true;
-                NewLeaf = new AssignmentLeaf(declaration, leaf.RHS);
+                if (resultLeaf == null) {
+                    DeclarationLeaf fakeDeclaration = new DeclarationLeaf(
+                        type: "int",
+                        name: $"(undefined){identifier.Name}",
+                        assignment: new Optional<IASTLeaf>()
+                    );
+                    resultLeaf = new AssignmentLeaf(fakeDeclaration, leaf.RHS);
+                }
+                
+                NewLeaf = resultLeaf;
                 
                 // TODO: Need more automated symbol association for new leaves.
                 Symbol originalSymbol;

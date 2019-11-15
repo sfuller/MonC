@@ -191,7 +191,8 @@ namespace MonC.DotNetInterop
 
         private static VMEnumerable WrapSimpleBinding(MethodInfo info, Optional<object> target)
         {
-            return (context, args) => SimpleBindingEnumerator(CreateDelegate<VMFunction>(info, target), args);
+            VMFunction function = CreateDelegate<VMFunction>(info, target);
+            return (context, args) => SimpleBindingEnumerator(function, args);
         }
 
         private static IEnumerator<Continuation> SimpleBindingEnumerator(VMFunction func, int[] arguments)

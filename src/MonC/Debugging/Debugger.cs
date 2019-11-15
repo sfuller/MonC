@@ -268,6 +268,9 @@ namespace MonC.Debugging
         
         private ILFunction GetILFunction(StackFrameInfo frame)
         {
+            if (frame.Function >= _module.Module.DefinedFunctions.Length) {
+                return ILFunction.Empty();
+            }
             return _module.Module.DefinedFunctions[frame.Function];
         }
 

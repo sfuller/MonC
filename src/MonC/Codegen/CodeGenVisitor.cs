@@ -145,7 +145,9 @@ namespace MonC.Codegen
         public void VisitAssignment(AssignmentLeaf leaf)
         {
             leaf.RHS.Accept(this);
-            int addr = AddInstruction(OpCode.WRITE, _layout.Variables[leaf.Declaration]);
+            int variableAddress;
+            _layout.Variables.TryGetValue(leaf.Declaration, out variableAddress);
+            int addr = AddInstruction(OpCode.WRITE, variableAddress);
             AddDebugSymbol(addr, leaf);
         }
 

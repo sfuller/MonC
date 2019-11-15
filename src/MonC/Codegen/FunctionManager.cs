@@ -12,6 +12,10 @@ namespace MonC.Codegen
         
         public void RegisterFunction(FunctionDefinitionLeaf leaf)
         {
+            if (DefinedFunctions.ContainsKey(leaf.Name)) {
+                return;
+            }
+            
             int index = FunctionTable.Count;
             DefinedFunctions.Add(leaf.Name, index);
             FunctionTable.Add(leaf.Name, index);

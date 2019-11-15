@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using MonC.Codegen;
-using MonC.Debugging;
 using MonC.DotNetInterop;
 using MonC.Parsing;
 using MonC.VM;
+using Debugger = MonC.Debugging.Debugger;
 
 namespace MonC.Frontend
 {   
@@ -16,13 +17,13 @@ namespace MonC.Frontend
     { 
         public static void Main(string[] args)
         {
-            //AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) => {
-            //    if (eventArgs.ExceptionObject is Exception exception) {
-            //        Console.Error.WriteLine(exception.ToString());
-            //        Console.Error.WriteLine(new StackTrace(exception));
-            //        Environment.Exit(2);    
-            //    }
-            //}; 
+            AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) => {
+                if (eventArgs.ExceptionObject is Exception exception) {
+                    Console.Error.WriteLine(exception.ToString());
+                    Console.Error.WriteLine(new StackTrace(exception));
+                    Environment.Exit(2);    
+                }
+            }; 
             
             bool isInteractive = false;
             bool showLex = false;

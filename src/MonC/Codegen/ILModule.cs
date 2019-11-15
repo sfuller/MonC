@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using MonC.Bytecode;
 
@@ -12,6 +13,15 @@ namespace MonC.Codegen
         /// Indices of all instructions which use a string as their value.
         /// </summary>
         public int[] StringInstructions;
+
+        public static ILFunction Empty()
+        {
+            return new ILFunction() {
+                Code = Array.Empty<Instruction>(),
+                Symbols = new Dictionary<int, Symbol>(),
+                StringInstructions = Array.Empty<int>()
+            };
+        } 
     }
     
     public class ILModule
