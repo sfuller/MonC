@@ -14,13 +14,20 @@ namespace MonC.Parsing.Semantics
         private readonly EnumManager _enums;
         
         private readonly IList<(string name, IASTLeaf leaf)> _errors;
+        private readonly IDictionary<IASTLeaf, Symbol> _symbolMap;
         
-        public TranslateIdentifiersVisitor(ScopeCache scopes, Dictionary<string, FunctionDefinitionLeaf> functions, IList<(string name, IASTLeaf leaf)> errors, EnumManager enums)
+        public TranslateIdentifiersVisitor(
+            ScopeCache scopes,
+            Dictionary<string, FunctionDefinitionLeaf> functions,
+            IList<(string name, IASTLeaf leaf)> errors,
+            EnumManager enums,
+            IDictionary<IASTLeaf, Symbol> symbolMap)
         {
             _scopes = scopes;
             _functions = functions;
             _enums = enums;
             _errors = errors;
+            _symbolMap = symbolMap;
         }
 
         public bool ShouldReplace { get; private set; }
@@ -33,13 +40,13 @@ namespace MonC.Parsing.Semantics
             Scope scope = _scopes.GetScope(leaf);
             DeclarationLeaf decl = scope.Variables.Find(d => d.Name == leaf.Name);
             if (decl != null) {
-                NewLeaf = new VariableLeaf(decl);
+                NewLeaf = UpdateSymbolMap(new VariableLeaf(decl), leaf);
                 return;
             }
 
             EnumLeaf enumLeaf = _enums.GetEnumeration(leaf.Name);
             if (enumLeaf != null) {
-                NewLeaf = new EnumValueLeaf(enumLeaf, leaf.Name);
+                NewLeaf = UpdateSymbolMap(new EnumValueLeaf(enumLeaf, leaf.Name), leaf);
                 return;
             }
             
@@ -50,25 +57,50 @@ namespace MonC.Parsing.Semantics
         public void VisitFunctionCall(FunctionCallParseLeaf leaf)
         {
             IdentifierParseLeaf? identifier = leaf.LHS as IdentifierParseLeaf;
-
+            
             if (identifier == null) {
                 _errors.Add(("LHS of function call operator is not an identifier.", leaf));
                 return;
             }
 
+            ShouldReplace = true;
+            
             FunctionDefinitionLeaf function;
             if (!_functions.TryGetValue(identifier.Name, out function)) {
                 _errors.Add(("Undefined function " + identifier.Name, leaf));
-                return;
+                NewLeaf = MakeFakeFunctionCall(identifier, leaf);
+            } else {
+                NewLeaf = UpdateSymbolMap(new FunctionCallLeaf(function, leaf.GetArguments()), leaf);   
             }
+        }
 
-            ShouldReplace = true;
-            NewLeaf = new FunctionCallLeaf(function, leaf.GetArguments());
+        private FunctionCallLeaf MakeFakeFunctionCall(IdentifierParseLeaf identifier, FunctionCallParseLeaf call)
+        {
+            FunctionCallLeaf fakeFunctionCall = new FunctionCallLeaf(
+                lhs: new FunctionDefinitionLeaf(
+                    $"(placeholder) {identifier.Name}",
+                    "int",
+                    Array.Empty<DeclarationLeaf>(),
+                    new BodyLeaf(Array.Empty<IASTLeaf>()),
+                    isExported: false
+                ),
+                arguments: Array.Empty<IASTLeaf>());
+            
+            UpdateSymbolMap(fakeFunctionCall, call);
+            return fakeFunctionCall;
         }
 
         public override void VisitDefault(IASTLeaf leaf)
         {
             ShouldReplace = false;
+        }
+
+        private IASTLeaf UpdateSymbolMap(IASTLeaf leaf, IASTLeaf original)
+        {
+            Symbol originalSymbol;
+            _symbolMap.TryGetValue(original, out originalSymbol);
+            _symbolMap[leaf] = originalSymbol;
+            return leaf;
         }
     }
 }

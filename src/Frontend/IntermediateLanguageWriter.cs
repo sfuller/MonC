@@ -73,7 +73,7 @@ namespace MonC.Frontend
                 colEnd = (uint)line.Length - 1;
             }
 
-            if (colEnd >= line.Length) {
+            if (colEnd > line.Length) {
                 return GetDefaultSnippet(symbol);
             }
 

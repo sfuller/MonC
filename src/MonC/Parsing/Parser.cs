@@ -541,7 +541,7 @@ namespace MonC
                     }
                 }
 
-                lhs = new BinaryOperationExpressionLeaf(lhs, rhs, tok);
+                lhs = NewLeaf(new BinaryOperationExpressionLeaf(lhs, rhs, tok), lhs);
             }
         }
 

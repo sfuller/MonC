@@ -21,6 +21,7 @@ namespace MonC.VM
         public int ReturnValue => _aRegister;
         public int CallStackFrameCount => _callStack.Count;
         
+        // Make this not an event. This callback is typically only responded to once.
         public event Action? Finished;
 
         public void LoadModule(VMModule module)

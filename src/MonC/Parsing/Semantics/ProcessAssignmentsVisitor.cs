@@ -11,11 +11,13 @@ namespace MonC.Parsing.Semantics
     {
         private readonly ScopeCache _scopes;
         private readonly IList<(string message, IASTLeaf leaf)> _errors;
+        private readonly IDictionary<IASTLeaf, Symbol> _symbolMap;
 
-        public ProcessAssignmentsVisitor(ScopeCache scopes, IList<(string message, IASTLeaf leaf)> errors)
+        public ProcessAssignmentsVisitor(ScopeCache scopes, IList<(string message, IASTLeaf leaf)> errors, IDictionary<IASTLeaf, Symbol> symbolMap)
         {
             _scopes = scopes;
             _errors = errors;
+            _symbolMap = symbolMap;
         }
 
         public bool ShouldReplace { get; private set; }
@@ -28,9 +30,6 @@ namespace MonC.Parsing.Semantics
             if (leaf.Op.Value == "=") {
                 IdentifierParseLeaf? identifier = leaf.LHS as IdentifierParseLeaf;
                 if (identifier == null) {
-                    // TODO: Make this shared functionality
-                    GetTokenVisitor tokenVisitor = new GetTokenVisitor();
-                    leaf.LHS.Accept(tokenVisitor);
                     _errors.Add(("Expecting identifier", leaf.LHS));
                     return;
                 }
@@ -45,6 +44,11 @@ namespace MonC.Parsing.Semantics
 
                 ShouldReplace = true;
                 NewLeaf = new AssignmentLeaf(declaration, leaf.RHS);
+                
+                // TODO: Need more automated symbol association for new leaves.
+                Symbol originalSymbol;
+                _symbolMap.TryGetValue(leaf, out originalSymbol);
+                _symbolMap[NewLeaf] = originalSymbol;
             }
         }
 

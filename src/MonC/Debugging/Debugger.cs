@@ -19,6 +19,7 @@ namespace MonC.Debugging
         private bool _isActive;
 
         public event Action? Break;
+        public event Action? ActiveChanged;
 
         public bool IsActive => _isActive;
 
@@ -33,16 +34,13 @@ namespace MonC.Debugging
             _module = module;
             _vm.SetBreakHandler(HandleBreak);
         }
-        
-//        public void Setup(VMModule module, VirtualMachine vm)
-//        {
-//            
-//        }
 
         public void Pause()
         {
             _isActive = true;
             _vm.SetStepping(true);
+
+            HandleActiveChanged();
         }
 
         public void SetBreakpoint(int function, int address)
@@ -173,6 +171,7 @@ namespace MonC.Debugging
                 ReplaceInstruction(bp);
                 _isActive = false;
                 _vm.SetStepping(false);
+                HandleActiveChanged();
                 _vm.Continue();
             } else {
                 while (!CanFinishStepping()) {
@@ -186,8 +185,6 @@ namespace MonC.Debugging
             if (!_isActive) {
                 throw new InvalidOperationException("Cannot Continue while debugger is inactive");
             }
-            
-            
 
             // Step once and re-apply breakpoints
             _vm.Continue();
@@ -195,7 +192,11 @@ namespace MonC.Debugging
             
             _isActive = false;
             _vm.SetStepping(false);
+            
+            HandleActiveChanged();
+            
             _vm.Continue();
+            
         }
         
         private void HandleBreak()
@@ -213,6 +214,8 @@ namespace MonC.Debugging
                     if (handler != null) {
                         handler();
                     }
+                    
+                    HandleActiveChanged();
                 }
             }
             
@@ -323,6 +326,13 @@ namespace MonC.Debugging
                 ReplaceInstruction(breakpoint);
             }
         }
-        
+
+        private void HandleActiveChanged()
+        {
+            Action? handler = ActiveChanged;
+            if (handler != null) {
+                handler();
+            }
+        }
     }
 }

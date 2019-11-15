@@ -65,11 +65,11 @@ namespace MonC.Parsing.Semantics
             VariableDeclarationAnalyzer declarationAnalyzer = new VariableDeclarationAnalyzer(scopes, _errorsToProcess);
             function.Accept(visitChildrenVisitor.SetVisitor(declarationAnalyzer));
 
-            ProcessAssignmentsVisitor assignmentsVisitor = new ProcessAssignmentsVisitor(scopes, _errorsToProcess);
+            ProcessAssignmentsVisitor assignmentsVisitor = new ProcessAssignmentsVisitor(scopes, _errorsToProcess, _symbolMap);
             ProcessReplacementsVisitor replacementsVisitor = new ProcessReplacementsVisitor(assignmentsVisitor, scopes);
             function.Accept(visitChildrenVisitor.SetVisitor(replacementsVisitor));
             
-            TranslateIdentifiersVisitor identifiersVisitor = new TranslateIdentifiersVisitor(scopes, _functions, _errorsToProcess, _enumManager);
+            TranslateIdentifiersVisitor identifiersVisitor = new TranslateIdentifiersVisitor(scopes, _functions, _errorsToProcess, _enumManager, _symbolMap);
             function.Accept(visitChildrenVisitor.SetVisitor(replacementsVisitor.SetReplacer(identifiersVisitor)));
         }
         
