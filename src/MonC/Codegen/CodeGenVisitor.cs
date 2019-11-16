@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MonC.Bytecode;
 using MonC.SyntaxTree;
 
@@ -34,7 +35,8 @@ namespace MonC.Codegen
             return new ILFunction {
                 Code = _instructions.ToArray(),
                 Symbols = _addressToTokenMap,
-                StringInstructions = _stringInstructions.ToArray()
+                StringInstructions = _stringInstructions.ToArray(),
+                VariableSymbols = _layout.Variables.ToDictionary(kvp => kvp.Value, kvp => kvp.Key)
             };
         }
 

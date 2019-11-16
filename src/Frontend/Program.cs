@@ -186,6 +186,8 @@ namespace MonC.Frontend
                     DebuggerLoop(vm, debugger);
                 }
             }
+            
+            Environment.Exit(vm.ReturnValue);
         }
 
         private static void WritePrompt()

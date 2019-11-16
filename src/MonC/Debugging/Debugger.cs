@@ -152,6 +152,14 @@ namespace MonC.Debugging
             }
         }
 
+        public ILFunction GetILFunctionForFrame(StackFrameInfo frame)
+        {
+            if (frame.Function < 0 || frame.Function >= _module.Module.DefinedFunctions.Length) {
+                return ILFunction.Empty();
+            }
+            return _module.Module.DefinedFunctions[frame.Function];
+        }
+
         public void StepNext()
         {
             if (!_isActive) {

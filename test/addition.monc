@@ -1,5 +1,12 @@
 
-int main() {
+int add_numbers() {
     return 1 + 2;
+}
+
+int main() {
+    if (add_numbers() == 3) {
+        return 0;
+    }
+    return 1;
 }
 

@@ -44,53 +44,65 @@ namespace MonC.DotNetInterop
             }
         }
         
-        public void ImportType(Type type, BindingFlags flags, Optional<object> target = default(Optional<object>))
+        /// <summary>
+        /// Import bindings from the given type using the given binding flags and the given instance of the type.
+        /// Returns true if any bindings were imported, else false.
+        /// </summary>
+        public bool ImportType(Type type, BindingFlags flags, Optional<object> target = default(Optional<object>))
         {
+            bool imported = false;
+            
             _linkableModules.Add(type);
 
             if ((flags & BindingFlags.Static) > 0) {
                 MethodInfo[] staticMethods = type.GetMethods((flags | BindingFlags.Instance) ^ BindingFlags.Instance);
                 foreach (MethodInfo method in staticMethods) {
-                    ImportMethod(method);
+                    imported |= ImportMethod(method);
                 }
             }
 
             if ((flags & BindingFlags.Instance) > 0) {
                 if (!target.IsGiven() && _includeImplementations) {
                     _errors.Add($"Attempted to include implementations for instance methods of type {type.Name}, but no target was given.");
-                    return;
-                }
-            
-                MethodInfo[] instanceMethods = type.GetMethods((flags | BindingFlags.Static) ^ BindingFlags.Static);
-                foreach (MethodInfo method in instanceMethods) {
-                    ImportMethod(method, target);
+                } else {
+                    MethodInfo[] instanceMethods = type.GetMethods((flags | BindingFlags.Static) ^ BindingFlags.Static);
+                    foreach (MethodInfo method in instanceMethods) {
+                        imported |= ImportMethod(method, target);
+                    }    
                 }
             }
 
             if (type.IsEnum) {
-                ImportEnum(type);
+                imported |= ImportEnum(type);
             }
+
+            return imported;
         }
 
-        public void ImportMethod(MethodInfo method, Optional<object> target = default(Optional<object>))
+        /// <summary>
+        /// Try to import the given method with the given target.
+        /// Returns true if the method was imported, otherwise false. 
+        /// </summary>
+        public bool ImportMethod(MethodInfo method, Optional<object> target = default(Optional<object>))
         {
             object[] attribs = method.GetCustomAttributes(typeof(LinkableFunctionAttribute), inherit: false);
             if (attribs.Length == 0) {
-                return;
+                return false;
             }
 
             LinkableFunctionAttribute attribute = (LinkableFunctionAttribute) attribs[0];
             ParameterInfo[] parameters = method.GetParameters();
 
             if (ProcessSimpleBinding(attribute, method, parameters, target)) {
-                return;
+                return true;
             }
 
             if (ProcessEnumeratorBinding(attribute, method, parameters, target)) {
-                return;
+                return true;
             }
             
             _errors.Add($"Could not import method {method.Name}, please check that it's signature is compatible.");
+            return false;
         }
 
         public bool PrepareForExecution(VMModule module, IList<string> errors)
@@ -213,11 +225,15 @@ namespace MonC.DotNetInterop
             yield break;
         }
 
-        private void ImportEnum(Type type)
+        /// <summary>
+        /// Try to import the given type as an enum.
+        /// Returns true if an enum was imported, otherwise false. 
+        /// </summary>
+        private bool ImportEnum(Type type)
         {
             object[] customAttributes = type.GetCustomAttributes(typeof(LinkableEnumAttribute), inherit: false);
             if (customAttributes.Length == 0) {
-                return;
+                return false;
             }
 
             LinkableEnumAttribute attribute = (LinkableEnumAttribute) customAttributes[0];
@@ -231,6 +247,7 @@ namespace MonC.DotNetInterop
             }
             
             _enums.Add(new EnumLeaf(enumerations, isExported: true));
+            return true;
         }
 
     }

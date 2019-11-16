@@ -1,5 +1,12 @@
 
-int main() {
+int test_logical_or() {
     return 1 || 0;
+}
+
+int main() {
+    if (test_logical_or()) {
+        return 0;
+    }
+    return 1;
 }
 

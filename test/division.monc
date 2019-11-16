@@ -1,5 +1,12 @@
 
-int main() {
+int divide_three_by_two() {
     return 3 / 2;
+}
+
+int main() {
+    if (divide_three_by_two() == 1) {
+        return 0;
+    }
+    return 1;
 }
 

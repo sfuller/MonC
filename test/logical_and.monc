@@ -1,5 +1,12 @@
 
-int main() {
+int test_logical_and() {
     return 1 && 0;
+}
+
+int main() {
+    if (test_logical_and()) {
+        return 1;
+    }
+    return 0;
 }
 

@@ -1,7 +1,14 @@
-int main(int arg) {
+// TODO: This is a basic test for parsing. Need more tests for functionality.
+
+int test(int arg) {
     if (arg == 42) {
         return 1;
     }
     return 2;
+}
+
+int main() {
+    test(42);
+    return 0;
 }
 

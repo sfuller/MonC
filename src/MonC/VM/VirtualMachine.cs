@@ -98,17 +98,30 @@ namespace MonC.VM
             _isStepping = isStepping;
         }
 
+        // TODO: Rename to GetStackFrameInfo
         public StackFrameInfo GetStackFrame(int depth)
         {
-            if (depth >= _callStack.Count) {
-                return new StackFrameInfo();
-            }
-
-            StackFrame internalFrame = _callStack[_callStack.Count - 1 - depth];
+            StackFrame frame = GetInternalStackFrame(depth);
+            
             return new StackFrameInfo {
-                Function = internalFrame.Function,
-                PC = internalFrame.PC
+                Function = frame.Function,
+                PC = frame.PC
             };
+        }
+
+        public StackFrameMemory GetStackFrameMemory(int depth)
+        {
+            StackFrame frame = GetInternalStackFrame(depth);
+            return frame.Memory;
+        }
+
+        // TODO: Rename to GetStackFrame
+        private StackFrame GetInternalStackFrame(int depth)
+        {
+            if (depth >= _callStack.Count) {
+                return new StackFrame();
+            }
+            return _callStack[_callStack.Count - 1 - depth];
         }
 
         private StackFrame PeekCallStack()
