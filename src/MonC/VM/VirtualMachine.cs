@@ -10,8 +10,6 @@ namespace MonC.VM
         private readonly List<int> _argumentStack = new List<int>();
         private VMModule _module = new VMModule();
         private int _aRegister;
-        private int _bRegister;
-        
         private bool _canContinue;
 
         private Action? _breakHandler;
@@ -137,6 +135,15 @@ namespace MonC.VM
             return frame;
         }
 
+        /// <summary>
+        /// Common operation for instructions which load a value from the stack based on the immediate value of the
+        /// instruction. 
+        /// </summary>
+        private int ReadStackWithImmediateValue(Instruction ins)
+        {
+            return PeekCallStack().Memory.Read(ins.ImmediateValue);
+        }
+
         private void PushCallStack(StackFrame frame)
         {
             _callStack.Add(frame);
@@ -236,9 +243,6 @@ namespace MonC.VM
                     break;
                 case OpCode.LOAD:
                     InterpretLoad(ins);
-                    break; 
-                case OpCode.LOADB:
-                    InterpretLoadB(ins);
                     break;
                 case OpCode.READ:
                     InterpretRead(ins);
@@ -276,8 +280,8 @@ namespace MonC.VM
                 case OpCode.BOOL:
                     InterpretBool(ins);
                     break;
-                case OpCode.NOT:
-                    InterpretNot(ins);
+                case OpCode.LNOT:
+                    InterpretLogicalNot(ins);
                     break;
                 case OpCode.ADD:
                     InterpretAdd(ins);
@@ -320,14 +324,9 @@ namespace MonC.VM
             _aRegister = ins.ImmediateValue;
         }
 
-        private void InterpretLoadB(Instruction ins)
-        {
-            _bRegister = _aRegister;
-        }
-
         private void InterpretRead(Instruction ins)
         {
-            _aRegister = PeekCallStack().Memory.Read(ins.ImmediateValue);
+            _aRegister = ReadStackWithImmediateValue(ins);
         }
 
         private void InterpretWrite(Instruction ins)
@@ -352,17 +351,17 @@ namespace MonC.VM
 
         private void InterpretCmpE(Instruction ins)
         {
-            _aRegister = _aRegister == _bRegister ? 1 : 0;
+            _aRegister = _aRegister == ReadStackWithImmediateValue(ins) ? 1 : 0;
         }
 
         private void InterpretCmpLT(Instruction ins)
         {
-            _aRegister = _aRegister < _bRegister ? 1 : 0;
+            _aRegister = _aRegister < ReadStackWithImmediateValue(ins) ? 1 : 0;
         }
 
         private void InterpretCmpLTE(Instruction ins)
         {
-            _aRegister = _aRegister <= _bRegister ? 1 : 0;
+            _aRegister = _aRegister <= ReadStackWithImmediateValue(ins) ? 1 : 0;
         }
 
         private void InterpretJump(Instruction ins)
@@ -389,44 +388,44 @@ namespace MonC.VM
             _aRegister = _aRegister == 0 ? 0 : 1;
         }
 
-        private void InterpretNot(Instruction ins)
+        private void InterpretLogicalNot(Instruction ins)
         {
-            _aRegister = ~_aRegister;
+            _aRegister = _aRegister == 0 ? 1 : 0;
         }
 
         private void InterpretAdd(Instruction ins)
         {
-            _aRegister += _bRegister;
+            _aRegister += ReadStackWithImmediateValue(ins);
         }
         
         private void InterpretSub(Instruction ins)
         {
-            _aRegister -= _bRegister;
+            _aRegister -= ReadStackWithImmediateValue(ins);
         }
 
         private void InterpretAnd(Instruction ins)
         {
-            _aRegister &= _bRegister;
+            _aRegister &= ReadStackWithImmediateValue(ins);
         }
 
         private void InterpretOr(Instruction ins)
         {
-            _aRegister |= _bRegister;
+            _aRegister |= ReadStackWithImmediateValue(ins);
         }
 
         private void InterpretMul(Instruction ins)
         {
-            _aRegister *= _bRegister;
+            _aRegister *= ReadStackWithImmediateValue(ins);
         }
 
         private void InterpretDiv(Instruction ins)
         {
-            _aRegister /= _bRegister;
+            _aRegister /= ReadStackWithImmediateValue(ins);
         }
 
         private void InterpretMod(Instruction ins)
         {
-            _aRegister %= _bRegister;
+            _aRegister %= ReadStackWithImmediateValue(ins);
         }
         
         private void Jump(int offset)

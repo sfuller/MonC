@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using MonC.Bytecode;
 using MonC.Codegen;
-using MonC.SyntaxTree;
 using MonC.VM;
 
 namespace MonC.Debugging

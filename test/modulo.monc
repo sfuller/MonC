@@ -1,4 +1,11 @@
 
-int main() {
+int test() {
     return 10 % 4;
+}
+
+int main() {
+    if (test() == 2) {
+        return 0;
+    }
+    return 1;
 }

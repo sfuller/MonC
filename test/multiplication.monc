@@ -1,5 +1,12 @@
 
-int main() {
+int test() {
     return 2 * 3;
+}
+
+int main() {
+    if (test() == 6) {
+        return 0;
+    }
+    return 1;
 }
 

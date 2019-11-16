@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Text;
 using MonC.Codegen;
@@ -214,19 +213,60 @@ namespace MonC.Frontend
             Console.Write("(moncdbg) ");
 
             string line = Console.ReadLine();
+            string[] args;
             if (line != null) {
-                line = line.Trim();    
+                args = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            } else {
+                args = Array.Empty<string>();
             }
 
-            switch (line) {
-                case "pc":
-                    StackFrameInfo frame = vm.GetStackFrame(0);
-                    Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}");
-                    string? sourcePath;
-                    int lineNumber;
-                    if (debugger.GetSourceLocation(frame, out sourcePath, out lineNumber)) {
-                        Console.WriteLine($"File: {sourcePath}, Line: {lineNumber + 1}");
+            string command = "";
+            if (args.Length > 0) {
+                command = args[0];
+            }
+
+            switch (command) {
+                case "reg": 
+                    {
+                        StackFrameInfo frame = vm.GetStackFrame(0);
+                        Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}, A: {vm.ReturnValue}");
+                        string? sourcePath;
+                        int lineNumber;
+                        if (debugger.GetSourceLocation(frame, out sourcePath, out lineNumber)) {
+                            Console.WriteLine($"File: {sourcePath}, Line: {lineNumber + 1}");
+                        }
                     }
+                    break;
+                
+                case "read":
+                    StackFrameMemory memory = vm.GetStackFrameMemory(0);
+                    for (int i = 0; i < 32; ++i) {
+                        Console.Write(memory.Read(i) + "\t");
+                        if ((i + 1) % 4 == 0) {
+                            Console.WriteLine();
+                        }
+                    }
+                    break;
+
+                case "bp":
+                    {
+                        if (args.Length < 2) {
+                            Console.WriteLine("Not enough args");
+                            break;
+                        }
+                        int breakpointLineNumber;
+                        int.TryParse(args[1], out breakpointLineNumber);
+                        StackFrameInfo frame = vm.GetStackFrame(0);
+                        string? sourcePath;
+                        if (!debugger.GetSourceLocation(frame, out sourcePath, out _)) {
+                            sourcePath = "";
+                        }
+                        Console.WriteLine($"Assuming source file is {sourcePath}");
+                        bool success = debugger.SetBreakpoint(sourcePath!, breakpointLineNumber - 1);
+                        if (!success) {
+                            Console.WriteLine("Could not set breakpoint");
+                        }
+                    } 
                     break;
                 
                 case "next":
@@ -235,6 +275,11 @@ namespace MonC.Frontend
                 
                 case "into":
                     debugger.StepInto();
+                    break;
+                
+                case "step":
+                    // Do a single step
+                    vm.Continue();
                     break;
                 
                 case "continue":

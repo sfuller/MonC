@@ -53,8 +53,7 @@ namespace MonC.Frontend
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
         {
-            Print($"Function Call ({leaf.ArgumentCount} arguments)");
-            VisitSubleaf(leaf.LHS);
+            Print($"Function Call (name: {leaf.LHS.Name}, {leaf.ArgumentCount} arguments)");
             for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
                 VisitSubleaf(leaf.GetArgument(i));
             }

@@ -1,5 +1,12 @@
 
+int test() {
+    return -1 + 2;
+}
+
 int main() {
-    return -1;
+    if (test() == 1) {
+        return 0;
+    }
+    return 1;
 }
 

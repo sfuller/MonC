@@ -684,7 +684,7 @@ namespace MonC
         {
             Token op = Next();
             IASTLeaf rhs;
-            if (!ParseExpression().Get(out rhs)) {
+            if (!ParsePrimaryExpression().Get(out rhs)) {
                 return new Optional<IASTLeaf>();
             }
             return new Optional<IASTLeaf>(NewLeaf(new UnaryOperationLeaf(op, rhs), op));

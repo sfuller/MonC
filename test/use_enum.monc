@@ -5,8 +5,14 @@ enum {
 }
 
 int main() {
-    int a = FOO_B;
-    int b = FOO_A;
-    return a;
+    if (FOO_A != 0) {
+        return 1;
+    } 
+
+    if (FOO_B != 1) {
+        return 1;
+    }
+
+    return 0;
 }
 

@@ -14,10 +14,18 @@ namespace MonC.Codegen
         
         private readonly IDictionary<int, Symbol> _addressToTokenMap = new Dictionary<int, Symbol>();
         private readonly List<Instruction> _instructions = new List<Instruction>();
-        private readonly List<String> _strings = new List<string>();
+        private readonly List<string> _strings = new List<string>();
         private readonly List<int> _stringInstructions = new List<int>();
 
         private readonly Stack<int> _breaks = new Stack<int>();
+
+        // 
+        /// <summary>
+        /// Current address in the stack that temporary work will be done in. This is always incremented before
+        /// using more of the stack for work, and is decremented when temporary work is done. 
+        /// </summary>
+        private int _stackWorkOffset;
+        private int _maxStackWorkOffset;
         
         public CodeGenVisitor(
             FunctionStackLayout layout,
@@ -28,6 +36,24 @@ namespace MonC.Codegen
             _layout = layout;
             _functionManager = functionManager;
             _leafToTokenMap = leafToTokenMap;
+
+            if (_layout.Variables.Count > 0) {
+                _stackWorkOffset = _layout.Variables.Max(kvp => kvp.Value);    
+            }
+            _maxStackWorkOffset = _stackWorkOffset;
+        }
+
+        public int AllocTemporaryStackAddress()
+        {
+            ++_stackWorkOffset;
+            _maxStackWorkOffset = Math.Max(_stackWorkOffset, _maxStackWorkOffset);
+            return _stackWorkOffset;
+        }
+
+        public int FreeTemporaryStackAddress()
+        {
+            --_stackWorkOffset;
+            return _stackWorkOffset;
         }
 
         public ILFunction MakeFunction()
@@ -61,11 +87,12 @@ namespace MonC.Codegen
 
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
-            // Evaluate right hand side and put it in the b register
+            // Evaluate right hand side and put it in the stack.
+            int rhsStackAddress = AllocTemporaryStackAddress();
             leaf.RHS.Accept(this);
-            AddInstruction(OpCode.LOADB);
+            AddInstruction(OpCode.WRITE, rhsStackAddress);
             
-            // Evaluate left hand side and put it in the a register
+            // Evaluate left hand side and keep it in the a register
             leaf.LHS.Accept(this);
 
             int comparisonOperationAddress = _instructions.Count;
@@ -75,15 +102,14 @@ namespace MonC.Codegen
                 case "<":
                 case Syntax.GREATER_THAN_OR_EQUAL_TO:
                 case Syntax.LESS_THAN_OR_EQUAL_TO:
-                    GenerateRelationalComparison(leaf.Op);
+                    GenerateRelationalComparison(leaf.Op, rhsStackAddress);
                     break;
                 case Syntax.EQUALS:
-                    AddInstruction(OpCode.CMPE);
+                    AddInstruction(OpCode.CMPE, rhsStackAddress);
                     break;
                 case Syntax.NOT_EQUALS:
-                    AddInstruction(OpCode.CMPE);
-                    AddInstruction(OpCode.NOT);
-                    AddInstruction(OpCode.BOOL);
+                    AddInstruction(OpCode.CMPE, rhsStackAddress);
+                    AddInstruction(OpCode.LNOT);
                     break;
                 case Syntax.LOGICAL_OR:
                     AddInstruction(OpCode.OR);
@@ -94,23 +120,25 @@ namespace MonC.Codegen
                     AddInstruction(OpCode.BOOL);
                     break;
                 case "+":
-                    AddInstruction(OpCode.ADD);
+                    AddInstruction(OpCode.ADD, rhsStackAddress);
                     break;
                 case "-":
-                    AddInstruction(OpCode.SUB);
+                    AddInstruction(OpCode.SUB, rhsStackAddress);
                     break;
                 case "*":
-                    AddInstruction(OpCode.MUL);
+                    AddInstruction(OpCode.MUL, rhsStackAddress);
                     break;
                 case "/":
-                    AddInstruction(OpCode.DIV);
+                    AddInstruction(OpCode.DIV, rhsStackAddress);
                     break;
                 case "%":
-                    AddInstruction(OpCode.MUL);
+                    AddInstruction(OpCode.MOD, rhsStackAddress);
                     break;
                 default:
                     throw new NotImplementedException(leaf.Op.Value);
             }
+
+            FreeTemporaryStackAddress();
             
             AddDebugSymbol(comparisonOperationAddress, leaf);
         }
@@ -119,10 +147,12 @@ namespace MonC.Codegen
         {
             switch (leaf.Operator.Value) {
                 case "-":
+                    int rhsStackAddress = AllocTemporaryStackAddress();
                     leaf.RHS.Accept(this);
-                    int addr = AddInstruction(OpCode.LOADB);
+                    int addr = AddInstruction(OpCode.WRITE, rhsStackAddress);
                     AddInstruction(OpCode.LOAD, 0);
-                    AddInstruction(OpCode.SUB);
+                    AddInstruction(OpCode.SUB, rhsStackAddress);
+                    FreeTemporaryStackAddress();
                     AddDebugSymbol(addr, leaf);
                     break;
                 default:
@@ -130,17 +160,16 @@ namespace MonC.Codegen
             }
         }
 
-        private void GenerateRelationalComparison(Token token)
+        private void GenerateRelationalComparison(Token token, int rhsStackAddress)
         {
             if (token.Value.Contains("=")) {
-                AddInstruction(OpCode.CMPLTE);
+                AddInstruction(OpCode.CMPLTE, rhsStackAddress);
             } else {
-                AddInstruction(OpCode.CMPLT);
+                AddInstruction(OpCode.CMPLT, rhsStackAddress);
             }
 
             if (token.Value.Contains(">")) {
-                AddInstruction(OpCode.NOT);
-                AddInstruction(OpCode.BOOL);
+                AddInstruction(OpCode.LNOT);
             }
         }
         
@@ -160,7 +189,7 @@ namespace MonC.Codegen
 
         public void VisitEnumValue(EnumValueLeaf leaf)
         {
-            int value = Array.IndexOf(leaf.Enum.Enumerations, leaf.Name);
+            int value = leaf.Enum.Enumerations.First(kvp => kvp.Key == leaf.Name).Value;
             AddInstruction(OpCode.LOAD, value);
         }
 
@@ -204,7 +233,7 @@ namespace MonC.Codegen
             int currentLocation = _instructions.Count;
             AddInstruction(OpCode.JUMPNZ, bodyLocation - currentLocation);
             
-            _instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation - initialJumpLocation);
+            _instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation - initialJumpLocation - 1);
         }
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
@@ -264,7 +293,8 @@ namespace MonC.Codegen
         {
             int index = _strings.Count;
             _strings.Add(leaf.Value);
-            AddInstruction(OpCode.LOAD, index);
+            int addr = AddInstruction(OpCode.LOAD, index);
+            _stringInstructions.Add(addr);
         }
 
         public void VisitWhile(WhileLeaf leaf)
@@ -284,7 +314,7 @@ namespace MonC.Codegen
             int currentLocation = _instructions.Count;
             AddInstruction(OpCode.JUMPNZ, bodyLocation - currentLocation);
             
-            _instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation - initialJumpLocation);
+            _instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation - initialJumpLocation - 1);
         }
 
         public void VisitBreak(BreakLeaf leaf)

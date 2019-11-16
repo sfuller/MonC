@@ -10,9 +10,8 @@ namespace MonC.Bytecode
         //
         
         LOAD,
-        LOADB,
-        
-        
+
+
         //
         // Stack
         //
@@ -49,7 +48,7 @@ namespace MonC.Bytecode
         // Math
         //
         BOOL,
-        NOT,
+        LNOT,  // Logical not
         ADD,
         SUB,
         OR,

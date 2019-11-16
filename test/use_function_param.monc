@@ -1,5 +1,9 @@
 
-int main(int foo) {
+int test(int foo) {
     return foo;
+}
+
+int main(int foo) {
+    return test(0);
 }
 
