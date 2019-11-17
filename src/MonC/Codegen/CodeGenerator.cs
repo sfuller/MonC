@@ -42,11 +42,9 @@ namespace MonC.Codegen
             leaf.Accept(layoutGenerator);
             FunctionStackLayout layout = layoutGenerator.GetLayout();
             
-            CodeGenVisitor codeGenVisitor = new CodeGenVisitor(layout, _manager, module.TokenMap);
+            CodeGenVisitor codeGenVisitor = new CodeGenVisitor(layout, _manager, module.TokenMap, strings);
             leaf.Accept(codeGenVisitor);
 
-            strings.AddRange(codeGenVisitor.GetStrings());
-            
             return codeGenVisitor.MakeFunction();
         }
 

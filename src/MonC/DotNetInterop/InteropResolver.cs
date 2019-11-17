@@ -132,7 +132,7 @@ namespace MonC.DotNetInterop
             if (method.ReturnType != typeof(int)) {
                 return false;
             }
-            if (parameters.Length != 1 || parameters[0].ParameterType != typeof(int[])) {
+            if (parameters.Length != 1 || parameters[0].ParameterType != typeof(ArgumentSource)) {
                 return false;
             }
 
@@ -159,7 +159,7 @@ namespace MonC.DotNetInterop
             if (parameters[0].ParameterType != typeof(IVMBindingContext)) {
                 return false;
             }
-            if (parameters[1].ParameterType != typeof(int[])) {
+            if (parameters[1].ParameterType != typeof(ArgumentSource)) {
                 return false;
             }
 

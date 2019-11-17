@@ -36,7 +36,7 @@ namespace MonC.Codegen
 
         public static ILFunction Empty()
         {
-            return new ILFunction() {
+            return new ILFunction {
                 Code = Array.Empty<Instruction>(),
                 Symbols = new Dictionary<int, Symbol>(),
                 StringInstructions = Array.Empty<int>(),

@@ -16,14 +16,6 @@ namespace MonC.Frontend
     { 
         public static void Main(string[] args)
         {
-            AppDomain.CurrentDomain.UnhandledException += (sender, eventArgs) => {
-                if (eventArgs.ExceptionObject is Exception exception) {
-                    Console.Error.WriteLine(exception.ToString());
-                    Console.Error.WriteLine(new StackTrace(exception));
-                    Environment.Exit(2);    
-                }
-            }; 
-            
             bool isInteractive = false;
             bool showLex = false;
             bool showAST = false;
@@ -178,7 +170,10 @@ namespace MonC.Frontend
                 debugger.Pause();
             }
 
-            vm.Call("main", argsToPass, start: !withDebugger);
+            if (!vm.Call("main", argsToPass, start: !withDebugger)) {
+                Console.Error.WriteLine("Failed to call main function.");
+                Environment.Exit(-1);
+            }
 
             if (debugger != null) {
                 while (vm.IsRunning) {
@@ -240,12 +235,13 @@ namespace MonC.Frontend
                 
                 case "read":
                     StackFrameMemory memory = vm.GetStackFrameMemory(0);
-                    for (int i = 0; i < 32; ++i) {
-                        Console.Write(memory.Read(i) + "\t");
-                        if ((i + 1) % 4 == 0) {
+                    for (int i = 0, ilen = memory.Size; i < ilen; ++i) {
+                        if (i % 4 == 0 && i != 0) {
                             Console.WriteLine();
                         }
+                        Console.Write(memory.Read(i) + "\t");
                     }
+                    Console.WriteLine();
                     break;
 
                 case "bp":

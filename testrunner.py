@@ -68,7 +68,7 @@ def test(path, showall: bool) -> bool:
         status = not status
 
     # Crashes always fail
-    if result.returncode is 2:
+    if result.returncode < 0 or result.returncode is 255:
         status = False
 
     sys.stdout.write('\r')

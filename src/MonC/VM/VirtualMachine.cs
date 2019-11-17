@@ -11,19 +11,24 @@ namespace MonC.VM
         private readonly List<StackFrame> _callStack = new List<StackFrame>();
         private VMModule _module = new VMModule();
         private int _aRegister;
-        private bool _canContinue;
+        private bool _isContinuing;
         private readonly StackFrameMemory _argumentBuffer = new StackFrameMemory();
-
+        private Action<bool> _finishedCallback = success => { };
         private Action? _breakHandler;
         private bool _isStepping;
-
+        private int _cycleCount;
+        
         public bool IsRunning => _callStack.Count != 0;
         public int ReturnValue => _aRegister;
         public int CallStackFrameCount => _callStack.Count;
         
-        // Make this not an event. This callback is typically only responded to once.
-        public event Action? Finished;
+        public int MaxCycles { get; set; }
 
+        public VirtualMachine()
+        {
+            MaxCycles = -1;
+        }
+        
         public void LoadModule(VMModule module)
         {
             if (IsRunning) {
@@ -32,7 +37,11 @@ namespace MonC.VM
             _module = module;
         }
 
-        public bool Call(string functionName, IReadOnlyList<int> arguments, bool start = true)
+        public bool Call(
+            string functionName,
+            IReadOnlyList<int> arguments,
+            Action<bool>? finished = null,
+            bool start = true)
         {
             if (IsRunning) {
                 throw new InvalidOperationException("Cannot call function while running");
@@ -43,7 +52,26 @@ namespace MonC.VM
             if (functionIndex == -1) {
                 return false;
             }
+            
+            int argumentsSize;
+            
+            if (functionIndex < _module.Module.DefinedFunctions.Length) {
+                argumentsSize = _module.Module.DefinedFunctions[functionIndex].ArgumentMemorySize;
+            } else {
+                argumentsSize = _module.VMFunctions[functionIndex].ArgumentMemorySize;
+            }
 
+            if (arguments.Count != argumentsSize) {
+                return false;
+            }
+
+            if (finished == null) {
+                finished = success => { };
+            }
+
+            _finishedCallback = finished;
+            _cycleCount = 0;
+            
             PushCall(functionIndex, arguments);
 
             if (start) {
@@ -80,13 +108,13 @@ namespace MonC.VM
         
         public void Continue()
         {
-            if (_canContinue) {
+            if (_isContinuing) {
                 return;
             }
             
-            _canContinue = true;
+            _isContinuing = true;
             
-            while (_canContinue) {
+            while (_isContinuing) {
                 InterpretCurrentInstruction();
             }
         }
@@ -151,7 +179,7 @@ namespace MonC.VM
 
         private void Break()
         {
-            _canContinue = false;
+            _isContinuing = false;
             if (_breakHandler != null) {
                 _breakHandler();
             }
@@ -160,16 +188,17 @@ namespace MonC.VM
         private void InterpretCurrentInstruction()
         {
             if (_callStack.Count == 0) {
-                _canContinue = false;
-
-                var finishedHandler = Finished;
-                if (finishedHandler != null) {
-                    finishedHandler();
-                }
-                
+                _isContinuing = false;
+                _finishedCallback(true);
                 return;
             }
-
+            
+            if (MaxCycles >= 0 && _cycleCount >= MaxCycles) {
+                Abort();
+                return;
+            }
+            ++_cycleCount;
+            
             StackFrame top = PeekCallStack();
 
             if (top.BindingEnumerator != null) {
@@ -211,7 +240,7 @@ namespace MonC.VM
             }
 
             if (continuation.Action == ContinuationAction.YIELD) {
-                _canContinue = false;
+                _isContinuing = false;
                 continuation.YieldToken.OnFinished(Continue);
 
                 // Remember: Caling Start can call the finish callback, so call Start at the very end.
@@ -435,20 +464,23 @@ namespace MonC.VM
             
             int argumentMemorySize;
             StackFrame frame;
+
+            int definedFunctionCount = _module.Module.DefinedFunctions.Length;
             
-            if (functionIndex >= _module.Module.DefinedFunctions.Length) {
+            if (functionIndex >= definedFunctionCount) {
                 VMFunction function = _module.VMFunctions[functionIndex];
                 argumentMemorySize = function.ArgumentMemorySize;
                 frame = AcquireFrame(function.ArgumentMemorySize);
                 frame.BindingEnumerator = function.Delegate(this, new ArgumentSource(frame.Memory, 0));
-
             } else {
                 ILFunction function = _module.Module.DefinedFunctions[functionIndex];
                 argumentMemorySize = function.ArgumentMemorySize;
                 frame = AcquireFrame(function.MaxStackSize);
             }
-            
+
+            frame.Function = functionIndex;
             frame.Memory.CopyFrom(argumentStackSource, argumentValuesStart, 0, argumentMemorySize);
+            PushCallStack(frame);
         }
 
         private void PushCall(int functionIndex, IReadOnlyList<int> arguments)
@@ -492,7 +524,14 @@ namespace MonC.VM
             frame.PC = 0;
             _framePool.Push(frame);
         }
-
+        
         private readonly Stack<StackFrame> _framePool = new Stack<StackFrame>();
+
+        private void Abort()
+        {
+            _callStack.Clear();
+            _isContinuing = false;
+            _finishedCallback(false);
+        }
     }
 }

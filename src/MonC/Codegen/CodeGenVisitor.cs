@@ -14,7 +14,7 @@ namespace MonC.Codegen
         
         private readonly IDictionary<int, Symbol> _addressToTokenMap = new Dictionary<int, Symbol>();
         private readonly List<Instruction> _instructions = new List<Instruction>();
-        private readonly List<string> _strings = new List<string>();
+        private readonly List<string> _strings;
         private readonly List<int> _stringInstructions = new List<int>();
         private readonly List<int> _instructionsReferencingFunctionAddresses = new List<int>();
 
@@ -32,16 +32,20 @@ namespace MonC.Codegen
         /// this address is used in the stack, but nothing at this address or above it). 
         /// </summary>
         private int _maxStackWorkOffset;
+
+        private int _argumentCount;
         
         public CodeGenVisitor(
             FunctionStackLayout layout,
             FunctionManager functionManager,
-            IDictionary<IASTLeaf, Symbol> leafToTokenMap
+            IDictionary<IASTLeaf, Symbol> leafToTokenMap,
+            List<string> strings
         )
         {
             _layout = layout;
             _functionManager = functionManager;
             _leafToTokenMap = leafToTokenMap;
+            _strings = strings;
 
             if (_layout.Variables.Count > 0) {
                 _stackWorkOffset = _layout.Variables.Max(kvp => kvp.Value) + 1;    
@@ -66,6 +70,8 @@ namespace MonC.Codegen
         public ILFunction MakeFunction()
         {
             return new ILFunction {
+                ArgumentMemorySize = _argumentCount,
+                MaxStackSize = _maxStackWorkOffset,
                 Code = _instructions.ToArray(),
                 Symbols = _addressToTokenMap,
                 StringInstructions = _stringInstructions.ToArray(),
@@ -74,11 +80,6 @@ namespace MonC.Codegen
             };
         }
 
-        public IEnumerable<string> GetStrings()
-        {
-            return _strings;
-        }
-        
         private int AddInstruction(OpCode op, int immediate = 0)
         {
             int index = _instructions.Count;
@@ -239,7 +240,7 @@ namespace MonC.Codegen
             
             // Branch to body if condition met.
             int currentLocation = _instructions.Count;
-            AddInstruction(OpCode.JUMPNZ, bodyLocation - currentLocation);
+            AddInstruction(OpCode.JUMPNZ, bodyLocation - currentLocation - 1);
             
             _instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation - initialJumpLocation - 1);
         }
@@ -270,11 +271,21 @@ namespace MonC.Codegen
             // Add debug symbol at the first instruction that starts preparing the function to be called.
             AddDebugSymbol(functionLoadAddr, leaf);
         }
+
+        private bool _hasVisitedFunctionDefinition;
         
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
         {
-            leaf.Body.Accept(this);
+            if (_hasVisitedFunctionDefinition) {
+                // This should only be called once, for the function definition being generated.
+                throw new InvalidOperationException("Attempting to visit another function definition.");
+            }
+            _hasVisitedFunctionDefinition = true;
+
+            _argumentCount = leaf.Parameters.Length;
             
+            leaf.Body.Accept(this);
+
             // All functions must end with a RETURN instruction.
             if (_instructions.Count == 0 || _instructions[_instructions.Count - 1].Op != OpCode.RETURN) {
                 AddInstruction(OpCode.RETURN);

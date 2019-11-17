@@ -3,7 +3,7 @@ int test(int foo) {
     return foo;
 }
 
-int main(int foo) {
+int main() {
     return test(0);
 }
 
