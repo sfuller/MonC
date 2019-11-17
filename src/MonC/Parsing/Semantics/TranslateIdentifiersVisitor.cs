@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MonC.Parsing.ParseTreeLeaves;
 using MonC.Parsing.Scoping;
 using MonC.SyntaxTree;
@@ -94,7 +95,7 @@ namespace MonC.Parsing.Semantics
                     new BodyLeaf(Array.Empty<IASTLeaf>()),
                     isExported: false
                 ),
-                arguments: Array.Empty<IASTLeaf>());
+                arguments: Enumerable.Range(0, call.ArgumentCount).Select(call.GetArgument));
             
             return fakeFunctionCall;
         }

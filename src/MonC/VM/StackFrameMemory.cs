@@ -1,25 +1,39 @@
-using System.Collections.Generic;
+using System;
 
 namespace MonC.VM
 {
     public class StackFrameMemory
     {
-        private List<int> _data = new List<int>();
+        private int[] _data = new int[0];
+        private int _lengthInuse;
 
+        public int Size => _lengthInuse;
+        
+        /// <summary>
+        /// Prepare the backing memory to be used. Previous contents may be lost after, not to be used for in-use stack
+        /// memory.
+        /// </summary>
+        public void Recreate(int newSize)
+        {
+            _lengthInuse = newSize;
+            if (_data.Length < newSize) {
+                _data = new int[newSize];
+            }
+        }
+        
         public int Read(int address)
         {
-            if (address < 0 || address >= _data.Count) {
-                return 0;
-            }
             return _data[address];
         }
 
         public void Write(int address, int value)
         {
-            while (address >= _data.Count) {
-                _data.Add(0);
-            }
             _data[address] = value;
+        }
+
+        public void CopyFrom(StackFrameMemory source, int sourceOffset, int destOffset, int size)
+        {
+            Array.Copy(source._data, sourceOffset, _data, destOffset, size);
         }
     }
 }

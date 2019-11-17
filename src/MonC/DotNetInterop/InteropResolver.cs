@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using MonC.Codegen;
 using MonC.Parsing;
 using MonC.SyntaxTree;
 using MonC.VM;
@@ -137,7 +136,7 @@ namespace MonC.DotNetInterop
                 return false;
             }
 
-            VMEnumerable impl;
+            VMEnumerableDelegate impl;
             if (_includeImplementations) {
                 impl = WrapSimpleBinding(method, target);
             } else {
@@ -164,9 +163,9 @@ namespace MonC.DotNetInterop
                 return false;
             }
 
-            VMEnumerable impl;
+            VMEnumerableDelegate impl;
             if (_includeImplementations) {
-                impl = CreateDelegate<VMEnumerable>(method, target);
+                impl = CreateDelegate<VMEnumerableDelegate>(method, target);
             } else {
                 impl = NoOpBinding;
             }
@@ -175,7 +174,7 @@ namespace MonC.DotNetInterop
             return true;
         }
 
-        private void AddBinding(MethodInfo method, LinkableFunctionAttribute attribute, VMEnumerable implementation)
+        private void AddBinding(MethodInfo method, LinkableFunctionAttribute attribute, VMEnumerableDelegate implementation)
         {
             FunctionDefinitionLeaf def = new FunctionDefinitionLeaf(
                 name: method.Name,
@@ -187,7 +186,10 @@ namespace MonC.DotNetInterop
 
             Binding binding = new Binding {
                 Prototype = def,
-                Implementation = implementation
+                Implementation = new VMFunction {
+                    ArgumentMemorySize = def.Parameters.Length,
+                    Delegate = implementation
+                }
             };
             _bindings[method.Name] = binding;
         }
@@ -201,13 +203,13 @@ namespace MonC.DotNetInterop
             return (Delegate.CreateDelegate(typeof(T), method) as T)!;
         }
 
-        private static VMEnumerable WrapSimpleBinding(MethodInfo info, Optional<object> target)
+        private static VMEnumerableDelegate WrapSimpleBinding(MethodInfo info, Optional<object> target)
         {
-            VMFunction function = CreateDelegate<VMFunction>(info, target);
+            VMFunctionDelegate function = CreateDelegate<VMFunctionDelegate>(info, target);
             return (context, args) => SimpleBindingEnumerator(function, args);
         }
 
-        private static IEnumerator<Continuation> SimpleBindingEnumerator(VMFunction func, int[] arguments)
+        private static IEnumerator<Continuation> SimpleBindingEnumerator(VMFunctionDelegate func, ArgumentSource arguments)
         {
             int rv = func(arguments);
             yield return Continuation.Return(rv);
@@ -220,7 +222,7 @@ namespace MonC.DotNetInterop
             }
         }
 
-        private static IEnumerator<Continuation> NoOpBinding(IVMBindingContext context, int[] args)
+        private static IEnumerator<Continuation> NoOpBinding(IVMBindingContext context, ArgumentSource args)
         {
             yield break;
         }

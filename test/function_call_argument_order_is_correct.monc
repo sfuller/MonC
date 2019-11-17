@@ -1,0 +1,11 @@
+
+int test(int a, int b, int c) {
+    return a * 100 + b * 10 + c;
+}
+
+int main() {
+    if (test(1, 2, 4) == 124) {
+        return 0;
+    }
+    return 1;
+}

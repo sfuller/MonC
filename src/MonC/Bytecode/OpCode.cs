@@ -24,7 +24,6 @@ namespace MonC.Bytecode
         // Calls
         //
         
-        PUSHARG,
         CALL,
         RETURN,
         
@@ -32,6 +31,7 @@ namespace MonC.Bytecode
         //
         // Comparison
         //
+        
         CMPE,
         CMPLT,
         CMPLTE,

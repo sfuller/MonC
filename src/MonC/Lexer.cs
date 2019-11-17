@@ -235,8 +235,8 @@ namespace MonC
                         if (nextChar == '"') {
                             // String finished.
                             Consume();
-                            _valueBuffer.Length = 0;
                             tokens.Add(new Token(TokenType.String, _valueBuffer.ToString(), location));
+                            _valueBuffer.Length = 0;
                             return true;
                         }
 

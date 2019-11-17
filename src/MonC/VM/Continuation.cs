@@ -15,7 +15,7 @@ namespace MonC.VM
         public ContinuationAction Action;
         public int ReturnValue;
         public int FunctionIndex;
-        public IEnumerable<int> Arguments;
+        public IReadOnlyList<int> Arguments;
         public IYieldToken YieldToken;
         public IEnumerator<Continuation> ToUnwrap;
 
@@ -27,7 +27,7 @@ namespace MonC.VM
             };
         }
 
-        public static Continuation Call(int functionIndex, IEnumerable<int> arguments)
+        public static Continuation Call(int functionIndex, IReadOnlyList<int> arguments)
         {
             return new Continuation {
                 Action = ContinuationAction.CALL,

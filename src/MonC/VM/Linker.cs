@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using MonC.Bytecode;
@@ -8,7 +9,7 @@ namespace MonC.VM
     public class Linker
     {
         private readonly List<ILModule> _inputModules = new List<ILModule>();
-        private readonly List<KeyValuePair<string, VMEnumerable>> _boundFunctions = new List<KeyValuePair<string, VMEnumerable>>();
+        private readonly List<KeyValuePair<string, VMFunction>> _boundFunctions = new List<KeyValuePair<string, VMFunction>>();
         
         private readonly Dictionary<string, int> _exportedFunctionIndices = new Dictionary<string, int>();
         private readonly List<ILFunction> _functionImplementations = new List<ILFunction>();
@@ -28,14 +29,9 @@ namespace MonC.VM
             _inputModules.Add(module);
         }
 
-        public void AddFunctionBinding(string name, VMFunction function)
+        public void AddFunctionBinding(string name, VMFunction enumerable)
         {
-            AddFunctionBinding(name, new VMEnumerableWrapper(function).MakeEnumerator);
-        }
-
-        public void AddFunctionBinding(string name, VMEnumerable enumerable)
-        {
-            _boundFunctions.Add(new KeyValuePair<string, VMEnumerable>(name, enumerable));
+            _boundFunctions.Add(new KeyValuePair<string, VMFunction>(name, enumerable));
         }
 
         public VMModule Link()
@@ -62,7 +58,7 @@ namespace MonC.VM
             };
 
             int vmFunctionsOffset = _functionImplementations.Count;
-            Dictionary<int, VMEnumerable> vmFunctions = new Dictionary<int, VMEnumerable>(_boundFunctions.Count);
+            Dictionary<int, VMFunction> vmFunctions = new Dictionary<int, VMFunction>(_boundFunctions.Count);
             for (int i = 0, ilen = _boundFunctions.Count; i < ilen; ++i) {
                 vmFunctions.Add(vmFunctionsOffset + i, _boundFunctions[i].Value);    
             }
@@ -111,7 +107,7 @@ namespace MonC.VM
             int baseIndex = _functionImplementations.Count;
             
             for (int i = 0, ilen = _boundFunctions.Count; i < ilen; ++i) {
-                KeyValuePair<string, VMEnumerable> vmFunction = _boundFunctions[i];
+                KeyValuePair<string, VMFunction> vmFunction = _boundFunctions[i];
                 if (_exportedFunctionIndices.ContainsKey(vmFunction.Key)) {
                     _errors.Add(new LinkError {Message = $"Conflicting bound function {vmFunction.Key}"});
                     continue;
@@ -126,21 +122,18 @@ namespace MonC.VM
             int baseIndex = _moduleOffsets[index];
 
             for (int i = 0, ilen = module.DefinedFunctions.Length; i < ilen; ++i) {
-                Instruction[] newImpl = _functionImplementations[baseIndex + i].Code;
-                LinkFunction(baseIndex, module, newImpl);
+                ILFunction impl = _functionImplementations[baseIndex + i];
+                LinkFunction(baseIndex, module, impl);
             }
         }
 
-        private void LinkFunction(int baseIndex, ILModule module, Instruction[] impl)
+        private void LinkFunction(int baseIndex, ILModule module, ILFunction function)
         {
             int definedCount = module.DefinedFunctions.Length;
 
-            for (int i = 0, ilen = impl.Length; i < ilen; ++i) {
-                Instruction ins = impl[i];
-                if (ins.Op != OpCode.CALL) {
-                    continue;
-                }
-
+            foreach (int instructionIndex in function.InstructionsReferencingFunctionAddresses) {
+                Instruction ins = function.Code[instructionIndex];
+                
                 if (ins.ImmediateValue < definedCount) {
                     // This is a call to a module local function that just needs to be offset
                     ins.ImmediateValue += baseIndex;
@@ -152,10 +145,10 @@ namespace MonC.VM
                         _errors.Add(new LinkError {Message = $"Undefined function {functionName}"});
                     }
                 }
-
-                impl[i] = ins;
+                
+                function.Code[instructionIndex] = ins;
             }
-            
+
         }
 
     }

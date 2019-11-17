@@ -1,16 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MonC.Bytecode;
+using MonC.Codegen;
 
 namespace MonC.VM
 {
     public class VirtualMachine : IVMBindingContext
     {
         private readonly List<StackFrame> _callStack = new List<StackFrame>();
-        private readonly List<int> _argumentStack = new List<int>();
         private VMModule _module = new VMModule();
         private int _aRegister;
         private bool _canContinue;
+        private readonly StackFrameMemory _argumentBuffer = new StackFrameMemory();
 
         private Action? _breakHandler;
         private bool _isStepping;
@@ -30,7 +32,7 @@ namespace MonC.VM
             _module = module;
         }
 
-        public bool Call(string functionName, IEnumerable<int> arguments, bool start = true)
+        public bool Call(string functionName, IReadOnlyList<int> arguments, bool start = true)
         {
             if (IsRunning) {
                 throw new InvalidOperationException("Cannot call function while running");
@@ -41,10 +43,8 @@ namespace MonC.VM
             if (functionIndex == -1) {
                 return false;
             }
-            
-            _argumentStack.AddRange(arguments);
-            
-            PushCall(functionIndex);
+
+            PushCall(functionIndex, arguments);
 
             if (start) {
                 Continue();    
@@ -200,8 +200,7 @@ namespace MonC.VM
             Continuation continuation = bindingEnumerator.Current;
 
             if (continuation.Action == ContinuationAction.CALL) {
-                _argumentStack.AddRange(continuation.Arguments);
-                PushCall(continuation.FunctionIndex);
+                PushCall(continuation.FunctionIndex, continuation.Arguments);
                 return;
             }
 
@@ -222,7 +221,7 @@ namespace MonC.VM
             }
 
             if (continuation.Action == ContinuationAction.UNWRAP) {
-                StackFrame unwrapFrame = AcquireFrame();
+                StackFrame unwrapFrame = AcquireFrame(0);
                 unwrapFrame.Function = frame.Function;
                 unwrapFrame.BindingEnumerator = continuation.ToUnwrap;
                 PushCallStack(unwrapFrame);
@@ -249,9 +248,6 @@ namespace MonC.VM
                     break;
                 case OpCode.WRITE:
                     InterpretWrite(ins);
-                    break;
-                case OpCode.PUSHARG:
-                    InterpretPushArg(ins);
                     break;
                 case OpCode.CALL:
                     InterpretCall(ins);
@@ -333,15 +329,11 @@ namespace MonC.VM
         {
             PeekCallStack().Memory.Write(ins.ImmediateValue, _aRegister);
         }
-
-        private void InterpretPushArg(Instruction ins)
-        {
-            _argumentStack.Add(_aRegister);
-        }
-
+        
         private void InterpretCall(Instruction ins)
         {
-            PushCall(ins.ImmediateValue);
+            StackFrame currentFrame = PeekCallStack();
+            PushCall(currentFrame.Memory, ins.ImmediateValue);
         }
 
         private void InterpretReturn(Instruction ins)
@@ -433,33 +425,64 @@ namespace MonC.VM
             PeekCallStack().PC += offset;
         }
 
-        private void PushCall(int functionIndex)
+        private void PushCall(StackFrameMemory argumentStackSource, int argumentStackStart)
         {
-            StackFrame newFrame = AcquireFrame();
-            newFrame.Function = functionIndex;
-
+            // First value on the argument stack is the function index
+            int functionIndex = argumentStackSource.Read(argumentStackStart);
+            
+            // The rest of the data on the argument stack is argument values
+            int argumentValuesStart = argumentStackStart + 1;
+            
+            int argumentMemorySize;
+            StackFrame frame;
+            
             if (functionIndex >= _module.Module.DefinedFunctions.Length) {
-                VMEnumerable enumerable = _module.VMFunctions[functionIndex];
-                int[] args = _argumentStack.ToArray();
-                _argumentStack.Clear();
-                newFrame.BindingEnumerator = enumerable(this, args);
-                PushCallStack(newFrame);
+                VMFunction function = _module.VMFunctions[functionIndex];
+                argumentMemorySize = function.ArgumentMemorySize;
+                frame = AcquireFrame(function.ArgumentMemorySize);
+                frame.BindingEnumerator = function.Delegate(this, new ArgumentSource(frame.Memory, 0));
+
             } else {
-                for (int i = 0, ilen = _argumentStack.Count; i < ilen; ++i) {
-                    newFrame.Memory.Write(i, _argumentStack[i]);
-                }
-                _argumentStack.Clear();
-                PushCallStack(newFrame);
+                ILFunction function = _module.Module.DefinedFunctions[functionIndex];
+                argumentMemorySize = function.ArgumentMemorySize;
+                frame = AcquireFrame(function.MaxStackSize);
             }
+            
+            frame.Memory.CopyFrom(argumentStackSource, argumentValuesStart, 0, argumentMemorySize);
+        }
+
+        private void PushCall(int functionIndex, IReadOnlyList<int> arguments)
+        {
+            // TODO: Need either better documentation about how bound functions must not re-retrieve arguments from
+            // the original argumentSource after a Call Continuation, or we need to use unique argument buffers for each
+            // bound function call (with pooling of course). I'd opt for the former, it's super easy to just grab your
+            // arguments as soon as you enter the bound function, and is the cleanest as well.
+            
+            int argumentCount = arguments.Count;
+            _argumentBuffer.Recreate(argumentCount + 1);
+            
+            // First value on the argument stack is function index
+            _argumentBuffer.Write(0, functionIndex);
+            
+            // Rest of the argument stack is argument values.
+            for (int i = 0; i < argumentCount; ++i) {
+                _argumentBuffer.Write(i + 1, arguments[i]);
+            }
+            
+            PushCall(_argumentBuffer, 0);
         }
         
-
-        private StackFrame AcquireFrame()
+        private StackFrame AcquireFrame(int memorySize)
         {
+            StackFrame frame;
             if (_framePool.Count > 0) {
-                return _framePool.Pop();
+                frame = _framePool.Pop();
+            } else {
+                frame = new StackFrame();
             }
-            return new StackFrame();
+            
+            frame.Memory.Recreate(memorySize);
+            return frame;
         }
 
         private void PopFrame()

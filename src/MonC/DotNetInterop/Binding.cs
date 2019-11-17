@@ -6,6 +6,6 @@ namespace MonC.DotNetInterop
     public struct Binding
     {
         public FunctionDefinitionLeaf Prototype;
-        public VMEnumerable Implementation;
+        public VMFunction Implementation;
     }
 }

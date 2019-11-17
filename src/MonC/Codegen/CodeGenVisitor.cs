@@ -16,15 +16,21 @@ namespace MonC.Codegen
         private readonly List<Instruction> _instructions = new List<Instruction>();
         private readonly List<string> _strings = new List<string>();
         private readonly List<int> _stringInstructions = new List<int>();
+        private readonly List<int> _instructionsReferencingFunctionAddresses = new List<int>();
 
         private readonly Stack<int> _breaks = new Stack<int>();
 
-        // 
+        
         /// <summary>
-        /// Current address in the stack that temporary work will be done in. This is always incremented before
-        /// using more of the stack for work, and is decremented when temporary work is done. 
+        /// The current end of the stack working memory space. This address will be used as the start of the next
+        /// working memory allocation.
         /// </summary>
         private int _stackWorkOffset;
+        
+        /// <summary>
+        /// This is the largest end range of this functions working memory at any time. Non-inclusive (Everythnig below
+        /// this address is used in the stack, but nothing at this address or above it). 
+        /// </summary>
         private int _maxStackWorkOffset;
         
         public CodeGenVisitor(
@@ -38,21 +44,22 @@ namespace MonC.Codegen
             _leafToTokenMap = leafToTokenMap;
 
             if (_layout.Variables.Count > 0) {
-                _stackWorkOffset = _layout.Variables.Max(kvp => kvp.Value);    
+                _stackWorkOffset = _layout.Variables.Max(kvp => kvp.Value) + 1;    
             }
             _maxStackWorkOffset = _stackWorkOffset;
         }
 
-        public int AllocTemporaryStackAddress()
+        public int AllocTemporaryStackAddress(int length = 1)
         {
-            ++_stackWorkOffset;
+            int address = _stackWorkOffset;
+            _stackWorkOffset += length;
             _maxStackWorkOffset = Math.Max(_stackWorkOffset, _maxStackWorkOffset);
-            return _stackWorkOffset;
+            return address;
         }
 
-        public int FreeTemporaryStackAddress()
+        public int FreeTemporaryStackAddress(int length = 1)
         {
-            --_stackWorkOffset;
+            _stackWorkOffset -= length;
             return _stackWorkOffset;
         }
 
@@ -62,7 +69,8 @@ namespace MonC.Codegen
                 Code = _instructions.ToArray(),
                 Symbols = _addressToTokenMap,
                 StringInstructions = _stringInstructions.ToArray(),
-                VariableSymbols = _layout.Variables.ToDictionary(kvp => kvp.Value, kvp => kvp.Key)
+                VariableSymbols = _layout.Variables.ToDictionary(kvp => kvp.Value, kvp => kvp.Key),
+                InstructionsReferencingFunctionAddresses = _instructionsReferencingFunctionAddresses.ToArray()
             };
         }
 
@@ -238,13 +246,29 @@ namespace MonC.Codegen
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
         {
+            int argumentStackLength = leaf.ArgumentCount + 1;
+            int argumentStack = AllocTemporaryStackAddress(argumentStackLength);
+
+            // First argument is the index of the function to be called
+            int functionLoadAddr = AddInstruction(OpCode.LOAD, _functionManager.GetFunctionIndex(leaf.LHS));
+            AddInstruction(OpCode.WRITE, argumentStack);
+            
+            _instructionsReferencingFunctionAddresses.Add(functionLoadAddr);
+            
+            // The rest of the argument stack is the argument values.
+            int argumentStackValuesStart = argumentStack + 1;
+            
             for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
                 leaf.GetArgument(i).Accept(this);
-                AddInstruction(OpCode.PUSHARG);
+                AddInstruction(OpCode.WRITE, argumentStackValuesStart + i);
             }
             
-            int addr = AddInstruction(OpCode.CALL, _functionManager.GetFunctionIndex(leaf.LHS));
-            AddDebugSymbol(addr, leaf);
+            int addr = AddInstruction(OpCode.CALL, argumentStack);
+            
+            FreeTemporaryStackAddress(argumentStackLength);
+            
+            // Add debug symbol at the first instruction that starts preparing the function to be called.
+            AddDebugSymbol(functionLoadAddr, leaf);
         }
         
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)

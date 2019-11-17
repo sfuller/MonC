@@ -2,6 +2,16 @@ using System.Collections.Generic;
 
 namespace MonC.VM
 {
-    public delegate int VMFunction(int[] arguments);
-    public delegate IEnumerator<Continuation> VMEnumerable(IVMBindingContext context, int[] arguments);
+    public delegate int VMFunctionDelegate(ArgumentSource arguments);
+    public delegate IEnumerator<Continuation> VMEnumerableDelegate(IVMBindingContext context, ArgumentSource arguments);
+
+    public struct VMFunction
+    {
+        /// <summary>
+        /// How much memory needs to be used from the caller's argument stack.
+        /// </summary>
+        public int ArgumentMemorySize;
+
+        public VMEnumerableDelegate Delegate;
+    }
 }
