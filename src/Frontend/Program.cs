@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Text;
 using MonC.Codegen;
 using MonC.DotNetInterop;
@@ -162,25 +163,24 @@ namespace MonC.Frontend
 
             VirtualMachine vm = new VirtualMachine();
             vm.LoadModule(vmModule);
-
-            Debugger? debugger = null;
+            
             if (withDebugger) {
-                debugger = new Debugger(vmModule, vm);
-                //debugger.Setup(vmModule, vm);
+                Debugger debugger = new Debugger(vmModule, vm);
+                debugger.Break += () => HandleBreak(vm, debugger);
                 debugger.Pause();
             }
 
-            if (!vm.Call("main", argsToPass, start: !withDebugger)) {
+            if (!vm.Call("main", argsToPass, success => HandleExecutionFinished(vm, success))) {
                 Console.Error.WriteLine("Failed to call main function.");
                 Environment.Exit(-1);
             }
+        }
 
-            if (debugger != null) {
-                while (vm.IsRunning) {
-                    DebuggerLoop(vm, debugger);
-                }
+        private static void HandleExecutionFinished(VirtualMachine vm, bool success)
+        {
+            if (!success) {
+                Environment.Exit(-1);
             }
-            
             Environment.Exit(vm.ReturnValue);
         }
 
@@ -203,7 +203,12 @@ namespace MonC.Frontend
             tokens.AddRange(newTokens);
         }
 
-        private static void DebuggerLoop(VirtualMachine vm, Debugger debugger)
+        private static void HandleBreak(VirtualMachine vm, Debugger debugger)
+        {
+            while (DebuggerLoop(vm, debugger)) {}
+        }
+
+        private static bool DebuggerLoop(VirtualMachine vm, Debugger debugger)
         {
             Console.Write("(moncdbg) ");
 
@@ -219,7 +224,7 @@ namespace MonC.Frontend
             if (args.Length > 0) {
                 command = args[0];
             }
-
+            
             switch (command) {
                 case "reg": 
                     {
@@ -266,26 +271,21 @@ namespace MonC.Frontend
                     break;
                 
                 case "over":
-                    debugger.StepOver();
-                    break;
-                
+                    return debugger.StepOver();
+
                 case "into":
-                    debugger.StepInto();
-                    break;
-                
+                    return debugger.StepInto();
+
                 case "out":
-                    debugger.StepOut();
-                    break;
-                
+                    return debugger.StepOut();
+
                 case "step":
-                    debugger.Step();
-                    break;
+                    return debugger.Step();
 
                 case "continue":
                 case null:
-                    debugger.Continue();
-                    break;
-                
+                    return debugger.Continue();
+
                 case "":
                     break;
                 
@@ -293,6 +293,8 @@ namespace MonC.Frontend
                     Console.Error.WriteLine($"moncdbg: unknown command {line}");
                     break;
             }
+
+            return true;
         }
     }
 }

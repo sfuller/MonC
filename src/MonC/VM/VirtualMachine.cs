@@ -12,6 +12,7 @@ namespace MonC.VM
         private VMModule _module = new VMModule();
         private int _aRegister;
         private bool _isContinuing;
+        private bool _isPaused;
         private readonly StackFrameMemory _argumentBuffer = new StackFrameMemory();
         private Action<bool> _finishedCallback = success => { };
         private IVMDebugger? _debugger;
@@ -19,7 +20,8 @@ namespace MonC.VM
         private bool _isStepping;
         private int _cycleCount;
         
-        public bool IsRunning => _callStack.Count != 0;
+        public bool IsRunning { get; private set; }
+        public bool IsPaused => _isPaused;
         public int ReturnValue => _aRegister;
         public int CallStackFrameCount => _callStack.Count;
         
@@ -41,8 +43,7 @@ namespace MonC.VM
         public bool Call(
             string functionName,
             IReadOnlyList<int> arguments,
-            Action<bool>? finished = null,
-            bool start = true)
+            Action<bool>? finished = null)
         {
             if (IsRunning) {
                 throw new InvalidOperationException("Cannot call function while running");
@@ -70,13 +71,17 @@ namespace MonC.VM
                 finished = success => { };
             }
 
+            IsRunning = true;
+
             _finishedCallback = finished;
             _cycleCount = 0;
             
             PushCall(functionIndex, arguments);
 
-            if (start) {
-                Continue();    
+            if (_isStepping) {
+                Break(); 
+            } else {
+                Continue();
             }
 
             return true;
@@ -116,6 +121,10 @@ namespace MonC.VM
         
         void IDebuggableVM.Continue()
         {
+            if (!_isPaused) {
+                throw new InvalidOperationException();
+            }
+            _isPaused = false;
             Continue();
         }
 
@@ -168,14 +177,6 @@ namespace MonC.VM
             return _callStack[_callStack.Count - 1];
         }
 
-        private StackFrame PopCallStack()
-        {
-            int top = _callStack.Count - 1;
-            StackFrame frame = _callStack[top];
-            _callStack.RemoveAt(top);
-            return frame;
-        }
-
         /// <summary>
         /// Common operation for instructions which load a value from the stack based on the immediate value of the
         /// instruction. 
@@ -192,6 +193,7 @@ namespace MonC.VM
 
         private void Break()
         {
+            _isPaused = true;
             _isContinuing = false;
             if (_debugger != null) {
                 _debugger.HandleBreak();
@@ -200,12 +202,6 @@ namespace MonC.VM
 
         private void InterpretCurrentInstruction()
         {
-            if (_callStack.Count == 0) {
-                _isContinuing = false;
-                _finishedCallback(true);
-                return;
-            }
-            
             if (MaxCycles >= 0 && _cycleCount >= MaxCycles) {
                 Abort();
                 return;
@@ -222,8 +218,8 @@ namespace MonC.VM
             Instruction ins = _module.Module.DefinedFunctions[top.Function].Code[top.PC];
             ++top.PC;
             InterpretInstruction(ins);
-
-            if (_isStepping) {
+            
+            if (_isStepping && IsRunning) {
                 Break();
             }
         }
@@ -532,10 +528,19 @@ namespace MonC.VM
 
         private void PopFrame()
         {
-            StackFrame frame = PopCallStack();
+            int top = _callStack.Count - 1;
+            StackFrame frame = _callStack[top];
+            _callStack.RemoveAt(top);
+            
             frame.BindingEnumerator = null;
             frame.PC = 0;
             _framePool.Push(frame);
+            
+            if (_callStack.Count == 0) {
+                _isContinuing = false;
+                HandleFinished(true);
+                return;
+            }
         }
         
         private readonly Stack<StackFrame> _framePool = new Stack<StackFrame>();
@@ -544,7 +549,16 @@ namespace MonC.VM
         {
             _callStack.Clear();
             _isContinuing = false;
-            _finishedCallback(false);
+            HandleFinished(false);
+        }
+
+        private void HandleFinished(bool success)
+        {
+            IsRunning = false;
+            if (_debugger != null) {
+                _debugger.HandleFinished();
+            }
+            _finishedCallback(success);
         }
     }
 }
