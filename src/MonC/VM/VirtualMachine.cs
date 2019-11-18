@@ -6,7 +6,7 @@ using MonC.Codegen;
 
 namespace MonC.VM
 {
-    public class VirtualMachine : IVMBindingContext
+    public class VirtualMachine : IVMBindingContext, IDebuggableVM
     {
         private readonly List<StackFrame> _callStack = new List<StackFrame>();
         private VMModule _module = new VMModule();
@@ -14,7 +14,8 @@ namespace MonC.VM
         private bool _isContinuing;
         private readonly StackFrameMemory _argumentBuffer = new StackFrameMemory();
         private Action<bool> _finishedCallback = success => { };
-        private Action? _breakHandler;
+        private IVMDebugger? _debugger;
+        
         private bool _isStepping;
         private int _cycleCount;
         
@@ -80,10 +81,17 @@ namespace MonC.VM
 
             return true;
         }
-
-        public void SetBreakHandler(Action handler)
+        
+        public void SetDebugger(IVMDebugger debugger)
         {
-            _breakHandler = handler;
+            if (_debugger != null) {
+                // Don't let the debugger change until we have a way to tell the current debugger to clean up.
+                // (Restore the module to it's original state and so on)
+                // TODO: It might be acceptable right now to set a new debugger when the VM is not active.
+                throw new InvalidOperationException("A debugger has already been set.");
+            }
+
+            _debugger = debugger;
         }
 
         string IVMBindingContext.GetString(int id)
@@ -106,7 +114,12 @@ namespace MonC.VM
             return -1;
         }
         
-        public void Continue()
+        void IDebuggableVM.Continue()
+        {
+            Continue();
+        }
+
+        private void Continue()
         {
             if (_isContinuing) {
                 return;
@@ -119,7 +132,7 @@ namespace MonC.VM
             }
         }
 
-        public void SetStepping(bool isStepping)
+        void IDebuggableVM.SetStepping(bool isStepping)
         {
             _isStepping = isStepping;
         }
@@ -180,8 +193,8 @@ namespace MonC.VM
         private void Break()
         {
             _isContinuing = false;
-            if (_breakHandler != null) {
-                _breakHandler();
+            if (_debugger != null) {
+                _debugger.HandleBreak();
             }
         }
 

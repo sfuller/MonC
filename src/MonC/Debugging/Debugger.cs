@@ -6,15 +6,18 @@ using MonC.VM;
 
 namespace MonC.Debugging
 {
-    public class Debugger
+    public class Debugger : IVMDebugger
     {
         private VirtualMachine _vm;
+        private IDebuggableVM _debuggableVm;
         private VMModule _module;
 
         private readonly List<Dictionary<int, Instruction>> _replacedInstructions = new List<Dictionary<int, Instruction>>();
         private readonly List<Breakpoint> _breakpoints = new List<Breakpoint>();
         
         private bool _isActive;
+
+        private bool _lastBreakWasCausedByBreakpoint;
 
         public event Action? Break;
         public event Action? ActiveChanged;
@@ -29,14 +32,15 @@ namespace MonC.Debugging
             }
             
             _vm = vm;
+            _debuggableVm = vm;
             _module = module;
-            _vm.SetBreakHandler(HandleBreak);
+            _vm.SetDebugger(this);
         }
 
         public void Pause()
         {
             _isActive = true;
-            _vm.SetStepping(true);
+            _debuggableVm.SetStepping(true);
 
             HandleActiveChanged();
         }
@@ -134,23 +138,8 @@ namespace MonC.Debugging
 
             return false;
         }
-
-        public void StepInto()
-        {
-            if (!_isActive) {
-                throw new InvalidOperationException("Cannot StepInto while debugger is inactive");
-            }
-            
-            // Step and re-apply breakpoints
-            _vm.Continue();
-            ApplyBreakpoints();
-
-            while (!CanFinishStepping()) {
-                _vm.Continue();
-            }
-        }
-
-        public ILFunction GetILFunctionForFrame(StackFrameInfo frame)
+        
+        public ILFunction GetILFunction(StackFrameInfo frame)
         {
             if (frame.Function < 0 || frame.Function >= _module.Module.DefinedFunctions.Length) {
                 return ILFunction.Empty();
@@ -158,32 +147,112 @@ namespace MonC.Debugging
             return _module.Module.DefinedFunctions[frame.Function];
         }
 
-        public void StepNext()
+        public void StepInto()
         {
             if (!_isActive) {
-                throw new InvalidOperationException("Cannot StepNext while debugger is inactive");
+                throw new InvalidOperationException("Cannot StepInto while debugger is inactive");
+            }
+            
+            // Step once and restore breakpoints 
+            StepInternal();
+            
+            // Keep stepping until we find a debug symbol.
+            while (_vm.IsRunning) {
+                StackFrameInfo frame = _vm.GetStackFrame(0);
+                if (GetSymbol(frame, out _)) {
+                    break;
+                }
+                _debuggableVm.Continue();
+
+                if (_lastBreakWasCausedByBreakpoint) {
+                    // If we hit a breakpoint, stop attemping to step into
+                    // Unless, of cource, we implement 'force' functionality.
+                    break;
+                }
+            }
+        }
+
+        public void StepOver()
+        {
+            if (!_isActive) {
+                throw new InvalidOperationException("Cannot StepOver while debugger is inactive");
             }
             
             StackFrameInfo frame = _vm.GetStackFrame(0);
-            ILFunction func = GetILFunction(frame);
-            Instruction instruction = func.Code[frame.PC];
+
+            // Where in the file were we?
+            string? sourcePath;
+            int lineNumber;
+            GetSourceLocation(frame, out sourcePath, out lineNumber);
+
+            if (sourcePath == null) {
+                // There's no symbols for the code we're in. Just do a single step.
+                _debuggableVm.Continue();
+                return;
+            }
+            
+            // Find a breakpoint for a line past the current line number.
+            Breakpoint breakpoint;
+            if (!FindNextBreakpointPastLineNumber(frame, sourcePath, lineNumber, out breakpoint)) {
+                // No more symbols past the given line? Just step out.
+                StepOutInternal();
+                return;
+            }
+            
+            // Apply the transient breakpoint for the next line.
+            ReplaceInstruction(breakpoint);
+            
+            // Step and re-apply breakpoints
+            StepInternal();
+
+            if (_lastBreakWasCausedByBreakpoint) {
+                // Breakpoint encountered while restoring breakpoints, either for our transient breakpoint or some other one.
+                // Try to remove the transient breakpoint for the later case.
+                RestoreInstruction(breakpoint);
+                return;
+            }
+            
+            ContinueInternal();
+        }
+
+        public void StepOut()
+        {
+            if (!_isActive) {
+                throw new InvalidOperationException("Cannot StepOut while debugger is inactive");
+            }
+
+            StepOutInternal();
+        }
+
+        private void StepOutInternal()
+        {
+            int stackFrameCount = _vm.CallStackFrameCount;
+            StackFrameInfo previousFrame = _vm.GetStackFrame(1);
+
+            Breakpoint breakpoint = new Breakpoint {Address = previousFrame.PC, Function = previousFrame.Function};
+            if (stackFrameCount > 1) {
+                // Apply a non-persistent breakpoint to the location where the current frame will return.
+                // The PC of the previous frame will always be the point where execution will resume when the current
+                // frame is popped.
+                ReplaceInstruction(breakpoint);
+            }
             
             // Step once and re-apply breakpoints
-            _vm.Continue();
-            ApplyBreakpoints();
-            
-            if (instruction.Op == OpCode.CALL) {
-                Breakpoint bp = FindBreakpointForNextSymbol(frame);
-                ReplaceInstruction(bp);
-                _isActive = false;
-                _vm.SetStepping(false);
-                HandleActiveChanged();
-                _vm.Continue();
-            } else {
-                while (!CanFinishStepping()) {
-                    _vm.Continue();
+            StepInternal();
+
+            if (_lastBreakWasCausedByBreakpoint) {
+                // When we continued, a breakpoint was hit. That was either our transient breakpoint we just set or
+                // some other breakpoint. No matter the case, we shouldn't continue stepping out 
+                // (unless in the future we imlement a 'force' step out, like IntelliJ has)
+
+                // Try removing the transient breakpoint we just set incase it wasn't hit, so it isn't hit later.
+                if (stackFrameCount > 1) {
+                    RestoreInstruction(breakpoint);
                 }
+                return;
             }
+            
+            ContinueInternal();
         }
 
         public void Continue()
@@ -193,26 +262,50 @@ namespace MonC.Debugging
             }
 
             // Step once and re-apply breakpoints
-            _vm.Continue();
-            ApplyBreakpoints();
+            StepInternal();
+
+            if (_lastBreakWasCausedByBreakpoint) {
+                // Hit another breakpoint. Don't continue.
+                // (In there future there may be force functionality that ignores this and continues anyway.)
+                return;
+            }
             
+            ContinueInternal();
+        }
+
+        private void ContinueInternal()
+        {
             _isActive = false;
-            _vm.SetStepping(false);
-            
+            _debuggableVm.SetStepping(false);
+            _debuggableVm.Continue();
             HandleActiveChanged();
+        }
+
+        public void Step()
+        {
+            if (!_isActive) {
+                throw new InvalidOperationException("Cannot Step while debugger is inactive");
+            }
             
-            _vm.Continue();
-            
+            StepInternal();
+        }
+
+        private void StepInternal()
+        {
+            // Step once and re-apply breakpoints
+            _debuggableVm.Continue();
+            ApplyBreakpoints();
         }
         
-        private void HandleBreak()
+        void IVMDebugger.HandleBreak()
         {
             StackFrameInfo frame = _vm.GetStackFrame(0);
-            if (RestoreInstruction(frame)) {
+            _lastBreakWasCausedByBreakpoint = RestoreInstruction(frame);;
+            if (_lastBreakWasCausedByBreakpoint) {
 
                 bool wasActive = _isActive;
                 
-                _vm.SetStepping(true);
+                _debuggableVm.SetStepping(true);
                 _isActive = true;
 
                 if (!wasActive) {
@@ -225,59 +318,45 @@ namespace MonC.Debugging
                 }
             }
             
-//            // Is there a breakpoint set for this address?
-//            if (_breakpoints.Contains(new Breakpoint {Function = frame.Function, Address = frame.PC})) {
-//                _vm.SetStepping(true);
-//                _isActive = true;
-//            }
-
-//            // Do we have symbols for the current execution address?
-//            ILFunction func = GetILFunction(frame);
-//            if (func.Symbols.ContainsKey(frame.PC)) {
-//                _vm.SetStepping(true);
-//                _isActive = true;
-//            }
         }
 
-        private bool CanFinishStepping() 
-        {
-            if (!_vm.IsRunning) {
-                return true;
-            }
-            
-            StackFrameInfo frame = _vm.GetStackFrame(0);
-            
-            // Is there a breakpoint set for this address?
-            if (_breakpoints.Contains(new Breakpoint {Function = frame.Function, Address = frame.PC})) {
-                return true;
-            }
-            
-            // Do we have symbols for the current execution address?
-            ILFunction func = GetILFunction(frame);
-            return func.Symbols.ContainsKey(frame.PC);
-        }
-
-        private Breakpoint FindBreakpointForNextSymbol(StackFrameInfo frame)
+        private bool FindBreakpointForNextSymbol(StackFrameInfo frame, out Breakpoint breakpoint)
         {
             ILFunction func = GetILFunction(frame);
             
             int minAddress = func.Code.Length - 1;
+            bool foundBreakpoint = false;
 
             foreach (int symbolAddress in func.Symbols.Keys) {
                 if (symbolAddress > frame.PC && symbolAddress < minAddress) {
                     minAddress = symbolAddress;
+                    foundBreakpoint = true;
                 }
             }
 
-            return new Breakpoint {Function = frame.Function, Address = minAddress};
+            breakpoint = new Breakpoint {Function = frame.Function, Address = minAddress};
+            return foundBreakpoint;
         }
-        
-        private ILFunction GetILFunction(StackFrameInfo frame)
+
+        private bool GetSymbol(StackFrameInfo frame, out Symbol symbol)
         {
-            if (frame.Function >= _module.Module.DefinedFunctions.Length) {
-                return ILFunction.Empty();
+            ILFunction func = GetILFunction(frame);
+            return func.Symbols.TryGetValue(frame.PC, out symbol);
+        }
+
+        private bool FindNextBreakpointPastLineNumber(StackFrameInfo frame, string sourcePath, int lineNumber, out Breakpoint breakpoint)
+        {
+            ILFunction function = GetILFunction(frame);
+            foreach (KeyValuePair<int, Symbol> addressAndSymbol in function.Symbols) {
+                Symbol symbol = addressAndSymbol.Value;
+                if (symbol.SourceFile == sourcePath && symbol.Start.Line > lineNumber) {
+                    breakpoint = new Breakpoint{ Function = frame.Function, Address = addressAndSymbol.Key};
+                    return true;
+                }
             }
-            return _module.Module.DefinedFunctions[frame.Function];
+
+            breakpoint = default;
+            return false;
         }
 
         private void ReplaceInstruction(Breakpoint breakpoint)
@@ -312,20 +391,25 @@ namespace MonC.Debugging
         
         private bool RestoreInstruction(StackFrameInfo frame)
         {
-            if (frame.Function < 0 || frame.Function >= _replacedInstructions.Count) {
+            return RestoreInstruction(new Breakpoint {Address = frame.PC, Function = frame.Function});
+        }
+
+        private bool RestoreInstruction(Breakpoint breakpoint)
+        {
+            if (breakpoint.Function < 0 || breakpoint.Function >= _replacedInstructions.Count) {
                 return false;
             }
-
+            
             Instruction ins;
             
-            var instructions = _replacedInstructions[frame.Function];
-            if (!instructions.TryGetValue(frame.PC, out ins)) {
+            var instructions = _replacedInstructions[breakpoint.Function];
+            if (!instructions.TryGetValue(breakpoint.Address, out ins)) {
                 return false;
             }
 
-            instructions.Remove(frame.PC);
+            instructions.Remove(breakpoint.Address);
             
-            _module.Module.DefinedFunctions[frame.Function].Code[frame.PC] = ins;
+            _module.Module.DefinedFunctions[breakpoint.Function].Code[breakpoint.Address] = ins;
             return true;
         }
 

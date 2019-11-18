@@ -265,19 +265,22 @@ namespace MonC.Frontend
                     } 
                     break;
                 
-                case "next":
-                    debugger.StepNext();
+                case "over":
+                    debugger.StepOver();
                     break;
                 
                 case "into":
                     debugger.StepInto();
                     break;
                 
-                case "step":
-                    // Do a single step
-                    vm.Continue();
+                case "out":
+                    debugger.StepOut();
                     break;
                 
+                case "step":
+                    debugger.Step();
+                    break;
+
                 case "continue":
                 case null:
                     debugger.Continue();
