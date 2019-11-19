@@ -208,18 +208,22 @@ namespace MonC.VM
             }
             ++_cycleCount;
             
+            // A break instruction might call the break handler and change stepping mode.
+            // TODO: Make break instruction not call break handler and instead set a flag to have the break handler
+            // called below.
+            bool isStepping = _isStepping;
+            
             StackFrame top = PeekCallStack();
-
+            
             if (top.BindingEnumerator != null) {
                 InterpretBoundFunctionCall(top);
-                return;
+            } else {
+                Instruction ins = _module.Module.DefinedFunctions[top.Function].Code[top.PC];
+                ++top.PC;
+                InterpretInstruction(ins);
             }
-
-            Instruction ins = _module.Module.DefinedFunctions[top.Function].Code[top.PC];
-            ++top.PC;
-            InterpretInstruction(ins);
             
-            if (_isStepping && IsRunning) {
+            if (isStepping && IsRunning) {
                 Break();
             }
         }
