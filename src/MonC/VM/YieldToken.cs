@@ -10,12 +10,27 @@ namespace MonC.VM
         private bool _ready;
         private bool _finished;
         private Action? _callback;
+
+        public void Reset()
+        {
+            if (!_ready && !_finished && _callback == null) {
+                return;
+            }
+            
+            // Can only be reset when finished.
+            if (!_ready || !_finished) {
+                throw new InvalidOperationException("Cannot reset incomplete yield token.");
+            }
+
+            _ready = false;
+            _finished = false;
+            _callback = null;
+        }
         
         public void OnFinished(Action handler)
         {
-            if (_finished && _ready) {
-                handler();
-                return;
+            if (_ready) {
+                throw new InvalidOperationException("Cannot add finished handlers to YieldToken after it has been started.");
             }
             
             if (_callback != null) {
@@ -28,6 +43,10 @@ namespace MonC.VM
 
         public void Start()
         {
+            if (_ready) {
+                throw new InvalidOperationException("Cannot start YieldToken after it has been started.");
+            }
+            
             _ready = true;
             if (_finished && _callback != null) {
                 _callback();
@@ -41,7 +60,7 @@ namespace MonC.VM
             }
 
             _finished = true;
-            if (_callback != null) {
+            if (_ready && _callback != null) {
                 _callback();
             }
         }

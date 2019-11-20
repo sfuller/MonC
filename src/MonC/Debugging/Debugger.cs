@@ -10,8 +10,6 @@ namespace MonC.Debugging
     {
         private enum ActionRequest
         {
-            UNKNOWN,
-            STEP_AND_APPLY_BREAKPOINTS,
             STEP,
             CONTINUE
         }
@@ -179,23 +177,21 @@ namespace MonC.Debugging
         
         private IEnumerator<ActionRequest> StepIntoAction()
         {
-            yield return ActionRequest.STEP_AND_APPLY_BREAKPOINTS;
-
             // Keep stepping until we find a debug symbol.
             while (_vm.IsRunning) {
-                StackFrameInfo frame = _vm.GetStackFrame(0);
-                if (GetSymbol(frame, out _)) {
-                    break;
-                }
-
                 yield return ActionRequest.STEP;
-                //_debuggableVm.Continue();
-
+                
                 if (_lastBreakWasCausedByBreakpoint) {
                     // If we hit a breakpoint, stop attemping to step into
                     // Unless, of cource, we implement 'force' functionality.
                     break;
                 }
+                
+                StackFrameInfo frame = _vm.GetStackFrame(0);
+                if (GetSymbol(frame, out _)) {
+                    break;
+                }
+                
             }
         }
 
@@ -210,10 +206,16 @@ namespace MonC.Debugging
             int currentFunction = frame.Function;
             int minDepth = _vm.CallStackFrameCount;
             
-            yield return ActionRequest.STEP_AND_APPLY_BREAKPOINTS;
-
             // Keep stepping until we find a debug symbol in the same function
             while (_vm.IsRunning) {
+                yield return ActionRequest.STEP;
+                
+                if (_lastBreakWasCausedByBreakpoint) {
+                    // If we hit a breakpoint, stop attemping to step over
+                    // Unless, of cource, we implement 'force' functionality.
+                    break;
+                }
+                
                 frame = _vm.GetStackFrame(0);
 
                 if (frame.Function == currentFunction) {
@@ -224,14 +226,6 @@ namespace MonC.Debugging
 
                 if (_vm.CallStackFrameCount < minDepth) {
                     // The frame we started stepping in has returned. Stop stepping.
-                    break;
-                }
-
-                yield return ActionRequest.STEP;
-
-                if (_lastBreakWasCausedByBreakpoint) {
-                    // If we hit a breakpoint, stop attemping to step over
-                    // Unless, of cource, we implement 'force' functionality.
                     break;
                 }
             }
@@ -256,8 +250,8 @@ namespace MonC.Debugging
                 ReplaceInstruction(breakpoint);
             }
             
-            yield return ActionRequest.STEP_AND_APPLY_BREAKPOINTS;
-
+            yield return ActionRequest.CONTINUE;
+            
             if (_lastBreakWasCausedByBreakpoint) {
                 // When we continued, a breakpoint was hit. That was either our transient breakpoint we just set or
                 // some other breakpoint. No matter the case, we shouldn't continue stepping out 
@@ -267,10 +261,8 @@ namespace MonC.Debugging
                 if (stackFrameCount > 1) {
                     RestoreInstruction(breakpoint);
                 }
-                yield break;
             }
-
-            yield return ActionRequest.CONTINUE;
+            
         }
 
         public bool Continue()
@@ -280,15 +272,6 @@ namespace MonC.Debugging
         
         private IEnumerator<ActionRequest> ContinueAction()
         {
-            // Step once and re-apply breakpoints
-            yield return ActionRequest.STEP_AND_APPLY_BREAKPOINTS;
-
-            if (_lastBreakWasCausedByBreakpoint) {
-                // Hit another breakpoint. Don't continue.
-                // (In there future there may be force functionality that ignores this and continues anyway.)
-                yield break;
-            }
-
             yield return ActionRequest.CONTINUE;
         }
 
@@ -299,7 +282,7 @@ namespace MonC.Debugging
 
         private IEnumerator<ActionRequest> StepAction()
         {
-            yield return ActionRequest.STEP_AND_APPLY_BREAKPOINTS;
+            yield return ActionRequest.STEP;
         }
         
         void IVMDebugger.HandleBreak()
@@ -313,13 +296,11 @@ namespace MonC.Debugging
 
             while (UpdateAction(isStartingAction: false)) { }
         }
-
-        private ActionRequest _lastRequest;
-
         
         private bool _isUpdating;
         private bool _didBreakImmediatley;
-        
+        private IEnumerator<object?>? _updateRequest;
+
         /// <summary>
         /// Update the current action.
         ///
@@ -331,19 +312,18 @@ namespace MonC.Debugging
                 return false;
             }
 
-            switch (_lastRequest) {
-                case ActionRequest.STEP_AND_APPLY_BREAKPOINTS:
-                    ApplyBreakpoints();
-                    break;
-                case ActionRequest.CONTINUE:
-                    HandlePausedChanged();
-                    break;
+            if (_updateRequest != null) {
+                if (!_updateRequest.MoveNext()) {
+                    _updateRequest.Dispose();
+                    _updateRequest = null;
+                } else {
+                    return false;
+                }
             }
-            
+
             if (_currentAction != null && !_currentAction.MoveNext()) {
                 _currentAction.Dispose();
                 _currentAction = null;
-                _lastRequest = ActionRequest.UNKNOWN;
             }
             
             if (_currentAction == null) {
@@ -355,36 +335,54 @@ namespace MonC.Debugging
                 }
                 return false;
             }
+            
+            _updateRequest = RequestRoutine(_currentAction.Current);
+            return true;
+        }
 
-            ActionRequest request = _currentAction.Current;
-            _lastRequest = request;
-
-
-            switch (request) {
-                case ActionRequest.STEP:
-                case ActionRequest.STEP_AND_APPLY_BREAKPOINTS:
-                    _debuggableVm.SetStepping(true);
-                    break;
-                case ActionRequest.CONTINUE:
-                    _debuggableVm.SetStepping(false);
-                    break;
+        private IEnumerator<object?> RequestRoutine(ActionRequest request)
+        {
+            if (_lastBreakWasCausedByBreakpoint || request == ActionRequest.STEP) {
+                _debuggableVm.SetStepping(true);
+                StackFrameInfo originFrame = _vm.GetStackFrame(0);
+                if (!ContinueVM()) {
+                    yield return null;
+                }
+                
+                // Restore the breakpoint for the frame we are stepping from, but don't apply breakpoints for other 
+                // instructions as we might have just broken on one of those and need the instruction to be restored
+                // in order to continue.
+                ReApplyBreakpoint(originFrame);
             }
+            
+            if (request == ActionRequest.CONTINUE) {
+                _debuggableVm.SetStepping(false);
+                if (!ContinueVM()) {
+                    yield return null;
+                }
+            }
+        }
 
+        private bool ContinueVM()
+        {
             _isUpdating = true;
             _didBreakImmediatley = false;
             _debuggableVm.Continue();
             _isUpdating = false;
-            
-            if (request == ActionRequest.CONTINUE) {
-                HandlePausedChanged();
-            }
-            
             return _didBreakImmediatley;
         }
 
         void IVMDebugger.HandleFinished()
         {
             // TODO: Need to restore all replaced instructions!
+            // TODO: This only needs to be done if the module can be re-used by other debuggers.
+            // Maybe make this it's own function. Many times the module is just thrown away.
+
+//            foreach (Dictionary<int, Instruction> replacedInstructionsForFunction in _replacedInstructions) {
+//                if (replacedInstructionsForFunction.Count > 0) {
+//                    throw new NotImplementedException("Need to restore instructions after finish!");                    
+//                }
+//            }
             
             HandlePausedChanged();
         }
@@ -486,6 +484,15 @@ namespace MonC.Debugging
         {
             foreach (Breakpoint breakpoint in _breakpoints) {
                 ReplaceInstruction(breakpoint);
+            }
+        }
+
+        private void ReApplyBreakpoint(StackFrameInfo info)
+        {
+            foreach (Breakpoint breakpoint in _breakpoints) {
+                if (breakpoint.Function == info.Function && breakpoint.Address == info.PC) {
+                    ReplaceInstruction(breakpoint);
+                }
             }
         }
 

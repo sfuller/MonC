@@ -13,6 +13,8 @@ namespace MonC.VM
         private int _aRegister;
         private bool _isContinuing;
         private bool _isPaused;
+        private bool _isStartingYield;
+        private bool _isYielding;
         private readonly StackFrameMemory _argumentBuffer = new StackFrameMemory();
         private Action<bool> _finishedCallback = success => { };
         private IVMDebugger? _debugger;
@@ -141,6 +143,14 @@ namespace MonC.VM
             }
         }
 
+        private void HandleYieldComplete()
+        {
+            _isYielding = false;
+            if (!_isStartingYield) {
+                Continue();
+            }
+        }
+
         void IDebuggableVM.SetStepping(bool isStepping)
         {
             _isStepping = isStepping;
@@ -208,58 +218,68 @@ namespace MonC.VM
             }
             ++_cycleCount;
             
-            // A break instruction might call the break handler and change stepping mode.
-            // TODO: Make break instruction not call break handler and instead set a flag to have the break handler
-            // called below.
-            bool isStepping = _isStepping;
-            
             StackFrame top = PeekCallStack();
             
+            bool canBreak;
+            bool breakRequested = _isStepping;
+            
             if (top.BindingEnumerator != null) {
-                InterpretBoundFunctionCall(top);
+                canBreak = InterpretBoundFunctionCall(top);
             } else {
+                // It is always safe to break between instructions.
+                canBreak = true;
+                
                 Instruction ins = _module.Module.DefinedFunctions[top.Function].Code[top.PC];
                 ++top.PC;
-                InterpretInstruction(ins);
+                breakRequested |= InterpretInstruction(ins);
             }
-            
-            if (isStepping && IsRunning) {
+
+            if (breakRequested && canBreak && IsRunning) {
                 Break();
             }
         }
-
-        private void InterpretBoundFunctionCall(StackFrame frame)
+        
+        private bool InterpretBoundFunctionCall(StackFrame frame)
         {
+            // Returns true if it is safe to trigger a break after this method returns.
+
             // This method should only be called after checking that a binding enumerator exists on the given frame.
             IEnumerator<Continuation> bindingEnumerator = frame.BindingEnumerator!;
             
             if (!bindingEnumerator.MoveNext()) {
                 // Function has finished
                 PopFrame();
-                return;
+                return true;
             }
 
             Continuation continuation = bindingEnumerator.Current;
 
             if (continuation.Action == ContinuationAction.CALL) {
                 PushCall(continuation.FunctionIndex, continuation.Arguments);
-                return;
+                return true;
             }
 
             if (continuation.Action == ContinuationAction.RETURN) {
                 _aRegister = continuation.ReturnValue;
                 PopFrame();
-                return;
+                return true;
             }
 
             if (continuation.Action == ContinuationAction.YIELD) {
-                _isContinuing = false;
-                continuation.YieldToken.OnFinished(Continue);
-
-                // Remember: Caling Start can call the finish callback, so call Start at the very end.
-                continuation.YieldToken.Start();
+                continuation.YieldToken.OnFinished(HandleYieldComplete);
                 
-                return;
+                _isStartingYield = true;
+                _isYielding = true;
+                // Calling start may trigger the OnFinished callback. We check for the callback being completed
+                // instantly by checking _isYielding after calling Start.
+                continuation.YieldToken.Start();
+                _isStartingYield = false;
+                // We are still yielding after calling start, meaning we are safe to terminate the loop.
+                // The VM loop will be started again by HandleYieldComplete.
+                if (_isYielding) {
+                    _isContinuing = false;
+                }
+                return !_isYielding;
             }
 
             if (continuation.Action == ContinuationAction.UNWRAP) {
@@ -267,21 +287,23 @@ namespace MonC.VM
                 unwrapFrame.Function = frame.Function;
                 unwrapFrame.BindingEnumerator = continuation.ToUnwrap;
                 PushCallStack(unwrapFrame);
-                return;
+                return true;
             }
             
             throw new NotImplementedException();
         }
 
-        private void InterpretInstruction(Instruction ins)
+        private bool InterpretInstruction(Instruction ins)
         {
+            // Returns true if a break should be triggered. Otherwise false.
+            
             switch (ins.Op) {
                 case OpCode.NOOP:
                     InterpretNoOp(ins);
                     break;
                 case OpCode.BREAK:
                     InterpretBreak(ins);
-                    break;
+                    return true;
                 case OpCode.LOAD:
                     InterpretLoad(ins);
                     break;
@@ -345,6 +367,9 @@ namespace MonC.VM
                 default:
                     throw new NotImplementedException();
             }
+
+            // All instructions but break return false to signify that break did not occur.
+            return false;
         }
 
         private void InterpretNoOp(Instruction ins)
@@ -354,7 +379,7 @@ namespace MonC.VM
         private void InterpretBreak(Instruction ins)
         {
             --PeekCallStack().PC;
-            Break();
+            // Note: Triggering the actual break is done by InterpretInstruction.
         }
 
         private void InterpretLoad(Instruction ins)
