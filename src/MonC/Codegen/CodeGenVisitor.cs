@@ -121,11 +121,11 @@ namespace MonC.Codegen
                     AddInstruction(OpCode.LNOT);
                     break;
                 case Syntax.LOGICAL_OR:
-                    AddInstruction(OpCode.OR);
+                    AddInstruction(OpCode.OR, rhsStackAddress);
                     AddInstruction(OpCode.BOOL);
                     break;
                 case Syntax.LOGICAL_AND:
-                    AddInstruction(OpCode.AND);
+                    AddInstruction(OpCode.AND, rhsStackAddress);
                     AddInstruction(OpCode.BOOL);
                     break;
                 case "+":
@@ -299,6 +299,9 @@ namespace MonC.Codegen
 
         public void VisitIfElse(IfElseLeaf leaf)
         {
+            int startAddress = _instructions.Count;
+            AddDebugSymbol(startAddress, leaf.Condition);
+            
             leaf.Condition.Accept(this);
             
             // Make space for the branch instruction we will instert.
