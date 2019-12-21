@@ -92,7 +92,7 @@ namespace MonC.Frontend
 
         public void VisitBreak(BreakLeaf leaf)
         {
-            throw new NotImplementedException();
+            Print("Break");
         }
 
         public void VisitReturn(ReturnLeaf leaf)

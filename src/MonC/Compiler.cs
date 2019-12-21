@@ -88,7 +88,7 @@ namespace MonC
                 return new Optional<VMModule>();
             }
             
-            linker.AddModule(compiledModule);
+            linker.AddModule(compiledModule, export: true);
 
             VMModule linkedModule = linker.Link();
             if (linkErrors.Count > 0) {
@@ -108,7 +108,7 @@ namespace MonC
             SetupLinkerWithInteropResolver(linker, resolver);
             ILModule compiledModule = Compile(parsedModule);
 
-            linker.AddModule(compiledModule);
+            linker.AddModule(compiledModule, export: true);
 
             VMModule linkedModule = linker.Link();
             if (linkErrors.Count > 0) {
@@ -129,7 +129,7 @@ namespace MonC
         private void SetupLinkerWithInteropResolver(Linker linker, InteropResolver resolver)
         {
             foreach (Binding binding in resolver.Bindings) {
-                linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation);
+                linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation, export: false);
             }
         }
 

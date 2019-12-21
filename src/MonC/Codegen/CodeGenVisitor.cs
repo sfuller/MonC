@@ -347,9 +347,16 @@ namespace MonC.Codegen
             
             // Branch to body if condition met.
             int currentLocation = _instructions.Count;
-            AddInstruction(OpCode.JUMPNZ, bodyLocation - currentLocation);
+            AddInstruction(OpCode.JUMPNZ, bodyLocation - currentLocation - 1);
             
             _instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation - initialJumpLocation - 1);
+
+            int breakJumpLocation = _instructions.Count;
+
+            foreach (int breakLocation in _breaks) {
+                _instructions[breakLocation] = new Instruction(OpCode.JUMP, breakJumpLocation - breakLocation - 1);
+            }
+            _breaks.Clear();
         }
 
         public void VisitBreak(BreakLeaf leaf)

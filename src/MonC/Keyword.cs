@@ -11,8 +11,10 @@ namespace MonC
         public const string RETURN = "return";
         public const string STATIC = "static";
         public const string ENUM = "enum";
+        public const string CONTINUE = "continue";
+        public const string BREAK = "break";
 
-        private static readonly string[] KEYWORDS = {IF, ELSE, WHILE, FOR, RETURN, STATIC, ENUM};
+        private static readonly string[] KEYWORDS = {IF, ELSE, WHILE, FOR, RETURN, STATIC, ENUM, CONTINUE, BREAK};
 
         public static bool IsKeyword(string value)
         {

@@ -138,10 +138,10 @@ namespace MonC.Frontend
 
             List<LinkError> linkErrors = new List<LinkError>();
             Linker linker = new Linker(linkErrors);
-            linker.AddModule(ilmodule);
+            linker.AddModule(ilmodule, export: true);
 
             foreach (Binding binding in interopResolver.Bindings) {
-                linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation);
+                linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation, export: false);
             }
             
             VMModule vmModule = linker.Link();

@@ -328,7 +328,9 @@ namespace MonC
             return token.Value == Keyword.IF 
                 || token.Value == Keyword.WHILE
                 || token.Value == Keyword.FOR
-                || token.Value == Keyword.RETURN;
+                || token.Value == Keyword.RETURN
+                || token.Value == Keyword.CONTINUE
+                || token.Value == Keyword.BREAK;
         }
 
         private Optional<DeclarationLeaf> ParseDeclaration()
@@ -370,6 +372,10 @@ namespace MonC
                     return ParseFor().Abstract<IASTLeaf>();
                 case Keyword.RETURN:
                     return new Optional<IASTLeaf>(ParseReturn());
+                case Keyword.CONTINUE:
+                    return new Optional<IASTLeaf>(ParseContinue());
+                case Keyword.BREAK:
+                    return new Optional<IASTLeaf>(ParseBreak());
             }
             
             AddError("Unexpected token", token);
@@ -490,6 +496,21 @@ namespace MonC
             ParseSemiColonForgiving();
 
             return NewLeaf(new ReturnLeaf {RHS = expression}, returnToken);
+        }
+
+        private IASTLeaf ParseContinue()
+        {
+            Token token = Peek();
+            AddError("continue is not implemented yet", token);
+            return new PlaceholderLeaf();
+        }
+
+        private BreakLeaf ParseBreak()
+        {
+            Token breakToken;
+            Next(TokenType.Keyword, Keyword.BREAK, out breakToken);
+            ParseSemicolon();
+            return NewLeaf<BreakLeaf>(breakToken);
         }
 
         private Optional<IASTLeaf> ParseExpression()
@@ -734,7 +755,13 @@ namespace MonC
 
         private bool ParseSemicolon()
         {
-            return Next(TokenType.Syntax, ";", out _);
+            Token token = Peek();
+            if (token.Type != TokenType.Syntax || token.Value != ";") {
+                AddError("Expecting semicolon", token);
+                return false;
+            }
+            Consume();
+            return true;
         }
 
         private void ParseSemiColonForgiving()
