@@ -243,6 +243,13 @@ namespace MonC.Codegen
             AddInstruction(OpCode.JUMPNZ, bodyLocation - currentLocation - 1);
             
             _instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation - initialJumpLocation - 1);
+            
+            int breakJumpLocation = _instructions.Count;
+
+            foreach (int breakLocation in _breaks) {
+                _instructions[breakLocation] = new Instruction(OpCode.JUMP, breakJumpLocation - breakLocation - 1);
+            }
+            _breaks.Clear();
         }
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
