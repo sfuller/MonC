@@ -5,19 +5,21 @@ namespace MonC.VM
 {
     public class VMModule
     {
-        public readonly ILModule Module;
+        public readonly ILModule ILModule;
         public readonly Dictionary<int, VMFunction> VMFunctions;
 
         public VMModule()
         {
-            Module = new ILModule();
+            ILModule = new ILModule();
             VMFunctions = new Dictionary<int, VMFunction>();
         }
         
-        public VMModule(ILModule module, Dictionary<int, VMFunction> vmFunctions)
+        public VMModule(ILModule ilModule, Dictionary<int, VMFunction> vmFunctions)
         {
-            Module = module;
+            ILModule = ilModule;
             VMFunctions = vmFunctions;
         }
+        
+        public static readonly VMModule Default = new VMModule(); 
     }
 }

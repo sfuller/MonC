@@ -106,7 +106,7 @@ namespace MonC.DotNetInterop
 
         public bool PrepareForExecution(VMModule module, IList<string> errors)
         {
-            Dictionary<string, int> exporetedFunctions = module.Module.ExportedFunctions.ToDictionary(p => p.Key, p => p.Value);
+            Dictionary<string, int> exporetedFunctions = module.ILModule.ExportedFunctions.ToDictionary(p => p.Key, p => p.Value);
             bool success = true;
             
             foreach (Type type in _linkableModules) {

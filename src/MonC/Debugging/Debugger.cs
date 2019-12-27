@@ -13,12 +13,16 @@ namespace MonC.Debugging
             STEP,
             CONTINUE
         }
+
+        private struct ModuleDebugData
+        {
+            public Dictionary<int, Dictionary<int, Instruction>> ReplacedInstructionsByFunction;
+        }
         
         private readonly VirtualMachine _vm;
         private readonly IDebuggableVM _debuggableVm;
-        private readonly VMModule _module;
 
-        private readonly List<Dictionary<int, Instruction>> _replacedInstructions = new List<Dictionary<int, Instruction>>();
+        private readonly Dictionary<VMModule, ModuleDebugData> _debugDataByModule = new Dictionary<VMModule, ModuleDebugData>();
         private readonly List<Breakpoint> _breakpoints = new List<Breakpoint>();
         
         private bool _lastBreakWasCausedByBreakpoint;
@@ -28,16 +32,10 @@ namespace MonC.Debugging
         public event Action? Break;
         public event Action? PauseChanged;
 
-        public Debugger(VMModule module, VirtualMachine vm)
+        public Debugger(VirtualMachine vm)
         {
-            _replacedInstructions.Clear();
-            for (int i = 0, ilen = module.Module.DefinedFunctions.Length; i < ilen; ++i) {
-                _replacedInstructions.Add(new Dictionary<int, Instruction>());
-            }
-            
             _vm = vm;
             _debuggableVm = vm;
-            _module = module;
             _vm.SetDebugger(this);
         }
 
@@ -45,46 +43,24 @@ namespace MonC.Debugging
         {
             _debuggableVm.SetStepping(true);
         }
-        
-        public void SetBreakpoint(int function, int address)
+
+        public void SetBreakpoint(string sourcePath, int lineNumber)
         {
-            Breakpoint breakpoint = new Breakpoint {Function = function, Address = address}; 
+            Breakpoint breakpoint = new Breakpoint {SourcePath = sourcePath, LineNumber = lineNumber};
             _breakpoints.Add(breakpoint);
-            ReplaceInstruction(breakpoint);
+            ReplaceInstructionForBreakpoint(breakpoint);
         }
 
-        public void RemoveBreakpoint(int function, int address)
+        public void RemoveBreakpoint(string sourcePath, int lineNumber)
         {
-            _breakpoints.Remove(new Breakpoint {Function = function, Address = address});
-            RestoreInstruction(new StackFrameInfo {Function = function, PC = address});
-            // TODO: Assert instruction restore was successful? 
+            Breakpoint breakpoint = new Breakpoint {SourcePath = sourcePath, LineNumber = lineNumber};
+            RestoreInstructionForBreakpoint(breakpoint);
         }
 
-        public bool SetBreakpoint(string sourcePath, int lineNumber)
+        public bool LookupSymbol(VMModule module, string sourcePath, int lineNumber, out int functionIndexResult, out int addressResult)
         {
-            int func, addr;
-            bool result = LookupSymbol(sourcePath, lineNumber, out func, out addr); 
-            if (result) {
-                SetBreakpoint(func, addr);
-            }
-            return result;
-        }
-
-        public bool RemoveBreakpoint(string sourcePath, int lineNumber)
-        {
-            int func, addr;
-            bool result = LookupSymbol(sourcePath, lineNumber, out func, out addr);
-            if (result) {
-                RemoveBreakpoint(func, addr);
-            }
-            return result;
-        }
-
-        public bool LookupSymbol(string sourcePath, int lineNumber, out int functionIndexResult, out int addressResult)
-        {
-            // TODO: Caching might be necesary if this becomes too slow.
-            for (int functionIndex = 0, funcLen = _module.Module.DefinedFunctions.Length; functionIndex < funcLen; ++functionIndex) {
-                ILFunction function = _module.Module.DefinedFunctions[functionIndex];
+            for (int functionIndex = 0, funcLen = module.ILModule.DefinedFunctions.Length; functionIndex < funcLen; ++functionIndex) {
+                ILFunction function = module.ILModule.DefinedFunctions[functionIndex];
                 
                 for (int i = 0, ilen = function.Code.Length; i < ilen; ++i) {
                     Symbol symbol;
@@ -120,11 +96,11 @@ namespace MonC.Debugging
             sourcePath = "";
             lineNumber = 0;
             
-            if (frame.Function < 0 || frame.Function >= _module.Module.DefinedFunctions.Length) {
+            if (frame.Function < 0 || frame.Function >= frame.Module.ILModule.DefinedFunctions.Length) {
                 return false;
             }
             
-            ILFunction function = _module.Module.DefinedFunctions[frame.Function];
+            ILFunction function = frame.Module.ILModule.DefinedFunctions[frame.Function];
 
             for (int i = frame.PC; i < function.Code.Length; ++i) {
                 Symbol symbol;
@@ -142,10 +118,10 @@ namespace MonC.Debugging
         
         public ILFunction GetILFunction(StackFrameInfo frame)
         {
-            if (frame.Function < 0 || frame.Function >= _module.Module.DefinedFunctions.Length) {
+            if (frame.Function < 0 || frame.Function >= frame.Module.ILModule.DefinedFunctions.Length) {
                 return ILFunction.Empty();
             }
-            return _module.Module.DefinedFunctions[frame.Function];
+            return frame.Module.ILModule.DefinedFunctions[frame.Function];
         }
 
         /// <summary>
@@ -241,13 +217,12 @@ namespace MonC.Debugging
         {
             int stackFrameCount = _vm.CallStackFrameCount;
             StackFrameInfo previousFrame = _vm.GetStackFrame(1);
-
-            Breakpoint breakpoint = new Breakpoint {Address = previousFrame.PC, Function = previousFrame.Function};
+            
             if (stackFrameCount > 1) {
                 // Apply a non-persistent breakpoint to the location where the current frame will return.
                 // The PC of the previous frame will always be the point where execution will resume when the current
                 // frame is popped.
-                ReplaceInstruction(breakpoint);
+                ReplaceInstruction(previousFrame.Module, previousFrame.Function, previousFrame.PC);
             }
             
             yield return ActionRequest.CONTINUE;
@@ -259,7 +234,7 @@ namespace MonC.Debugging
 
                 // Try removing the transient breakpoint we just set incase it wasn't hit, so it isn't hit later.
                 if (stackFrameCount > 1) {
-                    RestoreInstruction(breakpoint);
+                    RestoreInstruction(previousFrame.Module, previousFrame.Function, previousFrame.PC);
                 }
             }
             
@@ -288,7 +263,7 @@ namespace MonC.Debugging
         void IVMDebugger.HandleBreak()
         {
             StackFrameInfo frame = _vm.GetStackFrame(0);
-            _lastBreakWasCausedByBreakpoint = RestoreInstruction(frame);
+            _lastBreakWasCausedByBreakpoint = RestoreInstruction(frame.Module, frame.Function, frame.PC);
             if (_lastBreakWasCausedByBreakpoint) {
 
                 _debuggableVm.SetStepping(true);
@@ -376,34 +351,24 @@ namespace MonC.Debugging
         {
             // TODO: Need to restore all replaced instructions!
             // TODO: This only needs to be done if the module can be re-used by other debuggers.
-            // Maybe make this it's own function. Many times the module is just thrown away.
 
-//            foreach (Dictionary<int, Instruction> replacedInstructionsForFunction in _replacedInstructions) {
-//                if (replacedInstructionsForFunction.Count > 0) {
-//                    throw new NotImplementedException("Need to restore instructions after finish!");                    
-//                }
-//            }
-            
             HandlePausedChanged();
         }
 
-//        private bool FindBreakpointForNextSymbol(StackFrameInfo frame, out Breakpoint breakpoint)
-//        {
-//            ILFunction func = GetILFunction(frame);
-//            
-//            int minAddress = func.Code.Length - 1;
-//            bool foundBreakpoint = false;
-//
-//            foreach (int symbolAddress in func.Symbols.Keys) {
-//                if (symbolAddress > frame.PC && symbolAddress < minAddress) {
-//                    minAddress = symbolAddress;
-//                    foundBreakpoint = true;
-//                }
-//            }
-//
-//            breakpoint = new Breakpoint {Function = frame.Function, Address = minAddress};
-//            return foundBreakpoint;
-//        }
+        void IVMDebugger.HandleModuleAdded(VMModule module)
+        {
+            if (_debugDataByModule.ContainsKey(module)) {
+                return;
+            }
+
+            ModuleDebugData data = new ModuleDebugData {
+                ReplacedInstructionsByFunction = new Dictionary<int, Dictionary<int, Instruction>>()
+            };
+            _debugDataByModule.Add(module, data);
+            
+            // TODO: PERF: Only apply breakpoints for given module, not accross all loaded modules.
+            ApplyBreakpoints();
+        }
 
         private bool GetSymbol(StackFrameInfo frame, out Symbol symbol)
         {
@@ -411,87 +376,96 @@ namespace MonC.Debugging
             return func.Symbols.TryGetValue(frame.PC, out symbol);
         }
 
-//        private bool FindNextBreakpointPastLineNumber(StackFrameInfo frame, string sourcePath, int lineNumber, out Breakpoint breakpoint)
-//        {
-//            ILFunction function = GetILFunction(frame);
-//            foreach (KeyValuePair<int, Symbol> addressAndSymbol in function.Symbols) {
-//                Symbol symbol = addressAndSymbol.Value;
-//                if (symbol.SourceFile == sourcePath && symbol.Start.Line > lineNumber) {
-//                    breakpoint = new Breakpoint{ Function = frame.Function, Address = addressAndSymbol.Key};
-//                    return true;
-//                }
-//            }
-//
-//            breakpoint = default;
-//            return false;
-//        }
-
-        private void ReplaceInstruction(Breakpoint breakpoint)
+        private void ReplaceInstructionForBreakpoint(Breakpoint breakpoint)
         {
-            if (breakpoint.Function < 0 || breakpoint.Function >= _replacedInstructions.Count) {
-                // TODO: Log something
+            foreach (VMModule module in _debugDataByModule.Keys) {
+                ReplaceInstructionForBreakpointInModule(breakpoint, module);
+            }
+        }
+
+        private void ReplaceInstructionForBreakpointInModule(Breakpoint breakpoint, VMModule module)
+        {
+            int functionIndex, address;
+            if (!LookupSymbol(module, breakpoint.SourcePath, breakpoint.LineNumber, out functionIndex, out address)) {
                 return;
             }
 
-            var instructions = _replacedInstructions[breakpoint.Function];
-            if (instructions.ContainsKey(breakpoint.Address)) {
+            ReplaceInstruction(module, functionIndex, address);
+        }
+
+        private void ReplaceInstruction(VMModule module, int functionIndex, int address)
+        {
+            ModuleDebugData debugData;
+            if (!_debugDataByModule.TryGetValue(module, out debugData)) {
                 return;
             }
             
-            ILFunction[] moduleFunctions = _module.Module.DefinedFunctions;
-            if (breakpoint.Function >= moduleFunctions.Length) {
-                // TODO: Log something
-                return;
+            Dictionary<int, Instruction> replacedInstructions;
+            if (!debugData.ReplacedInstructionsByFunction.TryGetValue(functionIndex, out replacedInstructions)) {
+                replacedInstructions = new Dictionary<int, Instruction>();
+                debugData.ReplacedInstructionsByFunction[functionIndex] = replacedInstructions;
             }
 
-            ILFunction function = moduleFunctions[breakpoint.Function];
-
-            if (breakpoint.Address < 0 || breakpoint.Address >= function.Code.Length) {
-                // TODO: Log something
+            if (replacedInstructions.ContainsKey(address)) {
+                // Instruction already replaced
                 return;
             }
+            
+            ILFunction function = module.ILModule.DefinedFunctions[functionIndex];
+            Instruction ins = function.Code[address];
+            replacedInstructions.Add(address, ins);
+            function.Code[address] = new Instruction(OpCode.BREAK);
+        }
 
-            Instruction ins = function.Code[breakpoint.Address];
-            instructions.Add(breakpoint.Address, ins);
-            function.Code[breakpoint.Address] = new Instruction(OpCode.BREAK);
+        private void RestoreInstructionForBreakpoint(Breakpoint breakpoint)
+        {
+            foreach (VMModule module in _debugDataByModule.Keys) {
+                int function, address;
+                if (LookupSymbol(module, breakpoint.SourcePath, breakpoint.LineNumber, out function, out address)) {
+                    RestoreInstruction(module, function, address);
+                }
+            }
         }
         
-        private bool RestoreInstruction(StackFrameInfo frame)
+        private bool RestoreInstruction(VMModule module, int functionIndex, int address)
         {
-            return RestoreInstruction(new Breakpoint {Address = frame.PC, Function = frame.Function});
-        }
-
-        private bool RestoreInstruction(Breakpoint breakpoint)
-        {
-            if (breakpoint.Function < 0 || breakpoint.Function >= _replacedInstructions.Count) {
-                return false;
-            }
-            
-            Instruction ins;
-            
-            var instructions = _replacedInstructions[breakpoint.Function];
-            if (!instructions.TryGetValue(breakpoint.Address, out ins)) {
+            ModuleDebugData debugData;
+            if (!_debugDataByModule.TryGetValue(module, out debugData)) {
                 return false;
             }
 
-            instructions.Remove(breakpoint.Address);
-            
-            _module.Module.DefinedFunctions[breakpoint.Function].Code[breakpoint.Address] = ins;
+            Dictionary<int, Instruction> replacedInstructions;
+            if (!debugData.ReplacedInstructionsByFunction.TryGetValue(functionIndex, out replacedInstructions)) {
+                return false;
+            }
+
+            Instruction originalInstruction;
+            if (!replacedInstructions.TryGetValue(address, out originalInstruction)) {
+                return false;
+            }
+
+            replacedInstructions.Remove(address);
+            module.ILModule.DefinedFunctions[functionIndex].Code[address] = originalInstruction;
             return true;
         }
 
         private void ApplyBreakpoints()
         {
             foreach (Breakpoint breakpoint in _breakpoints) {
-                ReplaceInstruction(breakpoint);
+                ReplaceInstructionForBreakpoint(breakpoint);
             }
         }
 
         private void ReApplyBreakpoint(StackFrameInfo info)
         {
             foreach (Breakpoint breakpoint in _breakpoints) {
-                if (breakpoint.Function == info.Function && breakpoint.Address == info.PC) {
-                    ReplaceInstruction(breakpoint);
+                int functionIndex, address;
+                if (!LookupSymbol(info.Module, breakpoint.SourcePath, breakpoint.LineNumber, out functionIndex, out address)) {
+                    continue;
+                }
+
+                if (functionIndex == info.Function && address == info.PC) {
+                    ReplaceInstructionForBreakpoint(breakpoint);    
                 }
             }
         }

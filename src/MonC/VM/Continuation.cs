@@ -15,6 +15,7 @@ namespace MonC.VM
         public ContinuationAction Action;
         public int ReturnValue;
         public int FunctionIndex;
+        public VMModule Module;
         public IReadOnlyList<int> Arguments;
         public IYieldToken YieldToken;
         public IEnumerator<Continuation> ToUnwrap;
@@ -27,13 +28,20 @@ namespace MonC.VM
             };
         }
 
-        public static Continuation Call(int functionIndex, IReadOnlyList<int> arguments)
+        public static Continuation Call(VMModule module, int functionIndex, IReadOnlyList<int> arguments)
         {
             return new Continuation {
                 Action = ContinuationAction.CALL,
+                Module = module,
                 FunctionIndex = functionIndex,
                 Arguments = arguments
             };
+        }
+
+        public static Continuation Call(VMModule module, string functionName, IReadOnlyList<int> arguments)
+        {
+            int index = VirtualMachine.LookupFunction(module.ILModule, functionName);
+            return Call(module, index, arguments);
         }
 
         public static Continuation Yield(IYieldToken token)

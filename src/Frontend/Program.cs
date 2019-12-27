@@ -162,15 +162,14 @@ namespace MonC.Frontend
             }
 
             VirtualMachine vm = new VirtualMachine();
-            vm.LoadModule(vmModule);
-            
+
             if (withDebugger) {
-                Debugger debugger = new Debugger(vmModule, vm);
+                Debugger debugger = new Debugger(vm);
                 debugger.Break += () => HandleBreak(vm, debugger);
                 debugger.Pause();
             }
 
-            if (!vm.Call("main", argsToPass, success => HandleExecutionFinished(vm, success))) {
+            if (!vm.Call(vmModule, "main", argsToPass, success => HandleExecutionFinished(vm, success))) {
                 Console.Error.WriteLine("Failed to call main function.");
                 Environment.Exit(-1);
             }
@@ -263,10 +262,7 @@ namespace MonC.Frontend
                             sourcePath = "";
                         }
                         Console.WriteLine($"Assuming source file is {sourcePath}");
-                        bool success = debugger.SetBreakpoint(sourcePath!, breakpointLineNumber - 1);
-                        if (!success) {
-                            Console.WriteLine("Could not set breakpoint");
-                        }
+                        debugger.SetBreakpoint(sourcePath!, breakpointLineNumber - 1);
                     } 
                     break;
                 

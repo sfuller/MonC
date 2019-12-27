@@ -4,5 +4,6 @@ namespace MonC.VM
     {
         void HandleBreak();
         void HandleFinished();
+        void HandleModuleAdded(VMModule module);
     }
 }

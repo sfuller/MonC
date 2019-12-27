@@ -9,7 +9,7 @@ namespace MonC.VM
     public class VirtualMachine : IVMBindingContext, IDebuggableVM
     {
         private readonly List<StackFrame> _callStack = new List<StackFrame>();
-        private VMModule _module = new VMModule();
+        //private VMModule _module = new VMModule();
         private int _aRegister;
         private bool _isContinuing;
         private bool _isPaused;
@@ -34,15 +34,16 @@ namespace MonC.VM
             MaxCycles = -1;
         }
         
-        public void LoadModule(VMModule module)
-        {
-            if (IsRunning) {
-                throw new InvalidOperationException("Cannot load module while running");
-            }
-            _module = module;
-        }
+        // public void LoadModule(VMModule module)
+        // {
+        //     if (IsRunning) {
+        //         throw new InvalidOperationException("Cannot load module while running");
+        //     }
+        //     _module = module;
+        // }
 
         public bool Call(
+            VMModule module,
             string functionName,
             IReadOnlyList<int> arguments,
             Action<bool>? finished = null)
@@ -51,7 +52,7 @@ namespace MonC.VM
                 throw new InvalidOperationException("Cannot call function while running");
             }
             
-            int functionIndex = LookupFunction(functionName);
+            int functionIndex = LookupFunction(module.ILModule, functionName);
 
             if (functionIndex == -1) {
                 return false;
@@ -59,10 +60,10 @@ namespace MonC.VM
             
             int argumentsSize;
             
-            if (functionIndex < _module.Module.DefinedFunctions.Length) {
-                argumentsSize = _module.Module.DefinedFunctions[functionIndex].ArgumentMemorySize;
+            if (functionIndex < module.ILModule.DefinedFunctions.Length) {
+                argumentsSize = module.ILModule.DefinedFunctions[functionIndex].ArgumentMemorySize;
             } else {
-                argumentsSize = _module.VMFunctions[functionIndex].ArgumentMemorySize;
+                argumentsSize = module.VMFunctions[functionIndex].ArgumentMemorySize;
             }
 
             if (arguments.Count != argumentsSize) {
@@ -78,7 +79,7 @@ namespace MonC.VM
             _finishedCallback = finished;
             _cycleCount = 0;
             
-            PushCall(functionIndex, arguments);
+            PushCall(module, functionIndex, arguments);
 
             if (_isStepping) {
                 Break(); 
@@ -103,17 +104,17 @@ namespace MonC.VM
 
         string IVMBindingContext.GetString(int id)
         {
-            var strings = _module.Module.Strings;
+            var strings = PeekCallStack().Module.ILModule.Strings;
             if (id < 0 || id >= strings.Length) {
                 return "";
             }
             return strings[id];
         }
 
-        private int LookupFunction(string functionName)
+        public static int LookupFunction(ILModule module, string functionName)
         {
-            for (int i = 0, ilen = _module.Module.ExportedFunctions.Length; i < ilen; ++i) {
-                KeyValuePair<string, int> exportedFunction = _module.Module.ExportedFunctions[i];
+            for (int i = 0, ilen = module.ExportedFunctions.Length; i < ilen; ++i) {
+                KeyValuePair<string, int> exportedFunction = module.ExportedFunctions[i];
                 if (exportedFunction.Key == functionName) {
                     return exportedFunction.Value;
                 }
@@ -162,6 +163,7 @@ namespace MonC.VM
             StackFrame frame = GetInternalStackFrame(depth);
             
             return new StackFrameInfo {
+                Module = frame.Module,
                 Function = frame.Function,
                 PC = frame.PC
             };
@@ -229,7 +231,7 @@ namespace MonC.VM
                 // It is always safe to break between instructions.
                 canBreak = true;
                 
-                Instruction ins = _module.Module.DefinedFunctions[top.Function].Code[top.PC];
+                Instruction ins = top.Module.ILModule.DefinedFunctions[top.Function].Code[top.PC];
                 ++top.PC;
                 breakRequested |= InterpretInstruction(ins);
             }
@@ -255,7 +257,7 @@ namespace MonC.VM
             Continuation continuation = bindingEnumerator.Current;
 
             if (continuation.Action == ContinuationAction.CALL) {
-                PushCall(continuation.FunctionIndex, continuation.Arguments);
+                PushCall(continuation.Module, continuation.FunctionIndex, continuation.Arguments);
                 return true;
             }
 
@@ -284,6 +286,7 @@ namespace MonC.VM
 
             if (continuation.Action == ContinuationAction.UNWRAP) {
                 StackFrame unwrapFrame = AcquireFrame(0);
+                unwrapFrame.Module = frame.Module;
                 unwrapFrame.Function = frame.Function;
                 unwrapFrame.BindingEnumerator = continuation.ToUnwrap;
                 PushCallStack(unwrapFrame);
@@ -400,7 +403,7 @@ namespace MonC.VM
         private void InterpretCall(Instruction ins)
         {
             StackFrame currentFrame = PeekCallStack();
-            PushCall(currentFrame.Memory, ins.ImmediateValue);
+            PushCall(currentFrame.Module, currentFrame.Memory, ins.ImmediateValue);
         }
 
         private void InterpretReturn(Instruction ins)
@@ -492,7 +495,7 @@ namespace MonC.VM
             PeekCallStack().PC += offset;
         }
 
-        private void PushCall(StackFrameMemory argumentStackSource, int argumentStackStart)
+        private void PushCall(VMModule module, StackFrameMemory argumentStackSource, int argumentStackStart)
         {
             // First value on the argument stack is the function index
             int functionIndex = argumentStackSource.Read(argumentStackStart);
@@ -503,25 +506,32 @@ namespace MonC.VM
             int argumentMemorySize;
             StackFrame frame;
 
-            int definedFunctionCount = _module.Module.DefinedFunctions.Length;
+            int definedFunctionCount = module.ILModule.DefinedFunctions.Length;
             
             if (functionIndex >= definedFunctionCount) {
-                VMFunction function = _module.VMFunctions[functionIndex];
+                VMFunction function = module.VMFunctions[functionIndex];
                 argumentMemorySize = function.ArgumentMemorySize;
                 frame = AcquireFrame(function.ArgumentMemorySize);
                 frame.BindingEnumerator = function.Delegate(this, new ArgumentSource(frame.Memory, 0));
             } else {
-                ILFunction function = _module.Module.DefinedFunctions[functionIndex];
+                ILFunction function = module.ILModule.DefinedFunctions[functionIndex];
                 argumentMemorySize = function.ArgumentMemorySize;
                 frame = AcquireFrame(function.MaxStackSize);
             }
 
+            frame.Module = module;
             frame.Function = functionIndex;
             frame.Memory.CopyFrom(argumentStackSource, argumentValuesStart, 0, argumentMemorySize);
             PushCallStack(frame);
+            
+            // TODO: PERF: Try to optimize out calls to HandleModuleAdded when we can deduce that the module has already
+            // been seen.
+            // For calls pushed by the CALL instruction, we know that the module will be the same and that we don't need
+            // to call this function.
+            _debugger?.HandleModuleAdded(module);
         }
 
-        private void PushCall(int functionIndex, IReadOnlyList<int> arguments)
+        private void PushCall(VMModule module, int functionIndex, IReadOnlyList<int> arguments)
         {
             // TODO: Need either better documentation about how bound functions must not re-retrieve arguments from
             // the original argumentSource after a Call Continuation, or we need to use unique argument buffers for each
@@ -539,7 +549,7 @@ namespace MonC.VM
                 _argumentBuffer.Write(i + 1, arguments[i]);
             }
             
-            PushCall(_argumentBuffer, 0);
+            PushCall(module, _argumentBuffer, 0);
         }
         
         private StackFrame AcquireFrame(int memorySize)
