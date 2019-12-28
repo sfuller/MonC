@@ -54,6 +54,7 @@ namespace MonC.Debugging
         public void RemoveBreakpoint(string sourcePath, int lineNumber)
         {
             Breakpoint breakpoint = new Breakpoint {SourcePath = sourcePath, LineNumber = lineNumber};
+            _breakpoints.Remove(breakpoint);
             RestoreInstructionForBreakpoint(breakpoint);
         }
 
@@ -262,10 +263,11 @@ namespace MonC.Debugging
         
         void IVMDebugger.HandleBreak()
         {
+            HandlePausedChanged();
+
             StackFrameInfo frame = _vm.GetStackFrame(0);
             _lastBreakWasCausedByBreakpoint = RestoreInstruction(frame.Module, frame.Function, frame.PC);
             if (_lastBreakWasCausedByBreakpoint) {
-
                 _debuggableVm.SetStepping(true);
             }
 
@@ -344,6 +346,9 @@ namespace MonC.Debugging
             _didBreakImmediatley = false;
             _debuggableVm.Continue();
             _isUpdating = false;
+            if (!_didBreakImmediatley) {
+                HandlePausedChanged();
+            }
             return _didBreakImmediatley;
         }
 
