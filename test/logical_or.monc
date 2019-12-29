@@ -1,12 +1,26 @@
 
-int test_logical_or() {
+int test_logical_or_1() {
     return 1 || 0;
 }
 
+int test_logical_or_2() {
+    return 0 || 0;
+}
+
+int test_logical_or_3() {
+    return 0 || 0;
+}
+
 int main() {
-    if (test_logical_or()) {
-        return 0;
+    if (test_logical_or_1() != 1) {
+        return 1;
     }
-    return 1;
+    if (test_logical_or_2() != 0) {
+        return 2;
+    }
+    if (test_logical_or_3() != 0) {
+        return 3;
+    }
+    return 0;
 }
 
