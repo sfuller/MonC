@@ -1,0 +1,22 @@
+
+int foo() {
+    return 1;
+}
+
+int negate_1() {
+    return -foo();
+}
+
+int not_2() {
+    return !foo();
+}
+
+int main() {
+    if (negate_1() != -1) {
+        return 1;
+    }
+    if (not_2() != 0) {
+        return 2;
+    }
+    return 0;
+}

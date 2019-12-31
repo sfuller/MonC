@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.InteropServices;
 using MonC.Parsing;
 using MonC.Parsing.ParseTreeLeaves;
 using MonC.Parsing.Semantics;
@@ -515,11 +514,30 @@ namespace MonC
 
         private Optional<IASTLeaf> ParseExpression()
         {
-            IASTLeaf primary;
-            if (!ParsePrimaryExpression().Get(out primary)) {
+            IASTLeaf lhs;
+            if (!ParsePrimaryOrUnary().Get(out lhs)) {
                 return new Optional<IASTLeaf>();
             }
-            return ParseOperator(primary, -1);
+            return ParseOperator(lhs, -1);
+        }
+
+        private Optional<IASTLeaf> ParsePrimaryOrUnary()
+        {
+            IASTLeaf actualLhs;
+            if (!ParsePrimaryExpression().Get(out actualLhs)) {
+                // Could not parse as a primary expression. Must be a unary.
+                Token token = Peek();
+                Optional<IASTLeaf> lhs;
+                if (token.Value == "(") {
+                    lhs = ParseParenthesisExpression();    
+                } else {
+                    lhs = ParseBasicUnaryOperator();
+                }
+                if (!lhs.Get(out actualLhs)) {
+                    return new Optional<IASTLeaf>();
+                }
+            }
+            return new Optional<IASTLeaf>(actualLhs);
         }
 
         private Optional<IASTLeaf> ParseOperator(IASTLeaf lhs, int precedence)
@@ -548,8 +566,8 @@ namespace MonC
                 // Eat the operator
                 Consume();
 
-                IASTLeaf rhs; 
-                if (!ParsePrimaryExpression().Get(out rhs)) {
+                IASTLeaf rhs;
+                if (!ParsePrimaryOrUnary().Get(out rhs)) {
                     return new Optional<IASTLeaf>();
                 }
                 
@@ -566,6 +584,8 @@ namespace MonC
             }
         }
 
+        private const int TOKEN_PRECEDENCE_UNARY = 7;
+        
         private int GetTokenPrecedence(Token token)
         {
             if (token.Type != TokenType.Syntax) {
@@ -656,15 +676,11 @@ namespace MonC
         private Optional<IASTLeaf> ParsePrimaryExpression()
         {
             Token token = Peek();
-
-            // Unary Operators
+            
+            // Primary expressions do not start with Syntax.
+            // For example, unary operators. If a unary operator is encountered, another expression must be parsed.
             if (token.Type == TokenType.Syntax) {
-                if (token.Value == "(") {
-                    return ParseParenthesisExpression();    
-                }
-                if (token.Value == "-") {
-                    return ParseNegateOperator();
-                }
+                return new Optional<IASTLeaf>();
             }
 
             if (token.Type == TokenType.Identifier) {
@@ -701,11 +717,14 @@ namespace MonC
             return new Optional<IASTLeaf>(expression);
         }
 
-        private Optional<IASTLeaf> ParseNegateOperator()
+        private Optional<IASTLeaf> ParseBasicUnaryOperator()
         {
             Token op = Next();
             IASTLeaf rhs;
             if (!ParsePrimaryExpression().Get(out rhs)) {
+                return new Optional<IASTLeaf>();
+            }
+            if (!ParseOperator(rhs, TOKEN_PRECEDENCE_UNARY).Get(out rhs)) {
                 return new Optional<IASTLeaf>();
             }
             return new Optional<IASTLeaf>(NewLeaf(new UnaryOperationLeaf(op, rhs), op));

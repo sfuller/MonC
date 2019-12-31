@@ -155,14 +155,21 @@ namespace MonC.Codegen
         public void VisitUnaryOperation(UnaryOperationLeaf leaf)
         {
             switch (leaf.Operator.Value) {
-                case "-":
-                    int rhsStackAddress = AllocTemporaryStackAddress();
-                    leaf.RHS.Accept(this);
-                    int addr = AddInstruction(OpCode.WRITE, rhsStackAddress);
-                    AddInstruction(OpCode.LOAD, 0);
-                    AddInstruction(OpCode.SUB, rhsStackAddress);
-                    FreeTemporaryStackAddress();
-                    AddDebugSymbol(addr, leaf);
+                case "-": {
+                        int rhsStackAddress = AllocTemporaryStackAddress();
+                        leaf.RHS.Accept(this);
+                        int addr = AddInstruction(OpCode.WRITE, rhsStackAddress);
+                        AddInstruction(OpCode.LOAD, 0);
+                        AddInstruction(OpCode.SUB, rhsStackAddress);
+                        FreeTemporaryStackAddress();
+                        AddDebugSymbol(addr, leaf);
+                    }
+                    break;
+                case "!": {
+                        leaf.RHS.Accept(this);
+                        int addr = AddInstruction(OpCode.LNOT);
+                        AddDebugSymbol(addr, leaf);
+                    }
                     break;
                 default:
                     throw new NotImplementedException();
@@ -171,13 +178,16 @@ namespace MonC.Codegen
 
         private void GenerateRelationalComparison(Token token, int rhsStackAddress)
         {
-            if (token.Value.Contains("=")) {
+            bool isGreaterThan = token.Value.Contains(">");
+            bool includeEquals = token.Value.Contains("=") ^ isGreaterThan; 
+            
+            if (includeEquals) {
                 AddInstruction(OpCode.CMPLTE, rhsStackAddress);
             } else {
                 AddInstruction(OpCode.CMPLT, rhsStackAddress);
             }
 
-            if (token.Value.Contains(">")) {
+            if (isGreaterThan) {
                 AddInstruction(OpCode.LNOT);
             }
         }

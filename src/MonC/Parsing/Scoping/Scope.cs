@@ -14,7 +14,7 @@ namespace MonC.Parsing.Scoping
             };
         }
 
-        public Scope Copy()
+        public readonly Scope Copy()
         {
             return new Scope {
                 Variables = new List<DeclarationLeaf>(Variables)
