@@ -11,6 +11,10 @@ int test_logical_or_3() {
     return 0 || 0;
 }
 
+int test_logical_or_4() {
+    return 1 || 2;
+}
+
 int main() {
     if (test_logical_or_1() != 1) {
         return 1;

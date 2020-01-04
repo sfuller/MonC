@@ -96,9 +96,14 @@ namespace MonC.Codegen
 
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
+            bool shouldCoerceSides = leaf.Op.Value == Syntax.LOGICAL_AND;
+            
             // Evaluate right hand side and put it in the stack.
             int rhsStackAddress = AllocTemporaryStackAddress();
             leaf.RHS.Accept(this);
+            if (shouldCoerceSides) {
+                AddInstruction(OpCode.BOOL);
+            }
             AddInstruction(OpCode.WRITE, rhsStackAddress);
             
             // Evaluate left hand side and keep it in the a register
@@ -125,8 +130,9 @@ namespace MonC.Codegen
                     AddInstruction(OpCode.BOOL);
                     break;
                 case Syntax.LOGICAL_AND:
-                    AddInstruction(OpCode.AND, rhsStackAddress);
                     AddInstruction(OpCode.BOOL);
+                    AddInstruction(OpCode.AND, rhsStackAddress);
+                    //AddInstruction(OpCode.BOOL);
                     break;
                 case "+":
                     AddInstruction(OpCode.ADD, rhsStackAddress);

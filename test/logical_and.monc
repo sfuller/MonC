@@ -1,11 +1,32 @@
 
-int test_logical_and() {
+int test_logical_and_1() {
     return 1 && 0;
 }
 
+int test_logical_and_2() {
+    return 1 && 1;
+}
+
+int test_logical_and_3() {
+    return 2 && 3;
+}
+
+int test_logical_and_4() {
+    return 1 && 2;
+}
+
 int main() {
-    if (test_logical_and()) {
+    if (test_logical_and_1()) {
         return 1;
+    }
+    if (test_logical_and_2() != 1) {
+        return 2;
+    }
+    if (test_logical_and_3() != 1) {
+        return 3;
+    }
+    if (test_logical_and_4() != 1) {
+        return 4;
     }
     return 0;
 }
