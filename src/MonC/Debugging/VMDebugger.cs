@@ -60,21 +60,42 @@ namespace MonC.Debugging
         
         private IEnumerator<ActionRequest> StepIntoAction()
         {
-            // Keep stepping until we find a debug symbol.
-            while (_vm.IsRunning) {
+            StackFrameInfo frame = _vm.GetStackFrame(0);
+            int currentFunction = frame.Function;
+            int minDepth = _vm.CallStackFrameCount;
+            Symbol startSymbol;
+            
+            // Get the current debug symbol. If no symbol is at the current PC, step until we find one, then break.
+            if (!_debugger.GetSymbol(frame, out startSymbol)) {
+                frame = _vm.GetStackFrame(0);
+                while (!_debugger.GetSymbol(frame, out startSymbol)) {
+                    yield return ActionRequest.STEP;
+                }
+                yield break;
+            }
+            
+            // Keep stepping until we find a debug symbol on the next line, or we find a breakpoint in a new function.
+            while (true) {
                 yield return ActionRequest.STEP;
+
+                frame = _vm.GetStackFrame(0);
                 
-                if (_lastBreakWasCausedByBreakpoint) {
-                    // If we hit a breakpoint, stop attemping to step into
-                    // Unless, of cource, we implement 'force' functionality.
+                Symbol symbol;
+                if (_debugger.GetSymbol(frame, out symbol)) {
+                    if (frame.Function != currentFunction) {
+                        break;
+                    }
+                    
+                    if (symbol.SourceFile == startSymbol.SourceFile && symbol.Start.Line > startSymbol.Start.Line) {
+                        break;
+                    }
+                }
+
+
+                if (_vm.CallStackFrameCount < minDepth) {
+                    // The frame we started stepping in has returned. Stop stepping.
                     break;
                 }
-                
-                StackFrameInfo frame = _vm.GetStackFrame(0);
-                if (_debugger.GetSymbol(frame, out _)) {
-                    break;
-                }
-                
             }
         }
 
@@ -88,22 +109,29 @@ namespace MonC.Debugging
             StackFrameInfo frame = _vm.GetStackFrame(0);
             int currentFunction = frame.Function;
             int minDepth = _vm.CallStackFrameCount;
+            Symbol startSymbol;
             
-            // Keep stepping until we find a debug symbol in the same function
-            while (_vm.IsRunning) {
-                yield return ActionRequest.STEP;
-                
-                if (_lastBreakWasCausedByBreakpoint) {
-                    // If we hit a breakpoint, stop attemping to step over
-                    // Unless, of cource, we implement 'force' functionality.
-                    break;
+            // Get the current debug symbol. If no symbol is at the current PC, step until we find one, then break.
+            if (!_debugger.GetSymbol(frame, out startSymbol)) {
+                frame = _vm.GetStackFrame(0);
+                while (!_debugger.GetSymbol(frame, out startSymbol)) {
+                    yield return ActionRequest.STEP;
                 }
-                
+                yield break;
+            }
+            
+            // Keep stepping until we find a debug symbol on the next line, or we exit out of the current function.
+            while (true) {
+                yield return ActionRequest.STEP;
+
                 frame = _vm.GetStackFrame(0);
 
                 if (frame.Function == currentFunction) {
-                    if (_debugger.GetSymbol(frame, out _)) {
-                        break;
+                    Symbol symbol;
+                    if (_debugger.GetSymbol(frame, out symbol)) {
+                        if (symbol.SourceFile == startSymbol.SourceFile && symbol.Start.Line > startSymbol.Start.Line) {
+                            break;
+                        }
                     }    
                 }
 
@@ -112,7 +140,6 @@ namespace MonC.Debugging
                     break;
                 }
             }
-            
         }
 
         public bool StepOut()
@@ -122,29 +149,17 @@ namespace MonC.Debugging
         
         private IEnumerator<ActionRequest> StepOutAction()
         {
-            int stackFrameCount = _vm.CallStackFrameCount;
-            StackFrameInfo previousFrame = _vm.GetStackFrame(1);
-            
-            if (stackFrameCount > 1) {
-                // Apply a non-persistent breakpoint to the location where the current frame will return.
-                // The PC of the previous frame will always be the point where execution will resume when the current
-                // frame is popped.
-                _debugger.ReplaceInstruction(previousFrame.Module, previousFrame.Function, previousFrame.PC);
-            }
-            
-            yield return ActionRequest.CONTINUE;
-            
-            if (_lastBreakWasCausedByBreakpoint) {
-                // When we continued, a breakpoint was hit. That was either our transient breakpoint we just set or
-                // some other breakpoint. No matter the case, we shouldn't continue stepping out 
-                // (unless in the future we imlement a 'force' step out, like IntelliJ has)
+            StackFrameInfo frame = _vm.GetStackFrame(0);
+            int minDepth = _vm.CallStackFrameCount;
 
-                // Try removing the transient breakpoint we just set incase it wasn't hit, so it isn't hit later.
-                if (stackFrameCount > 1) {
-                    _debugger.RestoreInstruction(previousFrame.Module, previousFrame.Function, previousFrame.PC);
+            while (true) {
+                yield return ActionRequest.STEP;
+                
+                if (_vm.CallStackFrameCount < minDepth) {
+                    // The frame we started stepping in has returned. Stop stepping.
+                    break;
                 }
             }
-            
         }
 
         public bool Continue()
@@ -193,11 +208,7 @@ namespace MonC.Debugging
         private bool _isUpdating;
         private bool _didBreakImmediatley;
         private IEnumerator<object?>? _updateRequest;
-
-        /// <summary>
-        /// Update the current action.
-        ///
-        /// </summary>
+        
         private bool UpdateAction(bool isStartingAction)
         {
             if (_isUpdating) {
@@ -213,7 +224,7 @@ namespace MonC.Debugging
                     return false;
                 }
             }
-
+            
             if (_currentAction != null && !_currentAction.MoveNext()) {
                 _currentAction.Dispose();
                 _currentAction = null;
@@ -240,6 +251,15 @@ namespace MonC.Debugging
                 StackFrameInfo originFrame = _vm.GetStackFrame(0);
                 if (!ContinueVM()) {
                     yield return null;
+                }
+                
+                if (_lastBreakWasCausedByBreakpoint) {
+                    // Cancel current action if last break was a breakpoint.
+                    // Force functionality can easily be implemented here.
+                    if (_currentAction != null) {
+                        _currentAction.Dispose();
+                        _currentAction = null;
+                    }
                 }
                 
                 // Restore the breakpoint for the frame we are stepping from, but don't apply breakpoints for other 
@@ -270,9 +290,11 @@ namespace MonC.Debugging
 
         void IVMDebugger.HandleFinished()
         {
-            // TODO: Need to restore all replaced instructions!
-            // TODO: This only needs to be done if the module can be re-used by other debuggers.
-
+            if (_currentAction != null) {
+                _currentAction.Dispose();
+                _currentAction = null;
+            }
+            
             HandlePausedChanged();
         }
         
