@@ -1,15 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Reflection.Metadata;
 using System.Text;
 using MonC.Codegen;
+using MonC.Debugging;
 using MonC.DotNetInterop;
 using MonC.Parsing;
 using MonC.VM;
-using Debugger = MonC.Debugging.Debugger;
 
 namespace MonC.Frontend
 {   
@@ -164,9 +162,10 @@ namespace MonC.Frontend
             VirtualMachine vm = new VirtualMachine();
 
             if (withDebugger) {
-                Debugger debugger = new Debugger(vm);
-                debugger.Break += () => HandleBreak(vm, debugger);
-                debugger.Pause();
+                Debugger debugger = new Debugger();
+                VMDebugger vmDebugger = new VMDebugger(debugger, vm);
+                vmDebugger.Break += () => HandleBreak(vm, debugger, vmDebugger);
+                vmDebugger.Pause();
             }
 
             if (!vm.Call(vmModule, "main", argsToPass, success => HandleExecutionFinished(vm, success))) {
@@ -202,12 +201,12 @@ namespace MonC.Frontend
             tokens.AddRange(newTokens);
         }
 
-        private static void HandleBreak(VirtualMachine vm, Debugger debugger)
+        private static void HandleBreak(VirtualMachine vm, Debugger debugger, VMDebugger vmDebugger)
         {
-            while (DebuggerLoop(vm, debugger)) {}
+            while (DebuggerLoop(vm, debugger, vmDebugger)) {}
         }
 
-        private static bool DebuggerLoop(VirtualMachine vm, Debugger debugger)
+        private static bool DebuggerLoop(VirtualMachine vm, Debugger debugger, VMDebugger vmDebugger)
         {
             Console.Write("(moncdbg) ");
 
@@ -267,20 +266,20 @@ namespace MonC.Frontend
                     break;
                 
                 case "over":
-                    return debugger.StepOver();
+                    return vmDebugger.StepOver();
 
                 case "into":
-                    return debugger.StepInto();
+                    return vmDebugger.StepInto();
 
                 case "out":
-                    return debugger.StepOut();
+                    return vmDebugger.StepOut();
 
                 case "step":
-                    return debugger.Step();
+                    return vmDebugger.Step();
 
                 case "continue":
                 case null:
-                    return debugger.Continue();
+                    return vmDebugger.Continue();
 
                 case "":
                     break;
