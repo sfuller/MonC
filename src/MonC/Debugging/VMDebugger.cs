@@ -19,6 +19,7 @@ namespace MonC.Debugging
         private IEnumerator<ActionRequest>? _currentAction;
         
         private bool _lastBreakWasCausedByBreakpoint;
+        private bool _isPaused;
         
         public event Action? Break;
         public event Action? PauseChanged;
@@ -194,6 +195,8 @@ namespace MonC.Debugging
         
         void IVMDebugger.HandleBreak()
         {
+            _isPaused = true;
+            
             HandlePausedChanged();
 
             StackFrameInfo frame = _vm.GetStackFrame(0);
@@ -280,6 +283,7 @@ namespace MonC.Debugging
         {
             _isUpdating = true;
             _didBreakImmediatley = false;
+            _isPaused = false;
             _debuggableVm.Continue();
             _isUpdating = false;
             if (!_didBreakImmediatley) {
@@ -294,8 +298,11 @@ namespace MonC.Debugging
                 _currentAction.Dispose();
                 _currentAction = null;
             }
-            
-            HandlePausedChanged();
+
+            if (_isPaused) {
+                _isPaused = false;
+                HandlePausedChanged();
+            }
         }
         
         private void HandlePausedChanged()
