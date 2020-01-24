@@ -33,7 +33,7 @@ namespace MonC.Frontend
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
             Print($"Declaration (Type={leaf.Type}, Name={leaf.Name})");
-            VisitSubleaf(leaf.Assignment);
+            VisitOptionalSubleaf(leaf.Assignment);
         }
 
         public void VisitFor(ForLeaf leaf)
@@ -70,7 +70,7 @@ namespace MonC.Frontend
             Print("If Else");
             VisitSubleaf(leaf.Condition);
             VisitSubleaf(leaf.IfBody);
-            VisitSubleaf(leaf.ElseBody);
+            VisitOptionalSubleaf(leaf.ElseBody);
         }
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)
@@ -98,7 +98,7 @@ namespace MonC.Frontend
         public void VisitReturn(ReturnLeaf leaf)
         {
             Print("Return");
-            VisitSubleaf(leaf.RHS);
+            VisitOptionalSubleaf(leaf.RHS);
         }
 
         public void VisitAssignment(AssignmentLeaf leaf)
@@ -139,12 +139,12 @@ namespace MonC.Frontend
             --_currentIndent;
         }
 
-        public void VisitSubleaf<T>(Optional<T> leaf) where T : class, IASTLeaf
+        public void VisitOptionalSubleaf(IASTLeaf? leaf)
         {
-            T leafData;
-            if (leaf.Get(out leafData)) {
-                VisitSubleaf(leafData);
+            if (leaf == null) {
+                return;
             }
+            VisitSubleaf(leaf);
         }
         
         private void Print(string text)

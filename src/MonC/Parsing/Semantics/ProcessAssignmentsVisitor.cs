@@ -50,7 +50,7 @@ namespace MonC.Parsing.Semantics
                     DeclarationLeaf fakeDeclaration = new DeclarationLeaf(
                         type: "int",
                         name: $"(undefined){identifier.Name}",
-                        assignment: new Optional<IASTLeaf>()
+                        assignment: null
                     );
                     resultLeaf = new AssignmentLeaf(fakeDeclaration, leaf.RHS);
                 }

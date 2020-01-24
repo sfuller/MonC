@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 TEST_DIR = os.path.normpath(os.path.join(__file__, '..', 'test'))
-FRONTEND_BINARY = os.path.normpath(os.path.join(__file__, '..', 'bin', 'Debug', 'Frontend'))
+FRONTEND_BINARY = os.path.normpath(os.path.join(__file__, '..', 'src', 'Frontend', 'bin', 'Debug', 'netcoreapp3.1', 'Frontend'))
 
 
 TERM_COLOR_RED =   '\033[0;31m'

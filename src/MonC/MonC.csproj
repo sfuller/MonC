@@ -1,13 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>default</LangVersion>
+    <Nullable>annotations</Nullable>
+    <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.1' ">
     <Nullable>enable</Nullable>
-
-    <!-- Null-related warnings are errors -->
-    <WarningsAsErrors>CS8603,CS8618,CS8600,CS8625,CS8604,CS8602</WarningsAsErrors>
     
+    <!-- Null-related warnings are errors -->
+    <WarningsAsErrors>CS8603,CS8618,CS8600,CS8625,CS8604,CS8602,CS8634</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>

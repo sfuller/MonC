@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/core/sdk:3.0
+FROM mcr.microsoft.com/dotnet/core/sdk:3.1
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -10,7 +10,6 @@ RUN apt-get -t testing install -y python3
 
 WORKDIR /root
 
-COPY Directory.Build.props Directory.Build.props
 COPY MonC.sln MonC.sln
 COPY src src
 COPY test test

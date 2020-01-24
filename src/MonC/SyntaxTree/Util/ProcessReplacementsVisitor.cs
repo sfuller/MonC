@@ -22,51 +22,45 @@ namespace MonC.SyntaxTree.Util
 
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
-            leaf.LHS = ProcessReplacement(leaf.LHS, leaf);
-            leaf.RHS = ProcessReplacement(leaf.RHS, leaf.LHS);
+            leaf.LHS = ProcessReplacement(leaf.LHS);
+            leaf.RHS = ProcessReplacement(leaf.RHS);
         }
 
         public void VisitUnaryOperation(UnaryOperationLeaf leaf)
         {
-            leaf.RHS = ProcessReplacement(leaf.RHS, leaf);
+            leaf.RHS = ProcessReplacement(leaf.RHS);
         }
 
         public void VisitBody(BodyLeaf leaf)
         {
-            IASTLeaf previousLeaf = leaf;
             for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
                 IASTLeaf statementLeaf = leaf.GetStatement(i);
-                leaf.SetStatement(i, ProcessReplacement(statementLeaf, previousLeaf));
-                previousLeaf = statementLeaf;
+                leaf.SetStatement(i, ProcessReplacement(statementLeaf));
             }
         }
 
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
-            IASTLeaf assignment;
-            if (leaf.Assignment.Get(out assignment)) {
-                leaf.Assignment = new Optional<IASTLeaf>(ProcessReplacement(assignment, leaf));    
-            }
-            
+            leaf.Assignment = ProcessOptionalReplacement(leaf.Assignment);
         }
 
         public void VisitFor(ForLeaf leaf)
         {
-            leaf.Declaration = ProcessReplacement(leaf.Declaration, leaf);
-            leaf.Condition = ProcessReplacement(leaf.Condition, leaf.Declaration);
-            leaf.Update = ProcessReplacement(leaf.Update, leaf.Condition);
-            leaf.Body = ProcessReplacement(leaf.Body, leaf.Update);
+            leaf.Declaration = ProcessReplacement(leaf.Declaration);
+            leaf.Condition = ProcessReplacement(leaf.Condition);
+            leaf.Update = ProcessReplacement(leaf.Update);
+            leaf.Body = ProcessReplacement(leaf.Body);
         }
 
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
         {
-            leaf.Body = ProcessReplacement(leaf.Body, leaf);
+            leaf.Body = ProcessReplacement(leaf.Body);
         }
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
         {
             for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                leaf.SetArgument(i, ProcessReplacement(leaf.GetArgument(i), leaf));
+                leaf.SetArgument(i, ProcessReplacement(leaf.GetArgument(i)));
             }
         }
 
@@ -76,9 +70,9 @@ namespace MonC.SyntaxTree.Util
 
         public void VisitIfElse(IfElseLeaf leaf)
         {
-            leaf.Condition = ProcessReplacement(leaf.Condition, leaf);
-            leaf.IfBody = ProcessReplacement(leaf.IfBody, leaf);
-            leaf.ElseBody = ProcessReplacement(leaf.ElseBody, leaf);
+            leaf.Condition = ProcessReplacement(leaf.Condition);
+            leaf.IfBody = ProcessReplacement(leaf.IfBody);
+            leaf.ElseBody = ProcessOptionalReplacement(leaf.ElseBody);
         }
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)
@@ -91,8 +85,8 @@ namespace MonC.SyntaxTree.Util
 
         public void VisitWhile(WhileLeaf leaf)
         {
-            leaf.Condition = ProcessReplacement(leaf.Condition, leaf);
-            leaf.Body = ProcessReplacement(leaf.Body, leaf);
+            leaf.Condition = ProcessReplacement(leaf.Condition);
+            leaf.Body = ProcessReplacement(leaf.Body);
         }
 
         public void VisitBreak(BreakLeaf leaf)
@@ -101,12 +95,12 @@ namespace MonC.SyntaxTree.Util
 
         public void VisitReturn(ReturnLeaf leaf)
         {
-            leaf.RHS = ProcessReplacement(leaf.RHS, leaf);
+            leaf.RHS = ProcessOptionalReplacement(leaf.RHS);
         }
 
         public void VisitAssignment(AssignmentLeaf leaf)
         {
-            leaf.RHS = ProcessReplacement(leaf.RHS, leaf);
+            leaf.RHS = ProcessReplacement(leaf.RHS);
         }
 
         public void VisitEnum(EnumLeaf leaf)
@@ -117,45 +111,48 @@ namespace MonC.SyntaxTree.Util
         {
         }
         
-        private T ProcessReplacement<T>(T leaf, IASTLeaf previous) where T : class, IASTLeaf
+        private T? ProcessOptionalReplacement<T>(T? leaf) where T : class, IASTLeaf
         {
-            Optional<T> result = ProcessReplacement(new Optional<T>(leaf), previous);
-            T nonNullResult;
-            if (result.Get(out nonNullResult)) {
-                return nonNullResult;
+            if (leaf == null) {
+                return null;
             }
-            throw new InvalidOperationException("Result of ProcessReplacement cannot be null here");
+            return ProcessPossiblyNullReplacement(leaf);
         }
 
-        private Optional<T> ProcessReplacement<T>(Optional<T> leaf, IASTLeaf previous) where T : class, IASTLeaf
+        private T ProcessReplacement<T>(T leaf) where T : class, IASTLeaf
         {
-            T nonNullLeaf;
-            if (leaf.Get(out nonNullLeaf)) {
-                nonNullLeaf.Accept(_replacer);    
+            T? result = ProcessPossiblyNullReplacement(leaf);
+            if (result == null) {
+                throw new InvalidOperationException("Result of ProcessReplacement cannot be null here");                
+            }
+            return result;
+        }
+
+        private T? ProcessPossiblyNullReplacement<T>(T leaf) where T : class, IASTLeaf
+        {
+            leaf.Accept(_replacer);
+
+            if (!_replacer.ShouldReplace) {
+                return leaf;
             }
             
-            if (_replacer.ShouldReplace) {
-                IASTLeaf? newLeaf = _replacer.NewLeaf;
-                
-                if (newLeaf == null) {
-                    return new Optional<T>();
-                }
-                
-                if (_scopes != null) {
-                    ScopeResolver resolver = new ScopeResolver(_scopes, _scopes.GetScope(nonNullLeaf));
-                    newLeaf.Accept(resolver);
-                }
-                
-                // TODO: This sucks, considering making separate visitors for different types.
-                T? newTypedLeaf = newLeaf as T;
-
-                if (newTypedLeaf == null) {
-                    return new Optional<T>();
-                }
-                
-                return new Optional<T>(newTypedLeaf);
+            IASTLeaf? newLeaf = _replacer.NewLeaf;
+            
+            if (newLeaf == null) {
+                return null;
             }
-            return leaf;
+            
+            if (_scopes != null) {
+                ScopeResolver resolver = new ScopeResolver(_scopes, _scopes.GetScope(leaf));
+                newLeaf.Accept(resolver);
+            }
+            
+            // TODO: This sucks, considering making separate visitors for different types.
+            try {
+                return (T) newLeaf;
+            } catch (InvalidCastException e) {
+                throw new InvalidCastException("Replacement visitor returned incorrect type for this field.", e);
+            }
         }
     }
 }

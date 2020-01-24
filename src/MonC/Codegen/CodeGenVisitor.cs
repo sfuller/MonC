@@ -228,12 +228,13 @@ namespace MonC.Codegen
 
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
-            IASTLeaf assignment;
-            if (leaf.Assignment.Get(out assignment)) {
-                assignment.Accept(this);
-                int addr = AddInstruction(OpCode.WRITE, _layout.Variables[leaf]);
-                AddDebugSymbol(addr, leaf);
+            IASTLeaf? assignment = leaf.Assignment;
+            if (assignment == null) {
+                return;
             }
+            assignment.Accept(this);
+            int addr = AddInstruction(OpCode.WRITE, _layout.Variables[leaf]);
+            AddDebugSymbol(addr, leaf);
         }
 
         public void VisitFor(ForLeaf leaf)
@@ -334,11 +335,8 @@ namespace MonC.Codegen
             // Jump to end of if/else after evaluation of if body.
             int ifEndIndex = AddInstruction(OpCode.NOOP);
 
-            BodyLeaf elseBody;
-            if (leaf.ElseBody.Get(out elseBody)) {
-                elseBody.Accept(this);
-            }
-
+            leaf.ElseBody?.Accept(this);
+            
             int endIndex = _instructions.Count;
 
             _instructions[branchIndex] = new Instruction(OpCode.JUMPZ, ifEndIndex - branchIndex);
@@ -394,10 +392,7 @@ namespace MonC.Codegen
 
         public void VisitReturn(ReturnLeaf leaf)
         {
-            IASTLeaf rhs;
-            if (leaf.RHS.Get(out rhs)) {
-                rhs.Accept(this);
-            }
+            leaf.RHS?.Accept(this);
             int addr = AddInstruction(OpCode.RETURN);
             AddDebugSymbol(addr, leaf);
         }

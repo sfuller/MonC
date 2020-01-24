@@ -54,9 +54,9 @@ namespace MonC.Frontend
 
         private string GetSnippet(Symbol symbol)
         {
-            string[] file;
+            string[]? file = GetFile(symbol.SourceFile);
 
-            if (!GetFile(symbol.SourceFile).Get(out file)) {
+            if (file == null) {
                 return GetDefaultSnippet(symbol);
             }
 
@@ -85,25 +85,25 @@ namespace MonC.Frontend
             return $"<{symbol.SourceFile}; {symbol.Start.Line},{symbol.Start.Column} : {symbol.End.Line},{symbol.End.Column}>";
         }
 
-        private Optional<string[]> GetFile(string? path)
+        private string[]? GetFile(string? path)
         {
             if (path == null) {
-                return new Optional<string[]>();
+                return null;
             }
             
             string[]? file;
             if (_files.TryGetValue(path, out file)) {
-                return new Optional<string[]>(file);
+                return file;
             }
             
             try {
                 file = File.ReadAllLines(path);
             } catch (Exception) {
-                return new Optional<string[]>();
+                return null;
             }
             
             _files[path] = file;
-            return new Optional<string[]>(file);
+            return file;
         }
         
     }

@@ -5,9 +5,9 @@ namespace MonC.SyntaxTree
     {
         public string Type;
         public string Name;
-        public Optional<IASTLeaf> Assignment;
+        public IASTLeaf? Assignment;
 
-        public DeclarationLeaf(string type, string name, Optional<IASTLeaf> assignment)
+        public DeclarationLeaf(string type, string name, IASTLeaf? assignment)
         {
             Type = type;
             Name = name;

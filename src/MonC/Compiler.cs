@@ -13,19 +13,18 @@ namespace MonC
     /// </summary>
     public class Compiler
     {
-        public Optional<ParseModule> Parse(
+        public ParseModule? Parse(
             string source,
             string filename,
             List<ParseError> errors,
-            Optional<ParseModule> optionalHeaderModule = default(Optional<ParseModule>)
+            ParseModule? headerModule = null
         )
         {
             Lexer lexer = new Lexer();
             List<Token> tokens = new List<Token>();
             lexer.Lex(source, tokens);
 
-            ParseModule headerModule;
-            if (!optionalHeaderModule.Get(out headerModule)) {
+            if (headerModule == null) {
                 headerModule = new ParseModule();
             }
             
@@ -33,12 +32,12 @@ namespace MonC
             ParseModule outputModule = parser.Parse(filename, tokens, headerModule, errors);
             
             if (errors.Count > 0) {
-                return new Optional<ParseModule>();
+                return null;
             }
-            return new Optional<ParseModule>(outputModule);
+            return outputModule;
         }
 
-        public Optional<ParseModule> Parse(
+        public ParseModule? Parse(
             string source,
             string filename,
             List<ParseError> errors,
@@ -46,22 +45,21 @@ namespace MonC
         )
         {
             ParseModule module = CreateInputParseModuleFromInteropResolver(resolver);
-            return Parse(source, filename, errors, new Optional<ParseModule>(module));
+            return Parse(source, filename, errors, module);
         }
             
-        public Optional<ILModule> Compile(
+        public ILModule? Compile(
             string source,
             string filename,
             List<ParseError> errors,
-            Optional<ParseModule> targetModule = default(Optional<ParseModule>)
+            ParseModule? targetModule = null
         )
         {
-            ParseModule parsedModule;
-            if (!Parse(source, filename, errors, targetModule).Get(out parsedModule)) {
-                return new Optional<ILModule>();
+            ParseModule? parsedModule = Parse(source, filename, errors, targetModule);
+            if (parsedModule == null) {
+                return null;
             }
-
-            return new Optional<ILModule>(Compile(parsedModule));
+            return Compile(parsedModule);
         }
         
         public ILModule Compile(ParseModule module) 
@@ -70,7 +68,7 @@ namespace MonC
             return generator.Generate(module);
         }
 
-        public Optional<VMModule> CompileAndLink(
+        public VMModule? CompileAndLink(
             string source,
             string filename,
             InteropResolver resolver,
@@ -83,22 +81,22 @@ namespace MonC
             
             SetupLinkerWithInteropResolver(linker, resolver);
 
-            ILModule compiledModule;
-            if (!Compile(source, filename, parseErrors, new Optional<ParseModule>(parsedModule)).Get(out compiledModule)) {
-                return new Optional<VMModule>();
+            ILModule? compiledModule = Compile(source, filename, parseErrors, parsedModule);
+            if (compiledModule == null) {
+                return null;
             }
             
             linker.AddModule(compiledModule, export: true);
 
             VMModule linkedModule = linker.Link();
             if (linkErrors.Count > 0) {
-                return new Optional<VMModule>();
+                return null;
             }
 
-            return new Optional<VMModule>(linkedModule);
+            return linkedModule;
         }
         
-        public Optional<VMModule> CompileAndLink(
+        public VMModule? CompileAndLink(
             ParseModule parsedModule,
             InteropResolver resolver,
             List<LinkError> linkErrors
@@ -112,10 +110,10 @@ namespace MonC
 
             VMModule linkedModule = linker.Link();
             if (linkErrors.Count > 0) {
-                return new Optional<VMModule>();
+                return null;
             }
 
-            return new Optional<VMModule>(linkedModule);
+            return linkedModule;
         }
         
         private ParseModule CreateInputParseModuleFromInteropResolver(InteropResolver resolver)

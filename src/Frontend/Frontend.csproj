@@ -1,14 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <LangVersion>default</LangVersion>
     <Nullable>enable</Nullable>
     <OutputType>Exe</OutputType>
+    
+    <!-- Null-related warnings are errors -->
+    <WarningsAsErrors>CS8603,CS8618,CS8600,CS8625,CS8604,CS8602</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MonC\MonC.csproj" />
+    <ProjectReference Include="..\MonC\MonC.csproj"/>
   </ItemGroup>
 
 </Project>

@@ -60,11 +60,7 @@ namespace MonC.Codegen
         public void VisitIfElse(IfElseLeaf leaf)
         {
             leaf.IfBody.Accept(this);
-
-            BodyLeaf elseBody;
-            if (leaf.ElseBody.Get(out elseBody)) {
-                elseBody.Accept(this);    
-            }
+            leaf.ElseBody?.Accept(this);
         }
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)

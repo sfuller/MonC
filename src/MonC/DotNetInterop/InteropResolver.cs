@@ -47,7 +47,7 @@ namespace MonC.DotNetInterop
         /// Import bindings from the given type using the given binding flags and the given instance of the type.
         /// Returns true if any bindings were imported, else false.
         /// </summary>
-        public bool ImportType(Type type, BindingFlags flags, Optional<object> target = default(Optional<object>))
+        public bool ImportType(Type type, BindingFlags flags, object? target = null)
         {
             bool imported = false;
             
@@ -61,7 +61,7 @@ namespace MonC.DotNetInterop
             }
 
             if ((flags & BindingFlags.Instance) > 0) {
-                if (!target.IsGiven() && _includeImplementations) {
+                if (target == null && _includeImplementations) {
                     _errors.Add($"Attempted to include implementations for instance methods of type {type.Name}, but no target was given.");
                 } else {
                     MethodInfo[] instanceMethods = type.GetMethods((flags | BindingFlags.Static) ^ BindingFlags.Static);
@@ -82,7 +82,7 @@ namespace MonC.DotNetInterop
         /// Try to import the given method with the given target.
         /// Returns true if the method was imported, otherwise false. 
         /// </summary>
-        public bool ImportMethod(MethodInfo method, Optional<object> target = default(Optional<object>))
+        public bool ImportMethod(MethodInfo method, object? target = null)
         {
             object[] attribs = method.GetCustomAttributes(typeof(LinkableFunctionAttribute), inherit: false);
             if (attribs.Length == 0) {
@@ -127,7 +127,11 @@ namespace MonC.DotNetInterop
             return success;
         }
         
-        private bool ProcessSimpleBinding(LinkableFunctionAttribute attribute, MethodInfo method, ParameterInfo[] parameters, Optional<object> target)
+        private bool ProcessSimpleBinding(
+            LinkableFunctionAttribute attribute,
+            MethodInfo method, 
+            ParameterInfo[] parameters, 
+            object? target)
         {
             if (method.ReturnType != typeof(int)) {
                 return false;
@@ -147,7 +151,11 @@ namespace MonC.DotNetInterop
             return true;
         }
 
-        private bool ProcessEnumeratorBinding(LinkableFunctionAttribute attribute, MethodInfo method, ParameterInfo[] parameters, Optional<object> target)
+        private bool ProcessEnumeratorBinding(
+                LinkableFunctionAttribute attribute,
+                MethodInfo method,
+                ParameterInfo[] parameters,
+                object? target)
         {
             if (method.ReturnType != typeof(IEnumerator<Continuation>)) {
                 return false;
@@ -194,16 +202,27 @@ namespace MonC.DotNetInterop
             _bindings[method.Name] = binding;
         }
 
-        private static T CreateDelegate<T>(MethodInfo method, Optional<object> target) where T : class
+        private static T CreateDelegate<T>(MethodInfo method, object? target) where T : class
         {
-            object targetObject;
-            if (target.Get(out targetObject)) {
-                return (Delegate.CreateDelegate(typeof(T), targetObject, method) as T)!;
+            T? del;
+            
+            if (target != null) {
+                del = Delegate.CreateDelegate(typeof(T), target, method) as T;
+                if (del == null) {
+                    throw new InvalidCastException(
+                        $"Cannot create delegate of {typeof(T)} with method {method} and target {target}.");
+                }
+                return del;
             }
-            return (Delegate.CreateDelegate(typeof(T), method) as T)!;
+            
+            del = Delegate.CreateDelegate(typeof(T), method) as T;
+            if (del == null) {
+                throw new InvalidCastException($"Cannot create delegate of {typeof(T)} with method {method}.");
+            }
+            return del;
         }
 
-        private static VMEnumerableDelegate WrapSimpleBinding(MethodInfo info, Optional<object> target)
+        private static VMEnumerableDelegate WrapSimpleBinding(MethodInfo info, object? target)
         {
             VMFunctionDelegate function = CreateDelegate<VMFunctionDelegate>(info, target);
             return (context, args) => SimpleBindingEnumerator(function, args);
@@ -218,7 +237,7 @@ namespace MonC.DotNetInterop
         private static IEnumerable<DeclarationLeaf> FunctionAttributeToDeclarations(LinkableFunctionAttribute attribute)
         {
             for (int i = 0, ilen = attribute.ArgumentCount; i < ilen; ++i) {
-                yield return new DeclarationLeaf("int", "", new Optional<IASTLeaf>()); 
+                yield return new DeclarationLeaf("int", "", null); 
             }
         }
 
@@ -239,6 +258,12 @@ namespace MonC.DotNetInterop
             }
 
             LinkableEnumAttribute attribute = (LinkableEnumAttribute) customAttributes[0];
+            ImportEnum(type, attribute);
+            return true;
+        }
+
+        public void ImportEnum(Type type, LinkableEnumAttribute attribute)
+        {
             string[] names = Enum.GetNames(type);
             List<KeyValuePair<string, int>> enumerations = new List<KeyValuePair<string, int>>();
 
@@ -249,7 +274,6 @@ namespace MonC.DotNetInterop
             }
             
             _enums.Add(new EnumLeaf(enumerations, isExported: true));
-            return true;
         }
 
     }

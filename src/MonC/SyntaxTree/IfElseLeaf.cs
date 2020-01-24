@@ -1,15 +1,12 @@
-using System.Collections.Generic;
-using System.Linq;
-
 namespace MonC.SyntaxTree
 {
     public class IfElseLeaf : IASTLeaf
     {
         public IASTLeaf Condition;
         public BodyLeaf IfBody;
-        public Optional<BodyLeaf> ElseBody;
+        public BodyLeaf? ElseBody;
 
-        public IfElseLeaf(IASTLeaf condition, BodyLeaf ifBody, Optional<BodyLeaf> elseBody)
+        public IfElseLeaf(IASTLeaf condition, BodyLeaf ifBody, BodyLeaf? elseBody)
         {
             Condition = condition;
             IfBody = ifBody;

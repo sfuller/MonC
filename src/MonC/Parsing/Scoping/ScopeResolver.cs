@@ -41,11 +41,8 @@ namespace MonC.Parsing.Scoping
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
             _cache.SetScope(leaf, _scope);
-
-            IASTLeaf assignment;
-            if (leaf.Assignment.Get(out assignment)) {
-                assignment.Accept(this);
-            }
+            
+            leaf.Assignment?.Accept(this);
 
             _scope.Variables.Add(leaf);
         }
@@ -94,7 +91,7 @@ namespace MonC.Parsing.Scoping
             
             VisitChildScope(leaf.Condition);
             VisitChildScope(leaf.IfBody);
-            VisitChildScope(leaf.ElseBody);
+            OptionallyVisitChildScope(leaf.ElseBody);
         }
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)
@@ -124,7 +121,7 @@ namespace MonC.Parsing.Scoping
         {
             _cache.SetScope(leaf, _scope);
             
-            VisitChildScope(leaf.RHS);
+            OptionallyVisitChildScope(leaf.RHS);
         }
 
         public void VisitAssignment(AssignmentLeaf leaf)
@@ -158,12 +155,12 @@ namespace MonC.Parsing.Scoping
             leaf.Accept(visitor);
         }
 
-        private void VisitChildScope<T>(Optional<T> leaf) where T : class, IASTLeaf
+        private void OptionallyVisitChildScope(IASTLeaf? leaf)
         {
-            T nonNullLeaf;
-            if (leaf.Get(out nonNullLeaf)) {
-                VisitChildScope(nonNullLeaf);
+            if (leaf == null) {
+                return;
             }
+            VisitChildScope(leaf);
         }
 
     }

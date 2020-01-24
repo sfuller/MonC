@@ -1,13 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <LangVersion>default</LangVersion>
     <Nullable>enable</Nullable>
+
+    <!-- Null-related warnings are errors -->
+    <WarningsAsErrors>CS8603,CS8618,CS8600,CS8625,CS8604,CS8602</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MonC\MonC.csproj" />
+    <ProjectReference Include="..\MonC\MonC.csproj"/>
   </ItemGroup>
 
 </Project>
