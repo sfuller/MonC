@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using MonC.Parsing.ParseTreeLeaves;
 using MonC.SyntaxTree;
 
@@ -6,27 +8,36 @@ namespace MonC.Parsing.Scoping
     public class ScopeResolver : IASTLeafVisitor, IParseTreeLeafVisitor
     {
         private readonly ScopeCache _cache;
-        private readonly Scope _scope;
+        private Scope _scope;
 
+        public delegate void LeafHandler(IASTLeaf leaf, ScopeCache scopes, Scope scope);
+         
+        private readonly Dictionary<Type, LeafHandler> _extensions = new Dictionary<Type, LeafHandler>();
+        
         public ScopeResolver(ScopeCache cache, Scope scope)
         {
             _cache = cache;
             _scope = scope;
         }
 
+        public void RegisterExtension(Type type, LeafHandler handler)
+        {
+            _extensions.Add(type, handler);
+        }
+
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
             _cache.SetScope(leaf, _scope);
-            
-            leaf.LHS.Accept(this);
-            leaf.RHS.Accept(this);
+
+            VisitWithCurrentScope(leaf.LHS);
+            VisitWithCurrentScope(leaf.RHS);
         }
 
         public void VisitUnaryOperation(UnaryOperationLeaf leaf)
         {
             _cache.SetScope(leaf, _scope);
-            
-            leaf.RHS.Accept(this);
+
+            VisitWithCurrentScope(leaf.RHS);
         }
 
         public void VisitBody(BodyLeaf leaf)
@@ -34,7 +45,7 @@ namespace MonC.Parsing.Scoping
             _cache.SetScope(leaf, _scope);
             
             for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                leaf.GetStatement(i).Accept(this);
+                VisitWithCurrentScope(leaf.GetStatement(i));
             }
         }
 
@@ -42,7 +53,7 @@ namespace MonC.Parsing.Scoping
         {
             _cache.SetScope(leaf, _scope);
             
-            leaf.Assignment?.Accept(this);
+            OptionallyVisitWithCurrentScope(leaf.Assignment);
 
             _scope.Variables.Add(leaf);
         }
@@ -52,12 +63,11 @@ namespace MonC.Parsing.Scoping
             _cache.SetScope(leaf, _scope);
 
             Scope childScope = _scope.Copy();
-            ScopeResolver childVisitor = new ScopeResolver(_cache, childScope);
-            
-            leaf.Declaration.Accept(childVisitor);
-            leaf.Condition.Accept(childVisitor);
-            leaf.Update.Accept(childVisitor);
-            leaf.Body.Accept(childVisitor);
+
+            VisitWithScope(leaf.Declaration, childScope);
+            VisitWithScope(leaf.Condition, childScope);
+            VisitWithScope(leaf.Update, childScope);
+            VisitWithScope(leaf.Body, childScope);
         }
 
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
@@ -151,8 +161,33 @@ namespace MonC.Parsing.Scoping
 
         private void VisitChildScope(IASTLeaf leaf)
         {
-            var visitor = new ScopeResolver(_cache, _scope.Copy());
-            leaf.Accept(visitor);
+            VisitWithScope(leaf, _scope.Copy());
+        }
+
+        private void VisitWithCurrentScope(IASTLeaf leaf)
+        {
+            VisitWithScope(leaf, _scope);
+        }
+
+        private void OptionallyVisitWithCurrentScope(IASTLeaf? leaf)
+        {
+            if (leaf == null) {
+                return;
+            }
+            VisitWithCurrentScope(leaf);
+        }
+        
+        private void VisitWithScope(IASTLeaf leaf, Scope scope)
+        {
+            LeafHandler handler;
+            if (_extensions.TryGetValue(leaf.GetType(), out handler)) {
+                handler(leaf, _cache, scope);
+                return;
+            }
+            Scope currentScope = _scope;
+            _scope = scope;
+            leaf.Accept(this);
+            _scope = currentScope;
         }
 
         private void OptionallyVisitChildScope(IASTLeaf? leaf)
