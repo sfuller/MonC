@@ -1,7 +1,5 @@
 
-// TODO: Remove the fail_ prefix once continue statements are supported.
-
-int main() {
+int test() {
     int x = 0;
     int y = 0;
     for (int i = 0; i < 4; i = i + 1) {
@@ -10,4 +8,11 @@ int main() {
         y = y + 1;
     }
     return x == 4 && y == 0;
+}
+
+int main() {
+    if (test()) {
+        return 0;
+    }
+    return 1;
 }

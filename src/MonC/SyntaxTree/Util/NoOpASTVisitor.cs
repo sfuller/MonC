@@ -68,6 +68,11 @@ namespace MonC.SyntaxTree.Util
             VisitDefault(leaf);
         }
 
+        public void VisitContinue(ContinueLeaf leaf)
+        {
+            VisitDefault(leaf);
+        }
+
         public virtual void VisitReturn(ReturnLeaf leaf)
         {
             VisitDefault(leaf);

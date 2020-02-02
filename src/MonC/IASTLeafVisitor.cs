@@ -17,6 +17,7 @@ namespace MonC
         void VisitStringLiteral(StringLiteralLeaf leaf);
         void VisitWhile(WhileLeaf leaf);
         void VisitBreak(BreakLeaf leaf);
+        void VisitContinue(ContinueLeaf leaf);
         void VisitReturn(ReturnLeaf leaf);
         void VisitAssignment(AssignmentLeaf leaf);
         void VisitEnum(EnumLeaf leaf);

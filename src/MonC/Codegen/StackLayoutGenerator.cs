@@ -80,6 +80,10 @@ namespace MonC.Codegen
         {
         }
 
+        public void VisitContinue(ContinueLeaf leaf)
+        {
+        }
+
         public void VisitReturn(ReturnLeaf leaf)
         {
         }

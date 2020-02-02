@@ -90,6 +90,11 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
             VisitBreak(leaf);
         }
 
+        void IASTLeafVisitor.VisitContinue(ContinueLeaf leaf)
+        {
+            VisitContinue(leaf);
+        }
+
         void IASTLeafVisitor.VisitReturn(ReturnLeaf leaf)
         {
             VisitReturn(leaf);
@@ -192,6 +197,11 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
         public void VisitBreak(BreakLeaf leaf)
         {
             _visitor.VisitBreak(leaf);
+        }
+
+        public void VisitContinue(ContinueLeaf leaf)
+        {
+            _visitor.VisitContinue(leaf);
         }
 
         public void VisitReturn(ReturnLeaf leaf)

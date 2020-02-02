@@ -95,6 +95,11 @@ namespace MonC.Frontend
             Print("Break");
         }
 
+        public void VisitContinue(ContinueLeaf leaf)
+        {
+            Print("Continue");
+        }
+
         public void VisitReturn(ReturnLeaf leaf)
         {
             Print("Return");

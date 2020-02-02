@@ -19,8 +19,8 @@ namespace MonC.Codegen
         private readonly List<int> _instructionsReferencingFunctionAddresses = new List<int>();
 
         private readonly Stack<int> _breaks = new Stack<int>();
+        private readonly Stack<int> _continues = new Stack<int>();
 
-        
         /// <summary>
         /// The current end of the stack working memory space. This address will be used as the start of the next
         /// working memory allocation.
@@ -247,6 +247,8 @@ namespace MonC.Codegen
             // Generate body code
             int bodyLocation = _instructions.Count;
             leaf.Body.Accept(this);
+
+            int continueJumpLocation = _instructions.Count;
             
             // Generate update code
             leaf.Update.Accept(this);
@@ -267,6 +269,11 @@ namespace MonC.Codegen
                 _instructions[breakLocation] = new Instruction(OpCode.JUMP, breakJumpLocation - breakLocation - 1);
             }
             _breaks.Clear();
+
+            foreach (int continueLocation in _continues) {
+                _instructions[continueLocation] = new Instruction(OpCode.JUMP, continueJumpLocation - continueLocation - 1);
+            }
+            _continues.Clear();
         }
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
@@ -388,6 +395,13 @@ namespace MonC.Codegen
             int breakIndex = AddInstruction(OpCode.NOOP);
             _breaks.Push(breakIndex);
             AddDebugSymbol(breakIndex, leaf);
+        }
+
+        public void VisitContinue(ContinueLeaf leaf)
+        {
+            int continueIndex = AddInstruction(OpCode.NOOP);
+            _continues.Push(continueIndex);
+            AddDebugSymbol(continueIndex, leaf);
         }
 
         public void VisitReturn(ReturnLeaf leaf)

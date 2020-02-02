@@ -127,6 +127,11 @@ namespace MonC.Parsing.Scoping
             _cache.SetScope(leaf, _scope);
         }
 
+        public void VisitContinue(ContinueLeaf leaf)
+        {
+            _cache.SetScope(leaf, _scope);
+        }
+
         public void VisitReturn(ReturnLeaf leaf)
         {
             _cache.SetScope(leaf, _scope);

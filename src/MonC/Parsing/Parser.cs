@@ -297,7 +297,7 @@ namespace MonC
             } 
             else {
                 statement = ParseExpression();
-                ParseSemicolon();
+                ParseSemiColonForgiving();
             }
 
             return statement;
@@ -490,16 +490,17 @@ namespace MonC
 
         private IASTLeaf ParseContinue()
         {
-            Token token = Next();
-            AddError("continue is not implemented yet", token);
-            return new PlaceholderLeaf();
+            Token token;
+            Next(TokenType.Keyword, Keyword.CONTINUE, out token);
+            ParseSemiColonForgiving();
+            return NewLeaf<ContinueLeaf>(token);
         }
 
         private BreakLeaf ParseBreak()
         {
             Token breakToken;
             Next(TokenType.Keyword, Keyword.BREAK, out breakToken);
-            ParseSemicolon();
+            ParseSemiColonForgiving();
             return NewLeaf<BreakLeaf>(breakToken);
         }
 
