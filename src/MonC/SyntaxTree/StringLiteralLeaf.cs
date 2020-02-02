@@ -1,5 +1,3 @@
-using System;
-
 namespace MonC.SyntaxTree
 {
     public class StringLiteralLeaf : IASTLeaf

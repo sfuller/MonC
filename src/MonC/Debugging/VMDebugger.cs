@@ -150,7 +150,6 @@ namespace MonC.Debugging
         
         private IEnumerator<ActionRequest> StepOutAction()
         {
-            StackFrameInfo frame = _vm.GetStackFrame(0);
             int minDepth = _vm.CallStackFrameCount;
 
             while (true) {

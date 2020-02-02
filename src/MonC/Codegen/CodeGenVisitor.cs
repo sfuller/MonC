@@ -295,7 +295,7 @@ namespace MonC.Codegen
                 AddInstruction(OpCode.WRITE, argumentStackValuesStart + i);
             }
             
-            int addr = AddInstruction(OpCode.CALL, argumentStack);
+            AddInstruction(OpCode.CALL, argumentStack);
             
             FreeTemporaryStackAddress(argumentStackLength);
             

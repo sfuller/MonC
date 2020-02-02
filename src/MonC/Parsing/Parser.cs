@@ -101,7 +101,7 @@ namespace MonC
             });
         }
 
-        private IASTLeaf ParseTopLevelStatement(IList<FunctionDefinitionLeaf> functions, IList<EnumLeaf> enums)
+        private void ParseTopLevelStatement(IList<FunctionDefinitionLeaf> functions, IList<EnumLeaf> enums)
         {
             bool isExported = true;
 
@@ -116,17 +116,14 @@ namespace MonC
                 EnumLeaf? enumLeaf = ParseEnum(isExported);
                 if (enumLeaf != null) {
                     enums.Add(enumLeaf);
-                    return enumLeaf;
                 }
-                return NewLeaf<PlaceholderLeaf>(token);
+                return;
             }
 
             FunctionDefinitionLeaf? def = ParseFunction(isExported);
             if (def != null) {
                 functions.Add(def);
-                return def;
             }
-            return NewLeaf<PlaceholderLeaf>(token);
         }
 
         private EnumLeaf? ParseEnum(bool isExported)
@@ -613,10 +610,8 @@ namespace MonC
         
         private FunctionCallParseLeaf? ParseFunctionCall(IASTLeaf lhs)
         {
-            Token leftParen;
-            
             // Eat left paren
-            if (!Next(TokenType.Syntax, "(", out leftParen)) {
+            if (!Next(TokenType.Syntax, "(", out _)) {
                 return null;
             }
             

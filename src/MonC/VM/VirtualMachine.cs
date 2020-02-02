@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using MonC.Bytecode;
 using MonC.Codegen;
 
@@ -302,10 +301,10 @@ namespace MonC.VM
             
             switch (ins.Op) {
                 case OpCode.NOOP:
-                    InterpretNoOp(ins);
+                    InterpretNoOp();
                     break;
                 case OpCode.BREAK:
-                    InterpretBreak(ins);
+                    InterpretBreak();
                     return true;
                 case OpCode.LOAD:
                     InterpretLoad(ins);
@@ -320,7 +319,7 @@ namespace MonC.VM
                     InterpretCall(ins);
                     break;
                 case OpCode.RETURN:
-                    InterpretReturn(ins);
+                    InterpretReturn();
                     break;
                 case OpCode.CMPE:
                     InterpretCmpE(ins);
@@ -341,10 +340,10 @@ namespace MonC.VM
                     InterpretJumpNZ(ins);
                     break;
                 case OpCode.BOOL:
-                    InterpretBool(ins);
+                    InterpretBool();
                     break;
                 case OpCode.LNOT:
-                    InterpretLogicalNot(ins);
+                    InterpretLogicalNot();
                     break;
                 case OpCode.ADD:
                     InterpretAdd(ins);
@@ -375,11 +374,11 @@ namespace MonC.VM
             return false;
         }
 
-        private void InterpretNoOp(Instruction ins)
+        private void InterpretNoOp()
         {
         }
 
-        private void InterpretBreak(Instruction ins)
+        private void InterpretBreak()
         {
             --PeekCallStack().PC;
             // Note: Triggering the actual break is done by InterpretInstruction.
@@ -406,7 +405,7 @@ namespace MonC.VM
             PushCall(currentFrame.Module, currentFrame.Memory, ins.ImmediateValue);
         }
 
-        private void InterpretReturn(Instruction ins)
+        private void InterpretReturn()
         {
             PopFrame();
         }
@@ -445,12 +444,12 @@ namespace MonC.VM
             }
         }
 
-        private void InterpretBool(Instruction ins)
+        private void InterpretBool()
         {
             _aRegister = _aRegister == 0 ? 0 : 1;
         }
 
-        private void InterpretLogicalNot(Instruction ins)
+        private void InterpretLogicalNot()
         {
             _aRegister = _aRegister == 0 ? 1 : 0;
         }
@@ -578,7 +577,6 @@ namespace MonC.VM
             if (_callStack.Count == 0) {
                 _isContinuing = false;
                 HandleFinished(true);
-                return;
             }
         }
         
