@@ -490,7 +490,7 @@ namespace MonC
 
         private IASTLeaf ParseContinue()
         {
-            Token token = Peek();
+            Token token = Next();
             AddError("continue is not implemented yet", token);
             return new PlaceholderLeaf();
         }

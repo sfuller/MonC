@@ -55,21 +55,34 @@ def test(path, showall: bool) -> bool:
     sys.stdout.write(f'Testing {path}...')
     sys.stdout.flush()
     
+    result = None
+
     with open(path) as f:
         args = [FRONTEND_BINARY, path]
         args.extend(sys.argv[1:])
-        result = subprocess.run(args, encoding='utf-8', stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            result = subprocess.run(
+                    args,
+                    encoding='utf-8',
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=60)
+        except subprocess.TimeoutExpired:
+            pass
     
     filename = os.path.basename(path)
    
-    status = result.returncode is 0
+    status = False
 
-    if filename.startswith('fail_'):
-        status = not status
+    if result:
+        status = result.returncode is 0
 
-    # Crashes always fail
-    if result.returncode < 0 or result.returncode is 255:
-        status = False
+        if filename.startswith('fail_'):
+            status = not status
+
+        # Crashes always fail
+        if result.returncode < 0 or result.returncode is 255:
+            status = False
 
     sys.stdout.write('\r')
     sys.stdout.write(TERM_ERASE_LINE)
@@ -84,10 +97,13 @@ def test(path, showall: bool) -> bool:
             print(f'[{TERM_TEXT_FAIL}] {path}')
         
         print('-' * 80)
-
-        print(f'stdout: \n{result.stdout}')
-        print(f'stderr: \n{result.stderr}')
-        print(f'rv: {result.returncode}')
+        
+        if result:
+            print(f'stdout: \n{result.stdout}')
+            print(f'stderr: \n{result.stderr}')
+            print(f'rv: {result.returncode}')
+        else:
+            print(f'Timed out (TODO: show output here for timed out process)')
 
         print('')
 

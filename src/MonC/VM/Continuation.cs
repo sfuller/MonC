@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace MonC.VM
@@ -41,6 +42,9 @@ namespace MonC.VM
         public static Continuation Call(VMModule module, string functionName, IReadOnlyList<int> arguments)
         {
             int index = VirtualMachine.LookupFunction(module.ILModule, functionName);
+            if (index == -1) {
+                throw new ArgumentException($"Function {functionName} not found in given module", nameof(functionName));
+            }
             return Call(module, index, arguments);
         }
 

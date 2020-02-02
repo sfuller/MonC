@@ -20,6 +20,7 @@ namespace MonC.Frontend
             bool showAST = false;
             bool showIL = false;
             bool withDebugger = false;
+            bool forceCodegen = false;
             List<string> positionals = new List<string>();
             List<int> argsToPass = new List<int>();
             List<string> libraryNames = new List<string>();
@@ -51,6 +52,13 @@ namespace MonC.Frontend
                         break;
                     case "--debugger":
                         withDebugger = true;
+                        break;
+                    case "--force-codegen":
+                        // Indicate that the compiler should attempt to code gen IL, even if the parse stage failed. 
+                        // This can be helpful to diagnose generated IL for code that doesn't compile outside of a 
+                        // specific project due to undefined references. The parser tries its hardest to produce a
+                        // usable AST, even if there are semantic errors. Syntax errors? Not so much.
+                        forceCodegen = true;
                         break;
                     default:
                         argFound = false;
@@ -121,6 +129,10 @@ namespace MonC.Frontend
                 for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
                     module.Functions[i].Accept(treeVisitor);
                 }    
+            }
+
+            if (errors.Count > 0 && !forceCodegen) {
+                Environment.Exit(1);
             }
             
             CodeGenerator generator = new CodeGenerator();
