@@ -3,7 +3,7 @@ using JetBrains.Annotations;
 
 namespace MonC.VM
 {
-    [MeansImplicitUse]
+    [MeansImplicitUse(ImplicitUseTargetFlags.Members)]
     [AttributeUsage(AttributeTargets.Enum)]
     public class LinkableEnumAttribute : Attribute
     {

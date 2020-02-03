@@ -4,7 +4,6 @@
     <LangVersion>default</LangVersion>
     <Nullable>annotations</Nullable>
     <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
-    <DefineConstants>JETBRAINS_ANNOTATIONS</DefineConstants>
   </PropertyGroup>
   
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.1' ">
@@ -13,9 +12,5 @@
     <!-- Null-related warnings are errors -->
     <WarningsAsErrors>CS8603,CS8618,CS8600,CS8625,CS8604,CS8602,CS8634</WarningsAsErrors>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="JetBrains.Annotations" Version="2019.1.3" />
-  </ItemGroup>
 
 </Project>
