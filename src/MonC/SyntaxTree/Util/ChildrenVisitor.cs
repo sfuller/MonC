@@ -3,18 +3,23 @@ using MonC.Parsing.ParseTreeLeaves;
 
 namespace MonC.SyntaxTree.Util
 {
-public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
+    public class ChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
     {
-        #nullable disable // https://github.com/dotnet/roslyn/issues/32358
         private IASTLeafVisitor _visitor;
-        #nullable restore
 
-        public VisitChildrenVisitor(IASTLeafVisitor? visitor = null)
+        /// <summary>
+        /// This outer visitor may be set to allow VisitChildrenVisitor to work with a Similar Children Visitor for
+        /// extensions to the standard leaves.
+        /// </summary>
+        private readonly IASTLeafVisitor _outerVisitor;
+        
+        public ChildrenVisitor(IASTLeafVisitor? visitor = null, IASTLeafVisitor? outerVisitor = null)
         {
-            SetVisitor(visitor);
+            _visitor = visitor ?? new NoOpASTVisitor();
+            _outerVisitor = outerVisitor ?? this;
         }
 
-        public VisitChildrenVisitor SetVisitor(IASTLeafVisitor? visitor)
+        public ChildrenVisitor SetVisitor(IASTLeafVisitor? visitor)
         {
             _visitor = visitor ?? new NoOpASTVisitor();
             return this;
@@ -24,86 +29,21 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
         {
             _visitor.VisitBinaryOperation(leaf);
             
-            leaf.LHS.Accept(this);
-            leaf.RHS.Accept(this);
+            leaf.LHS.Accept(_outerVisitor);
+            leaf.RHS.Accept(_outerVisitor);
         }
 
         public void VisitUnaryOperation(UnaryOperationLeaf leaf)
         {
             _visitor.VisitUnaryOperation(leaf);
             
-            leaf.RHS.Accept(this);
+            leaf.RHS.Accept(_outerVisitor);
         }
-
-        void IASTLeafVisitor.VisitBody(BodyLeaf leaf)
-        {
-            VisitBody(leaf);
-        }
-
-        void IASTLeafVisitor.VisitDeclaration(DeclarationLeaf leaf)
-        {
-            VisitDeclaration(leaf);
-        }
-
-        void IASTLeafVisitor.VisitFor(ForLeaf leaf)
-        {
-            VisitFor(leaf);
-        }
-
-        void IASTLeafVisitor.VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
-        {
-            VisitFunctionDefinition(leaf);
-        }
-
-        void IASTLeafVisitor.VisitFunctionCall(FunctionCallLeaf leaf)
-        {
-            VisitFunctionCall(leaf);
-        }
-
-        void IASTLeafVisitor.VisitVariable(VariableLeaf leaf)
-        {
-            VisitVariable(leaf);
-        }
-
-        void IASTLeafVisitor.VisitIfElse(IfElseLeaf leaf)
-        {
-            VisitIfElse(leaf);
-        }
-
-        void IASTLeafVisitor.VisitNumericLiteral(NumericLiteralLeaf leaf)
-        {
-            VisitNumericLiteral(leaf);
-        }
-
-        void IASTLeafVisitor.VisitStringLiteral(StringLiteralLeaf leaf)
-        {
-            VisitStringLiteral(leaf);
-        }
-
-        void IASTLeafVisitor.VisitWhile(WhileLeaf leaf)
-        {
-            VisitWhile(leaf);
-        }
-
-        void IASTLeafVisitor.VisitBreak(BreakLeaf leaf)
-        {
-            VisitBreak(leaf);
-        }
-
-        void IASTLeafVisitor.VisitContinue(ContinueLeaf leaf)
-        {
-            VisitContinue(leaf);
-        }
-
-        void IASTLeafVisitor.VisitReturn(ReturnLeaf leaf)
-        {
-            VisitReturn(leaf);
-        }
-
+        
         public void VisitAssignment(AssignmentLeaf leaf)
         {
             _visitor.VisitAssignment(leaf);
-            leaf.RHS.Accept(this);
+            leaf.RHS.Accept(_outerVisitor);
         }
 
         public void VisitEnum(EnumLeaf leaf)
@@ -121,7 +61,7 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
             _visitor.VisitBody(leaf);
 
             for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                leaf.GetStatement(i).Accept(this);
+                leaf.GetStatement(i).Accept(_outerVisitor);
             }
         }
 
@@ -129,17 +69,17 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
         {
             _visitor.VisitDeclaration(leaf);
 
-            leaf.Assignment?.Accept(this);
+            leaf.Assignment?.Accept(_outerVisitor);
         }
 
         public void VisitFor(ForLeaf leaf)
         {
             _visitor.VisitFor(leaf);
             
-            leaf.Declaration.Accept(this);
-            leaf.Condition.Accept(this);
-            leaf.Update.Accept(this);
-            leaf.Body.Accept(this);
+            leaf.Declaration.Accept(_outerVisitor);
+            leaf.Condition.Accept(_outerVisitor);
+            leaf.Update.Accept(_outerVisitor);
+            leaf.Body.Accept(_outerVisitor);
         }
 
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
@@ -147,10 +87,10 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
             _visitor.VisitFunctionDefinition(leaf);
 
             for (int i = 0, ilen = leaf.Parameters.Length; i < ilen; ++i) {
-                leaf.Parameters[i].Accept(this);
+                leaf.Parameters[i].Accept(_outerVisitor);
             }
         
-            leaf.Body?.Accept(this);
+            leaf.Body?.Accept(_outerVisitor);
         }
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
@@ -158,7 +98,7 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
             _visitor.VisitFunctionCall(leaf);
 
             for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                leaf.GetArgument(i).Accept(this);
+                leaf.GetArgument(i).Accept(_outerVisitor);
             }
         }
 
@@ -171,9 +111,9 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
         {
             _visitor.VisitIfElse(leaf);
             
-            leaf.Condition.Accept(this);
-            leaf.IfBody.Accept(this);
-            leaf.ElseBody?.Accept(this);
+            leaf.Condition.Accept(_outerVisitor);
+            leaf.IfBody.Accept(_outerVisitor);
+            leaf.ElseBody?.Accept(_outerVisitor);
         }
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)
@@ -190,8 +130,8 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
         {
             _visitor.VisitWhile(leaf);
             
-            leaf.Condition.Accept(this);
-            leaf.Body.Accept(this);
+            leaf.Condition.Accept(_outerVisitor);
+            leaf.Body.Accept(_outerVisitor);
         }
 
         public void VisitBreak(BreakLeaf leaf)
@@ -208,7 +148,7 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
         {
             _visitor.VisitReturn(leaf);
 
-            leaf.RHS?.Accept(this);
+            leaf.RHS?.Accept(_outerVisitor);
         }
 
         public void VisitIdentifier(IdentifierParseLeaf leaf)
@@ -221,7 +161,7 @@ public class VisitChildrenVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
             leaf.Accept(_visitor);
 
             for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                leaf.GetArgument(i).Accept(this);
+                leaf.GetArgument(i).Accept(_outerVisitor);
             }
         }
 

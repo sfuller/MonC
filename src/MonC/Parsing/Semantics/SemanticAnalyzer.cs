@@ -60,17 +60,17 @@ namespace MonC.Parsing.Semantics
             ScopeResolver resolver = new ScopeResolver(scopes, Scope.New());
             function.Accept(resolver);
 
-            VisitChildrenVisitor visitChildrenVisitor = new VisitChildrenVisitor();
+            ChildrenVisitor childrenVisitor = new ChildrenVisitor();
 
             VariableDeclarationAnalyzer declarationAnalyzer = new VariableDeclarationAnalyzer(scopes, _errorsToProcess);
-            function.Accept(visitChildrenVisitor.SetVisitor(declarationAnalyzer));
+            function.Accept(childrenVisitor.SetVisitor(declarationAnalyzer));
 
             ProcessAssignmentsVisitor assignmentsVisitor = new ProcessAssignmentsVisitor(scopes, _errorsToProcess, _symbolMap);
             ProcessReplacementsVisitor replacementsVisitor = new ProcessReplacementsVisitor(assignmentsVisitor, scopes);
-            function.Accept(visitChildrenVisitor.SetVisitor(replacementsVisitor));
+            function.Accept(childrenVisitor.SetVisitor(replacementsVisitor));
             
             TranslateIdentifiersVisitor identifiersVisitor = new TranslateIdentifiersVisitor(scopes, _functions, _errorsToProcess, _enumManager, _symbolMap);
-            function.Accept(visitChildrenVisitor.SetVisitor(replacementsVisitor.SetReplacer(identifiersVisitor)));
+            function.Accept(childrenVisitor.SetVisitor(replacementsVisitor.SetReplacer(identifiersVisitor)));
         }
         
     }
