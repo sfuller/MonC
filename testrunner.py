@@ -35,7 +35,7 @@ def main():
 
     print('=' * 80)
     
-    status = len(failed_files) is 0
+    status = len(failed_files) == 0
 
     if status:
         print(f' ** {TERM_TEXT_PASS} **')
@@ -75,13 +75,13 @@ def test(path, showall: bool) -> bool:
     status = False
 
     if result:
-        status = result.returncode is 0
+        status = result.returncode == 0
 
         if filename.startswith('fail_'):
             status = not status
 
         # Crashes always fail
-        if result.returncode < 0 or result.returncode is 255:
+        if result.returncode < 0 or result.returncode == 255:
             status = False
 
     sys.stdout.write('\r')
