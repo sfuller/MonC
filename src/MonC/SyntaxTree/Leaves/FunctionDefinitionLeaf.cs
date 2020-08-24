@@ -7,17 +7,17 @@ namespace MonC.SyntaxTree
     {
         public struct Parameter
         {
-            public string Type;
+            public TypeSpecifierLeaf Type;
             public string Name;
         }
 
         public string Name;
-        public string ReturnType;
+        public TypeSpecifierLeaf ReturnType;
         public DeclarationLeaf[] Parameters;
         public BodyLeaf Body;
         public bool IsExported;
 
-        public FunctionDefinitionLeaf(string name, string returnType, IEnumerable<DeclarationLeaf> parameters, BodyLeaf body, bool isExported)
+        public FunctionDefinitionLeaf(string name, TypeSpecifierLeaf returnType, IEnumerable<DeclarationLeaf> parameters, BodyLeaf body, bool isExported)
         {
             Name = name;
             ReturnType = returnType;

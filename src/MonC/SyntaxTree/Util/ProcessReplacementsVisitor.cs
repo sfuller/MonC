@@ -114,7 +114,11 @@ namespace MonC.SyntaxTree.Util
         public void VisitEnumValue(EnumValueLeaf leaf)
         {
         }
-        
+
+        public void VisitTypeSpecifier(TypeSpecifierLeaf leaf)
+        {
+        }
+
         private T? ProcessOptionalReplacement<T>(T? leaf) where T : class, IASTLeaf
         {
             if (leaf == null) {

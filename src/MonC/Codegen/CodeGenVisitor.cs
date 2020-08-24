@@ -218,6 +218,11 @@ namespace MonC.Codegen
             AddInstruction(OpCode.LOAD, value);
         }
 
+        public void VisitTypeSpecifier(TypeSpecifierLeaf leaf)
+        {
+            throw new InvalidOperationException("Enum leaf shouldn't be part of a function AST");
+        }
+
         public void VisitBody(BodyLeaf leaf)
         {
             for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {

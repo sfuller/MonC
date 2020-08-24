@@ -120,7 +120,12 @@ namespace MonC.Frontend
 
         public void VisitEnumValue(EnumValueLeaf leaf)
         {
-            Print($"EnumValue (name={leaf.Name})");
+            Print($"EnumValue (Name={leaf.Name})");
+        }
+
+        public void VisitTypeSpecifier(TypeSpecifierLeaf leaf)
+        {
+            Print($"TypeSpecifier (Name={leaf.Name}, PointerType={leaf.PointerType})");
         }
 
         public void VisitIdentifier(IdentifierParseLeaf leaf)

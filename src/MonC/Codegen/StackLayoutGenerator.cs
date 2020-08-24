@@ -99,5 +99,9 @@ namespace MonC.Codegen
         public void VisitEnumValue(EnumValueLeaf leaf)
         {
         }
+
+        public void VisitTypeSpecifier(TypeSpecifierLeaf leaf)
+        {
+        }
     }
 }

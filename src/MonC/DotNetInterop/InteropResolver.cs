@@ -186,7 +186,7 @@ namespace MonC.DotNetInterop
         {
             FunctionDefinitionLeaf def = new FunctionDefinitionLeaf(
                 name: method.Name,
-                returnType: "int",
+                returnType: new TypeSpecifierLeaf("int", PointerType.NotAPointer),
                 parameters: FunctionAttributeToDeclarations(attribute),
                 body: new BodyLeaf(new IASTLeaf[0]), 
                 isExported: true
@@ -237,7 +237,7 @@ namespace MonC.DotNetInterop
         private static IEnumerable<DeclarationLeaf> FunctionAttributeToDeclarations(LinkableFunctionAttribute attribute)
         {
             for (int i = 0, ilen = attribute.ArgumentCount; i < ilen; ++i) {
-                yield return new DeclarationLeaf("int", "", null); 
+                yield return new DeclarationLeaf(new TypeSpecifierLeaf("int", PointerType.NotAPointer), "", null); 
             }
         }
 

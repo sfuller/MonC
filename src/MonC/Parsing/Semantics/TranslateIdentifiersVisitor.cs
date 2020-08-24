@@ -90,7 +90,7 @@ namespace MonC.Parsing.Semantics
             FunctionCallLeaf fakeFunctionCall = new FunctionCallLeaf(
                 lhs: new FunctionDefinitionLeaf(
                     $"(placeholder) {identifier.Name}",
-                    "int",
+                    new TypeSpecifierLeaf("int", PointerType.NotAPointer),
                     Array.Empty<DeclarationLeaf>(),
                     new BodyLeaf(Array.Empty<IASTLeaf>()),
                     isExported: false

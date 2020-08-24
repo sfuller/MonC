@@ -93,6 +93,11 @@ namespace MonC.SyntaxTree.Util
             VisitDefault(leaf);
         }
 
+        public void VisitTypeSpecifier(TypeSpecifierLeaf leaf)
+        {
+            VisitDefault(leaf);
+        }
+
         public virtual void VisitDefault(IASTLeaf leaf)
         {
         }

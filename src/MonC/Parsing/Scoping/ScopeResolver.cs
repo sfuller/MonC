@@ -154,6 +154,10 @@ namespace MonC.Parsing.Scoping
         {
         }
 
+        public void VisitTypeSpecifier(TypeSpecifierLeaf leaf)
+        {
+        }
+
         public void VisitIdentifier(IdentifierParseLeaf leaf)
         {
             _cache.SetScope(leaf, _scope);

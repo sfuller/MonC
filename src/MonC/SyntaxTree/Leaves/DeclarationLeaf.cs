@@ -3,11 +3,11 @@ namespace MonC.SyntaxTree
 {
     public class DeclarationLeaf : IASTLeaf
     {
-        public string Type;
+        public TypeSpecifierLeaf Type;
         public string Name;
         public IASTLeaf? Assignment;
 
-        public DeclarationLeaf(string type, string name, IASTLeaf? assignment)
+        public DeclarationLeaf(TypeSpecifierLeaf type, string name, IASTLeaf? assignment)
         {
             Type = type;
             Name = name;

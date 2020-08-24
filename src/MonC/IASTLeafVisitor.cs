@@ -22,5 +22,6 @@ namespace MonC
         void VisitAssignment(AssignmentLeaf leaf);
         void VisitEnum(EnumLeaf leaf);
         void VisitEnumValue(EnumValueLeaf leaf);
+        void VisitTypeSpecifier(TypeSpecifierLeaf leaf);
     }
 }

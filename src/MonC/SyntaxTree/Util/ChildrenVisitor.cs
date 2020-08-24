@@ -55,7 +55,12 @@ namespace MonC.SyntaxTree.Util
         {
             _visitor.VisitEnumValue(leaf);
         }
-        
+
+        public void VisitTypeSpecifier(TypeSpecifierLeaf leaf)
+        {
+            _visitor.VisitTypeSpecifier(leaf);
+        }
+
         public void VisitBody(BodyLeaf leaf)
         {
             _visitor.VisitBody(leaf);

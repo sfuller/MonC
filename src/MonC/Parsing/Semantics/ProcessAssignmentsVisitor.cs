@@ -47,7 +47,7 @@ namespace MonC.Parsing.Semantics
 
                 if (resultLeaf == null) {
                     DeclarationLeaf fakeDeclaration = new DeclarationLeaf(
-                        type: "int",
+                        type: new TypeSpecifierLeaf("int", PointerType.NotAPointer),
                         name: $"(undefined){identifier.Name}",
                         assignment: null
                     );
