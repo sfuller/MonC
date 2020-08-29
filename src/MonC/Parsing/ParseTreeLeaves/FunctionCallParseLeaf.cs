@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -12,8 +13,13 @@ namespace MonC.Parsing.ParseTreeLeaves
 
         public IASTLeaf[] GetArguments()
         {
-            // TODO: This sucks
+            // TODO: Construct Span once .net 2.1 targeting is available
             return new List<IASTLeaf>(_arguments).ToArray();
+        }
+
+        public IEnumerable<IASTLeaf> GetArgumentsEnumerable()
+        {
+            return _arguments.AsEnumerable();
         }
 
         public FunctionCallParseLeaf(IASTLeaf lhs, IEnumerable<IASTLeaf> arguments)

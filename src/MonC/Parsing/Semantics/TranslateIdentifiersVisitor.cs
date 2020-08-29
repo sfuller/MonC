@@ -74,7 +74,7 @@ namespace MonC.Parsing.Semantics
             } else if (function.Parameters.Length != leaf.ArgumentCount) {
                 _errors.Add(($"Expected {function.Parameters.Length} argument(s), got {leaf.ArgumentCount}", leaf));
             } else {
-                resultLeaf = new FunctionCallLeaf(function, leaf.GetArguments());    
+                resultLeaf = new FunctionCallLeaf(function, leaf.GetArgumentsEnumerable());    
             }
 
             if (resultLeaf == null) {

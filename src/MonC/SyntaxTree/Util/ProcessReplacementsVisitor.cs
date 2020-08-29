@@ -33,10 +33,7 @@ namespace MonC.SyntaxTree.Util
 
         public void VisitBody(BodyLeaf leaf)
         {
-            for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                IASTLeaf statementLeaf = leaf.GetStatement(i);
-                leaf.SetStatement(i, ProcessReplacement(statementLeaf));
-            }
+            leaf.ReplaceAllStatements(ProcessReplacement);
         }
 
         public void VisitDeclaration(DeclarationLeaf leaf)
@@ -59,9 +56,7 @@ namespace MonC.SyntaxTree.Util
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
         {
-            for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                leaf.SetArgument(i, ProcessReplacement(leaf.GetArgument(i)));
-            }
+            leaf.ReplaceAllArguments(ProcessReplacement);
         }
 
         public void VisitVariable(VariableLeaf leaf)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -19,6 +20,12 @@ namespace MonC.SyntaxTree
         public void Accept(IASTLeafVisitor visitor)
         {
             visitor.VisitFunctionCall(this);
+        }
+
+        public void ReplaceAllArguments(Func<IASTLeaf, IASTLeaf> replacer)
+        {
+            for (int i = 0, ilen = _arguments.Length; i < ilen; ++i)
+                _arguments[i] = replacer(_arguments[i]);
         }
 
         public IASTLeaf GetArgument(int index)

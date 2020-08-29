@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace MonC.SyntaxTree
@@ -18,6 +19,12 @@ namespace MonC.SyntaxTree
         public void Accept(IASTLeafVisitor visitor)
         {
             visitor.VisitBody(this);
+        }
+
+        public void ReplaceAllStatements(Func<IASTLeaf, IASTLeaf> replacer)
+        {
+            for (int i = 0, ilen = _statements.Count; i < ilen; ++i)
+                _statements[i] = replacer(_statements[i]);
         }
 
         public IASTLeaf GetStatement(int index)
