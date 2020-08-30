@@ -3,16 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
-using MonC.Codegen;
 using MonC.Debugging;
 using MonC.DotNetInterop;
 using MonC.Parsing;
 using MonC.VM;
 
 namespace MonC.Frontend
-{   
+{
     internal class Program
-    { 
+    {
         public static void Main(string[] args)
         {
             bool isInteractive = false;
@@ -21,6 +20,7 @@ namespace MonC.Frontend
             bool showIL = false;
             bool withDebugger = false;
             bool forceCodegen = false;
+            bool llvm = false;
             List<string> positionals = new List<string>();
             List<int> argsToPass = new List<int>();
             List<string> libraryNames = new List<string>();
@@ -28,7 +28,7 @@ namespace MonC.Frontend
             for (int i = 0, ilen = args.Length; i < ilen; ++i) {
                 string arg = args[i].Trim();
                 bool argFound = true;
-                
+
                 switch (arg) {
                     case "-i":
                         isInteractive = true;
@@ -60,6 +60,9 @@ namespace MonC.Frontend
                         // usable AST, even if there are semantic errors. Syntax errors? Not so much.
                         forceCodegen = true;
                         break;
+                    case "--llvm":
+                        llvm = true;
+                        break;
                     default:
                         argFound = false;
                         break;
@@ -76,11 +79,12 @@ namespace MonC.Frontend
 
             foreach (string libraryName in libraryNames) {
                 Assembly lib = Assembly.LoadFile(Path.GetFullPath(libraryName));
-                interopResolver.ImportAssembly(lib, BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static);
+                interopResolver.ImportAssembly(lib,
+                    BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static);
             }
 
-            ParseModule interopHeaderModule = interopResolver.CreateHeaderModule(); 
-            
+            ParseModule interopHeaderModule = interopResolver.CreateHeaderModule();
+
             string? filename = null;
 
             if (positionals.Count > 0) {
@@ -89,7 +93,7 @@ namespace MonC.Frontend
 
             Lexer lexer = new Lexer();
             List<Token> tokens = new List<Token>();
-            
+
             string input;
 
             if (isInteractive) {
@@ -98,7 +102,7 @@ namespace MonC.Frontend
                     Lex(input, lexer, tokens, verbose: showLex);
                     Lex("\n", lexer, tokens, verbose: showLex);
                     WritePrompt();
-                }    
+                }
             } else {
                 if (filename == null) {
                     string? line;
@@ -106,15 +110,16 @@ namespace MonC.Frontend
                     while ((line = Console.In.ReadLine()) != null) {
                         inputBuilder.AppendLine(line);
                     }
-                    input = inputBuilder.ToString();    
+
+                    input = inputBuilder.ToString();
                 } else {
                     filename = Path.GetFullPath(filename);
                     input = File.ReadAllText(filename);
                 }
-                
+
                 Lex(input, lexer, tokens, verbose: showLex);
             }
-            
+
             Parser parser = new Parser();
             List<ParseError> errors = new List<ParseError>();
             ParseModule module = parser.Parse(filename, tokens, interopHeaderModule, errors);
@@ -128,61 +133,74 @@ namespace MonC.Frontend
                 PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
                 for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
                     module.Functions[i].Accept(treeVisitor);
-                }    
+                }
             }
 
             if (errors.Count > 0 && !forceCodegen) {
                 Environment.Exit(1);
             }
-            
-            CodeGenerator generator = new CodeGenerator();
-            ILModule ilmodule = generator.Generate(module);
-            if (showIL) {
-                IntermediateLanguageWriter writer = new IntermediateLanguageWriter(Console.Out);
-                writer.Write(ilmodule);    
-            }
 
-            if (errors.Count > 0) {
-                Environment.Exit(1);
-            }
-
-            List<LinkError> linkErrors = new List<LinkError>();
-            Linker linker = new Linker(linkErrors);
-            linker.AddModule(ilmodule, export: true);
-
-            foreach (Binding binding in interopResolver.Bindings) {
-                linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation, export: false);
-            }
-            
-            VMModule vmModule = linker.Link();
-
-            if (linkErrors.Count > 0) {
-                foreach (LinkError error in linkErrors) {
-                    Console.Error.WriteLine($"Link error: {error.Message}");
+            if (!llvm) {
+                Codegen.CodeGenerator generator = new Codegen.CodeGenerator();
+                Codegen.ILModule ilmodule = generator.Generate(module);
+                if (showIL) {
+                    IntermediateLanguageWriter writer = new IntermediateLanguageWriter(Console.Out);
+                    writer.Write(ilmodule);
                 }
-                Environment.Exit(1);
-            }
-            
-            List<string> loadErrors = new List<string>();
-            if (!interopResolver.PrepareForExecution(vmModule, loadErrors)) {
-                foreach (string error in loadErrors) {
-                    Console.Error.WriteLine($"Load error: {error}");
+
+                if (errors.Count > 0) {
+                    Environment.Exit(1);
                 }
-                Environment.Exit(1);
-            }
 
-            VirtualMachine vm = new VirtualMachine();
+                List<LinkError> linkErrors = new List<LinkError>();
+                Linker linker = new Linker(linkErrors);
+                linker.AddModule(ilmodule, export: true);
 
-            if (withDebugger) {
-                Debugger debugger = new Debugger();
-                VMDebugger vmDebugger = new VMDebugger(debugger, vm);
-                vmDebugger.Break += () => HandleBreak(vm, debugger, vmDebugger);
-                vmDebugger.Pause();
-            }
+                foreach (Binding binding in interopResolver.Bindings) {
+                    linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation, export: false);
+                }
 
-            if (!vm.Call(vmModule, "main", argsToPass, success => HandleExecutionFinished(vm, success))) {
-                Console.Error.WriteLine("Failed to call main function.");
-                Environment.Exit(-1);
+                VMModule vmModule = linker.Link();
+
+                if (linkErrors.Count > 0) {
+                    foreach (LinkError error in linkErrors) {
+                        Console.Error.WriteLine($"Link error: {error.Message}");
+                    }
+
+                    Environment.Exit(1);
+                }
+
+                List<string> loadErrors = new List<string>();
+                if (!interopResolver.PrepareForExecution(vmModule, loadErrors)) {
+                    foreach (string error in loadErrors) {
+                        Console.Error.WriteLine($"Load error: {error}");
+                    }
+
+                    Environment.Exit(1);
+                }
+
+                VirtualMachine vm = new VirtualMachine();
+
+                if (withDebugger) {
+                    Debugger debugger = new Debugger();
+                    VMDebugger vmDebugger = new VMDebugger(debugger, vm);
+                    vmDebugger.Break += () => HandleBreak(vm, debugger, vmDebugger);
+                    vmDebugger.Pause();
+                }
+
+                if (!vm.Call(vmModule, "main", argsToPass, success => HandleExecutionFinished(vm, success))) {
+                    Console.Error.WriteLine("Failed to call main function.");
+                    Environment.Exit(-1);
+                }
+            } else {
+                using (LLVM.Context llvmContext = new LLVM.Context()) {
+                    using (LLVM.Module llvmModule =
+                        LLVM.CodeGenerator.Generate(llvmContext, filename ?? "<stdin>", module)) {
+                        if (showIL) {
+                            llvmModule.Dump();
+                        }
+                    }
+                }
             }
         }
 
@@ -191,6 +209,7 @@ namespace MonC.Frontend
             if (!success) {
                 Environment.Exit(-1);
             }
+
             Environment.Exit(vm.ReturnValue);
         }
 
@@ -208,14 +227,16 @@ namespace MonC.Frontend
             if (verbose) {
                 for (int i = 0, ilen = newTokens.Count; i < ilen; ++i) {
                     Console.WriteLine(newTokens[i]);
-                }    
+                }
             }
+
             tokens.AddRange(newTokens);
         }
 
         private static void HandleBreak(VirtualMachine vm, Debugger debugger, VMDebugger vmDebugger)
         {
-            while (DebuggerLoop(vm, debugger, vmDebugger)) {}
+            while (DebuggerLoop(vm, debugger, vmDebugger)) {
+            }
         }
 
         private static bool DebuggerLoop(VirtualMachine vm, Debugger debugger, VMDebugger vmDebugger)
@@ -234,49 +255,51 @@ namespace MonC.Frontend
             if (args.Length > 0) {
                 command = args[0];
             }
-            
+
             switch (command) {
-                case "reg": 
-                    {
-                        StackFrameInfo frame = vm.GetStackFrame(0);
-                        Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}, A: {vm.ReturnValue}");
-                        string? sourcePath;
-                        int lineNumber;
-                        if (debugger.GetSourceLocation(frame, out sourcePath, out lineNumber)) {
-                            Console.WriteLine($"File: {sourcePath}, Line: {lineNumber + 1}");
-                        }
+                case "reg": {
+                    StackFrameInfo frame = vm.GetStackFrame(0);
+                    Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}, A: {vm.ReturnValue}");
+                    string? sourcePath;
+                    int lineNumber;
+                    if (debugger.GetSourceLocation(frame, out sourcePath, out lineNumber)) {
+                        Console.WriteLine($"File: {sourcePath}, Line: {lineNumber + 1}");
                     }
+                }
                     break;
-                
+
                 case "read":
                     StackFrameMemory memory = vm.GetStackFrameMemory(0);
                     for (int i = 0, ilen = memory.Size; i < ilen; ++i) {
                         if (i % 4 == 0 && i != 0) {
                             Console.WriteLine();
                         }
+
                         Console.Write(memory.Read(i) + "\t");
                     }
+
                     Console.WriteLine();
                     break;
 
-                case "bp":
-                    {
-                        if (args.Length < 2) {
-                            Console.WriteLine("Not enough args");
-                            break;
-                        }
-                        int breakpointLineNumber;
-                        int.TryParse(args[1], out breakpointLineNumber);
-                        StackFrameInfo frame = vm.GetStackFrame(0);
-                        string? sourcePath;
-                        if (!debugger.GetSourceLocation(frame, out sourcePath, out _)) {
-                            sourcePath = "";
-                        }
-                        Console.WriteLine($"Assuming source file is {sourcePath}");
-                        debugger.SetBreakpoint(sourcePath!, breakpointLineNumber - 1);
-                    } 
+                case "bp": {
+                    if (args.Length < 2) {
+                        Console.WriteLine("Not enough args");
+                        break;
+                    }
+
+                    int breakpointLineNumber;
+                    int.TryParse(args[1], out breakpointLineNumber);
+                    StackFrameInfo frame = vm.GetStackFrame(0);
+                    string? sourcePath;
+                    if (!debugger.GetSourceLocation(frame, out sourcePath, out _)) {
+                        sourcePath = "";
+                    }
+
+                    Console.WriteLine($"Assuming source file is {sourcePath}");
+                    debugger.SetBreakpoint(sourcePath!, breakpointLineNumber - 1);
+                }
                     break;
-                
+
                 case "over":
                     return vmDebugger.StepOver();
 
@@ -295,7 +318,7 @@ namespace MonC.Frontend
 
                 case "":
                     break;
-                
+
                 default:
                     Console.Error.WriteLine($"moncdbg: unknown command {line}");
                     break;
