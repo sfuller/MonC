@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 namespace MonC.LLVM
 {
@@ -61,8 +62,11 @@ namespace MonC.LLVM
             DoDispose();
         }
 
-        public Module CreateModule(string name) => new Module(name, _context);
+        public Module CreateModule(string name, bool debugInfo) => new Module(name, _context, debugInfo);
         public Builder CreateBuilder() => new Builder(_context);
+
+        public Metadata DebugMetadataVersion =>
+            Metadata.FromValue(Value.ConstInt(Int32Type, CAPI.DI.LLVMDebugMetadataVersion(), false));
 
         public Type VoidType;
         public Type Int1Type;
@@ -105,8 +109,14 @@ namespace MonC.LLVM
             return ret;
         }
 
+        public BasicBlock CreateBasicBlock(string name = "") =>
+            new BasicBlock(CAPI.LLVMCreateBasicBlockInContext(_context, name));
+
         public BasicBlock AppendBasicBlock(Value fn, string name = "") =>
             new BasicBlock(CAPI.LLVMAppendBasicBlockInContext(_context, fn, name));
+
+        public BasicBlock InsertBasicBlock(BasicBlock before, string name = "") =>
+            new BasicBlock(CAPI.LLVMInsertBasicBlockInContext(_context, before, name));
 
         public Value MetadataAsValue(Metadata md) => new Value(CAPI.LLVMMetadataAsValue(_context, md));
 
@@ -144,7 +154,7 @@ namespace MonC.LLVM
         public static void Main(string[] args)
         {
             using (Context context = new Context()) {
-                using (Module module = context.CreateModule("MyModule")) {
+                using (Module module = context.CreateModule("MyModule", true)) {
                     Type funcType = context.FunctionType(context.Int32Type, new Type[] { }, false);
                     Value function = module.AddFunction("GetDragonsBankBalance", funcType);
 

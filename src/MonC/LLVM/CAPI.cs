@@ -96,8 +96,36 @@ namespace MonC.LLVM
         public static extern LLVMTypeRef LLVMIntTypeInContext(LLVMContextRef context, uint numBits);
 
         [DllImport("LLVM-C")]
+        public static extern uint LLVMGetIntTypeWidth(LLVMTypeRef integerTy);
+
+        [DllImport("LLVM-C")]
         public static extern LLVMTypeRef LLVMFunctionType(LLVMTypeRef returnType, LLVMTypeRef[] paramTypes,
             uint paramCount, bool isVarArg);
+
+        [DllImport("LLVM-C")]
+        public static extern bool LLVMIsFunctionVarArg(LLVMTypeRef functionTy);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMTypeRef LLVMGetReturnType(LLVMTypeRef functionTy);
+
+        [DllImport("LLVM-C")]
+        public static extern uint LLVMCountParamTypes(LLVMTypeRef functionTy);
+
+        [DllImport("LLVM-C")]
+        private static extern void LLVMGetParamTypes(LLVMTypeRef functionTy, IntPtr destOutBuf);
+
+        public static LLVMTypeRef[] LLVMGetParamTypes(LLVMTypeRef functionTy)
+        {
+            int elemSize = Marshal.SizeOf<LLVMTypeRef>();
+            int numParams = (int) LLVMCountParamTypes(functionTy);
+            IntPtr arrayBuf = Marshal.AllocHGlobal(elemSize * numParams);
+            LLVMGetParamTypes(functionTy, arrayBuf);
+            LLVMTypeRef[] paramsOut = new LLVMTypeRef[numParams];
+            for (int i = 0; i < numParams; ++i)
+                paramsOut[i] = Marshal.PtrToStructure<LLVMTypeRef>(arrayBuf + elemSize * i);
+            Marshal.FreeHGlobal(arrayBuf);
+            return paramsOut;
+        }
 
         [DllImport("LLVM-C")]
         public static extern LLVMTypeRef LLVMStructCreateNamed(LLVMContextRef context, string name);
@@ -111,6 +139,32 @@ namespace MonC.LLVM
 
         [DllImport("LLVM-C")]
         public static extern LLVMTypeRef LLVMPointerType(LLVMTypeRef elementType, uint addressSpace);
+
+        public enum LLVMTypeKind
+        {
+            Void,
+            Half,
+            Float,
+            Double,
+            X86_FP80,
+            FP128,
+            PPC_FP128,
+            Label,
+            Integer,
+            Function,
+            Struct,
+            Array,
+            Pointer,
+            Vector,
+            Metadata,
+            X86_MMX,
+            Token,
+            ScalableVector,
+            BFloat
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMTypeKind LLVMGetTypeKind(LLVMTypeRef ty);
 
 
         public struct LLVMValueRef
@@ -134,6 +188,26 @@ namespace MonC.LLVM
 
         [DllImport("LLVM-C")]
         public static extern void LLVMDisposeModule(LLVMModuleRef module);
+
+        public enum LLVMModuleFlagBehavior
+        {
+            Error,
+            Warning,
+            Require,
+            Override,
+            Append,
+            AppendUnique,
+        }
+
+        [DllImport("LLVM-C")]
+        private static extern void LLVMAddModuleFlag(LLVMModuleRef module, LLVMModuleFlagBehavior behavior, string key,
+            UIntPtr keyLen, LLVMMetadataRef val);
+
+        public static void LLVMAddModuleFlag(LLVMModuleRef module, LLVMModuleFlagBehavior behavior, string key,
+            LLVMMetadataRef val)
+        {
+            LLVMAddModuleFlag(module, behavior, key, (UIntPtr) key.Length, val);
+        }
 
         [DllImport("LLVM-C")]
         public static extern void LLVMDumpModule(LLVMModuleRef module);
@@ -161,8 +235,8 @@ namespace MonC.LLVM
             int elemSize = Marshal.SizeOf<LLVMValueRef>();
             int numParams = (int) LLVMCountParams(fn);
             IntPtr arrayBuf = Marshal.AllocHGlobal(elemSize * numParams);
-            LLVMValueRef[] paramsOut = new LLVMValueRef[numParams];
             LLVMGetParams(fn, arrayBuf);
+            LLVMValueRef[] paramsOut = new LLVMValueRef[numParams];
             for (int i = 0; i < numParams; ++i)
                 paramsOut[i] = Marshal.PtrToStructure<LLVMValueRef>(arrayBuf + elemSize * i);
             Marshal.FreeHGlobal(arrayBuf);
@@ -214,6 +288,45 @@ namespace MonC.LLVM
         [DllImport("LLVM-C")]
         public static extern void LLVMSetLinkage(LLVMValueRef global, LLVMLinkage linkage);
 
+        public enum LLVMValueKind
+        {
+            Argument,
+            BasicBlock,
+            MemoryUse,
+            MemoryDef,
+            MemoryPhi,
+
+            Function,
+            GlobalAlias,
+            GlobalIFunc,
+            GlobalVariable,
+            BlockAddress,
+            ConstantExpr,
+            ConstantArray,
+            ConstantStruct,
+            ConstantVector,
+
+            UndefValue,
+            ConstantAggregateZero,
+            ConstantDataArray,
+            ConstantDataVector,
+            ConstantInt,
+            ConstantFP,
+            ConstantPointerNull,
+            ConstantTokenNone,
+
+            MetadataAsValue,
+            InlineAsm,
+
+            Instruction,
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueKind LLVMGetValueKind(LLVMValueRef val);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMTypeRef LLVMTypeOf(LLVMValueRef val);
+
 
         public struct LLVMBasicBlockRef
         {
@@ -222,8 +335,19 @@ namespace MonC.LLVM
         }
 
         [DllImport("LLVM-C")]
+        public static extern LLVMBasicBlockRef LLVMCreateBasicBlockInContext(LLVMContextRef context, string name = "");
+
+        [DllImport("LLVM-C")]
         public static extern LLVMBasicBlockRef LLVMAppendBasicBlockInContext(LLVMContextRef context, LLVMValueRef fn,
             string name = "");
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMBasicBlockRef LLVMInsertBasicBlockInContext(LLVMContextRef context,
+            LLVMBasicBlockRef bb, string name = "");
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInsertExistingBasicBlockAfterInsertBlock(LLVMBuilderRef builder,
+            LLVMBasicBlockRef bb);
 
         [DllImport("LLVM-C")]
         public static extern LLVMValueRef LLVMGetBasicBlockParent(LLVMBasicBlockRef basicBlock);
@@ -242,8 +366,8 @@ namespace MonC.LLVM
             int elemSize = Marshal.SizeOf<LLVMBasicBlockRef>();
             int numBasicBlocks = (int) LLVMCountBasicBlocks(fn);
             IntPtr arrayBuf = Marshal.AllocHGlobal(elemSize * numBasicBlocks);
-            LLVMBasicBlockRef[] basicBlocks = new LLVMBasicBlockRef[numBasicBlocks];
             LLVMGetBasicBlocks(fn, arrayBuf);
+            LLVMBasicBlockRef[] basicBlocks = new LLVMBasicBlockRef[numBasicBlocks];
             for (int i = 0; i < numBasicBlocks; ++i)
                 basicBlocks[i] = Marshal.PtrToStructure<LLVMBasicBlockRef>(arrayBuf + elemSize * i);
             Marshal.FreeHGlobal(arrayBuf);
@@ -453,6 +577,77 @@ namespace MonC.LLVM
         [DllImport("LLVM-C")]
         public static extern LLVMValueRef LLVMBuildNot(LLVMBuilderRef builder, LLVMValueRef v, string name);
 
+        public enum LLVMIntPredicate
+        {
+            IntEQ = 32,
+            IntNE,
+            IntUGT,
+            IntUGE,
+            IntULT,
+            IntULE,
+            IntSGT,
+            IntSGE,
+            IntSLT,
+            IntSLE
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildICmp(LLVMBuilderRef builder, LLVMIntPredicate op, LLVMValueRef lhs,
+            LLVMValueRef rhs, string name);
+
+        public enum LLVMRealPredicate
+        {
+            RealPredicateFalse,
+            RealOEQ,
+            RealOGT,
+            RealOGE,
+            RealOLT,
+            RealOLE,
+            RealONE,
+            RealORD,
+            RealUNO,
+            RealUEQ,
+            RealUGT,
+            RealUGE,
+            RealULT,
+            RealULE,
+            RealUNE,
+            RealPredicateTrue
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildFCmp(LLVMBuilderRef builder, LLVMRealPredicate op, LLVMValueRef lhs,
+            LLVMValueRef rhs, string name);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildPhi(LLVMBuilderRef builder, LLVMTypeRef ty, string name);
+
+        [DllImport("LLVM-C")]
+        private static extern void LLVMAddIncoming(LLVMValueRef phiNode, LLVMValueRef[] incomingValues,
+            LLVMBasicBlockRef[] incomingBlocks, uint count);
+
+        public static void LLVMAddIncoming(LLVMValueRef phiNode, LLVMValueRef[] incomingValues,
+            LLVMBasicBlockRef[] incomingBlocks)
+        {
+            if (incomingValues.Length != incomingBlocks.Length)
+                throw new InvalidOperationException("values and blocks array must be the same length");
+            LLVMAddIncoming(phiNode, incomingValues, incomingBlocks, (uint) incomingValues.Length);
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildAlloca(LLVMBuilderRef builder, LLVMTypeRef ty, string name);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildArrayAlloca(LLVMBuilderRef builder, LLVMTypeRef ty, LLVMValueRef val,
+            string name);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildLoad2(LLVMBuilderRef builder, LLVMTypeRef ty, LLVMValueRef ptr,
+            string name);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildStore(LLVMBuilderRef builder, LLVMValueRef val, LLVMValueRef ptr);
+
         [DllImport("LLVM-C")]
         public static extern LLVMBasicBlockRef LLVMGetInstructionParent(LLVMValueRef inst);
 
@@ -470,6 +665,8 @@ namespace MonC.LLVM
 
         public enum LLVMOpcode
         {
+            Invalid = 0,
+
             /* Terminator Instructions */
             Ret = 1,
             Br = 2,
@@ -637,8 +834,8 @@ namespace MonC.LLVM
             int elemSize = Marshal.SizeOf<LLVMValueRef>();
             int numOperands = (int) LLVMGetMDNodeNumOperands(v);
             IntPtr arrayBuf = Marshal.AllocHGlobal(elemSize * numOperands);
-            LLVMValueRef[] operands = new LLVMValueRef[numOperands];
             LLVMGetMDNodeOperands(v, arrayBuf);
+            LLVMValueRef[] operands = new LLVMValueRef[numOperands];
             for (int i = 0; i < numOperands; ++i)
                 operands[i] = Marshal.PtrToStructure<LLVMValueRef>(arrayBuf + elemSize * i);
             Marshal.FreeHGlobal(arrayBuf);
@@ -648,6 +845,12 @@ namespace MonC.LLVM
         [DllImport("LLVM-C")]
         public static extern void LLVMMetadataReplaceAllUsesWith(LLVMMetadataRef tempTargetMetadata,
             LLVMMetadataRef replacement);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMSetCurrentDebugLocation2(LLVMBuilderRef builder, LLVMMetadataRef loc);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMSetMetadata(LLVMValueRef val, uint kindId, LLVMValueRef node);
 
 
         public static class DI
@@ -666,6 +869,9 @@ namespace MonC.LLVM
 
             [DllImport("LLVM-C")]
             public static extern void LLVMDIBuilderFinalize(LLVMDIBuilderRef builder);
+
+            [DllImport("LLVM-C")]
+            public static extern uint LLVMDebugMetadataVersion();
 
             public enum LLVMDWARFSourceLanguage
             {
@@ -960,6 +1166,19 @@ namespace MonC.LLVM
             public static LLVMMetadataRef LLVMDIBuilderCreateExpressionPublic(LLVMDIBuilderRef builder, long[] addr)
             {
                 return LLVMDIBuilderCreateExpression(builder, addr, (UIntPtr) addr.Length);
+            }
+
+            [DllImport("LLVM-C")]
+            private static extern LLVMMetadataRef LLVMDIBuilderCreateAutoVariable(LLVMDIBuilderRef builder,
+                LLVMMetadataRef scope, string name, UIntPtr nameLen, LLVMMetadataRef file, uint lineNo,
+                LLVMMetadataRef ty, bool alwaysPreserve, LLVMDIFlags flags, uint alignInBits);
+
+            public static LLVMMetadataRef LLVMDIBuilderCreateAutoVariablePublic(LLVMDIBuilderRef builder,
+                LLVMMetadataRef scope, string name, LLVMMetadataRef file, uint lineNo, LLVMMetadataRef ty,
+                bool alwaysPreserve, LLVMDIFlags flags, uint alignInBits)
+            {
+                return LLVMDIBuilderCreateAutoVariable(builder, scope, name, (UIntPtr) name.Length, file, lineNo, ty,
+                    alwaysPreserve, flags, alignInBits);
             }
 
             [DllImport("LLVM-C")]

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text.RegularExpressions;
 
 namespace MonC.LLVM
 {
@@ -48,6 +49,11 @@ namespace MonC.LLVM
         public BasicBlock GetInsertBlock()
         {
             return new BasicBlock(CAPI.LLVMGetInsertBlock(_builder));
+        }
+
+        public void InsertExistingBasicBlockAfterInsertBlock(BasicBlock bb)
+        {
+            CAPI.LLVMInsertExistingBasicBlockAfterInsertBlock(_builder, bb);
         }
 
         public void ClearInsertionPosition()
@@ -177,5 +183,28 @@ namespace MonC.LLVM
 
         public Value BuildNot(Value v, string name = "") =>
             new Value(CAPI.LLVMBuildNot(_builder, v, name));
+
+        public Value BuildICmp(CAPI.LLVMIntPredicate op, Value lhs, Value rhs, string name = "") =>
+            new Value(CAPI.LLVMBuildICmp(_builder, op, lhs, rhs, name));
+        
+        public Value BuildFCmp(CAPI.LLVMRealPredicate op, Value lhs, Value rhs, string name = "") =>
+            new Value(CAPI.LLVMBuildFCmp(_builder, op, lhs, rhs, name));
+
+        public Value BuildPhi(Type ty, string name = "") => new Value(CAPI.LLVMBuildPhi(_builder, ty, name));
+
+        public Value BuildAlloca(Type ty, string name = "") => new Value(CAPI.LLVMBuildAlloca(_builder, ty, name));
+
+        public Value BuildArrayAlloca(Type ty, Value val, string name = "") =>
+            new Value(CAPI.LLVMBuildArrayAlloca(_builder, ty, val, name));
+
+        public Value BuildLoad(Type ty, Value ptr, string name = "") =>
+            new Value(CAPI.LLVMBuildLoad2(_builder, ty, ptr, name));
+
+        public Value BuildStore(Value val, Value ptr) => new Value(CAPI.LLVMBuildStore(_builder, val, ptr));
+
+        public void SetCurrentDebugLocation(Metadata loc)
+        {
+            CAPI.LLVMSetCurrentDebugLocation2(_builder, loc);
+        }
     }
 }

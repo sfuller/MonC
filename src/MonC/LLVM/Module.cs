@@ -5,13 +5,15 @@ namespace MonC.LLVM
     public sealed class Module : IDisposable
     {
         private CAPI.LLVMModuleRef _module;
-        public DIBuilder DiBuilder { get; }
+        public DIBuilder? DiBuilder { get; }
         public bool IsValid => _module.IsValid;
 
-        internal Module(string name, CAPI.LLVMContextRef context)
+        internal Module(string name, CAPI.LLVMContextRef context, bool debugInfo)
         {
             _module = CAPI.LLVMModuleCreateWithNameInContext(name, context);
-            DiBuilder = new DIBuilder(_module);
+            if (debugInfo) {
+                DiBuilder = new DIBuilder(_module);
+            }
         }
 
         public void Dispose()
@@ -23,8 +25,9 @@ namespace MonC.LLVM
         private void DoDispose(bool disposing)
         {
             if (_module.IsValid) {
-                if (disposing)
-                    DiBuilder.Dispose();
+                if (disposing) {
+                    DiBuilder?.Dispose();
+                }
                 CAPI.LLVMDisposeModule(_module);
                 _module = new CAPI.LLVMModuleRef();
             }
@@ -33,6 +36,11 @@ namespace MonC.LLVM
         ~Module()
         {
             DoDispose(false);
+        }
+
+        public void AddModuleFlag(CAPI.LLVMModuleFlagBehavior behavior, string key, Metadata val)
+        {
+            CAPI.LLVMAddModuleFlag(_module, behavior, key, val);
         }
 
         public Value AddFunction(string name, Type functionTy) =>

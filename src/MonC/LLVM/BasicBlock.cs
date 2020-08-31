@@ -5,6 +5,8 @@
         private CAPI.LLVMBasicBlockRef _basicBlock;
         public bool IsValid => _basicBlock.IsValid;
 
+        public static BasicBlock Null => new BasicBlock();
+
         internal BasicBlock(CAPI.LLVMBasicBlockRef basicBlock)
         {
             _basicBlock = basicBlock;

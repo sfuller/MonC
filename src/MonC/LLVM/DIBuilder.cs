@@ -103,6 +103,11 @@ namespace MonC.LLVM
 
         public Metadata CreateExpression() => CreateExpression(new long[] { });
 
+        public Metadata CreateAutoVariable(Metadata scope, string name, Metadata file, uint lineNo, Metadata ty,
+            bool alwaysPreserve, CAPI.DI.LLVMDIFlags flags, uint alignInBits) =>
+            new Metadata(CAPI.DI.LLVMDIBuilderCreateAutoVariablePublic(_builder, scope, name, file, lineNo, ty,
+                alwaysPreserve, flags, alignInBits));
+
         public Metadata CreateParameterVariable(Metadata scope, string name, uint argNo, Metadata file, uint lineNo,
             Metadata ty, bool alwaysPreserve, CAPI.DI.LLVMDIFlags flags) =>
             new Metadata(CAPI.DI.LLVMDIBuilderCreateParameterVariablePublic(_builder, scope, name, argNo, file, lineNo,

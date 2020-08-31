@@ -195,7 +195,7 @@ namespace MonC.Frontend
             } else {
                 using (LLVM.Context llvmContext = new LLVM.Context()) {
                     using (LLVM.Module llvmModule =
-                        LLVM.CodeGenerator.Generate(llvmContext, filename ?? "<stdin>", module)) {
+                        LLVM.CodeGenerator.Generate(llvmContext, filename ?? "<stdin>", module, true)) {
                         if (showIL) {
                             llvmModule.Dump();
                         }
