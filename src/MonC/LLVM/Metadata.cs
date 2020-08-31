@@ -7,17 +7,13 @@
 
         public static Metadata Null => new Metadata();
 
-        internal Metadata(CAPI.LLVMMetadataRef metadata)
-        {
-            _metadata = metadata;
-        }
+        internal Metadata(CAPI.LLVMMetadataRef metadata) => _metadata = metadata;
 
-        public static Metadata FromValue(Value val)
-        {
-            return new Metadata(CAPI.LLVMValueAsMetadata(val));
-        }
+        public static Metadata FromValue(Value val) => CAPI.LLVMValueAsMetadata(val);
 
         public static implicit operator CAPI.LLVMMetadataRef(Metadata metadata) => metadata._metadata;
+        public static implicit operator Metadata(CAPI.LLVMMetadataRef metadata) => new Metadata(metadata);
+
 
         public ulong TypeSizeInBits => CAPI.DI.LLVMDITypeGetSizeInBits(_metadata);
         public ulong TypeOffsetInBits => CAPI.DI.LLVMDITypeGetOffsetInBits(_metadata);

@@ -28,15 +28,9 @@ namespace MonC.LLVM
             }
         }
 
-        ~DIBuilder()
-        {
-            DoDispose();
-        }
+        ~DIBuilder() => DoDispose();
 
-        public void BuilderFinalize()
-        {
-            CAPI.DI.LLVMDIBuilderFinalize(_builder);
-        }
+        public void BuilderFinalize() => CAPI.DI.LLVMDIBuilderFinalize(_builder);
 
         public Metadata CreateCompileUnit(
             CAPI.DI.LLVMDWARFSourceLanguage lang, Metadata fileRef, string producer, bool isOptimized, string flags,
@@ -115,11 +109,11 @@ namespace MonC.LLVM
 
         public Value InsertDeclareAtEnd(Value storage, Metadata varInfo, Metadata expr, Metadata debugLoc,
             BasicBlock block) =>
-            new Value(CAPI.DI.LLVMDIBuilderInsertDeclareAtEnd(_builder, storage, varInfo, expr, debugLoc, block));
+            CAPI.DI.LLVMDIBuilderInsertDeclareAtEnd(_builder, storage, varInfo, expr, debugLoc, block);
 
         public Value InsertDbgValueAtEnd(Value val, Metadata varInfo, Metadata expr, Metadata debugLoc,
             BasicBlock block) =>
-            new Value(CAPI.DI.LLVMDIBuilderInsertDbgValueAtEnd(_builder, val, varInfo, expr, debugLoc, block));
+            CAPI.DI.LLVMDIBuilderInsertDbgValueAtEnd(_builder, val, varInfo, expr, debugLoc, block);
 
 
         private Dictionary<string, Metadata> _udts = new Dictionary<string, Metadata>();

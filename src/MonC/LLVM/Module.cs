@@ -28,27 +28,19 @@ namespace MonC.LLVM
                 if (disposing) {
                     DiBuilder?.Dispose();
                 }
+
                 CAPI.LLVMDisposeModule(_module);
                 _module = new CAPI.LLVMModuleRef();
             }
         }
 
-        ~Module()
-        {
-            DoDispose(false);
-        }
+        ~Module() => DoDispose(false);
 
-        public void AddModuleFlag(CAPI.LLVMModuleFlagBehavior behavior, string key, Metadata val)
-        {
+        public void AddModuleFlag(CAPI.LLVMModuleFlagBehavior behavior, string key, Metadata val) =>
             CAPI.LLVMAddModuleFlag(_module, behavior, key, val);
-        }
 
-        public Value AddFunction(string name, Type functionTy) =>
-            new Value(CAPI.LLVMAddFunction(_module, name, functionTy));
-        
-        public void Dump()
-        {
-            CAPI.LLVMDumpModule(_module);
-        }
+        public Value AddFunction(string name, Type functionTy) => CAPI.LLVMAddFunction(_module, name, functionTy);
+
+        public void Dump() => CAPI.LLVMDumpModule(_module);
     }
 }

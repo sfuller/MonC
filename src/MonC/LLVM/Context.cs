@@ -27,17 +27,15 @@ namespace MonC.LLVM
         public Context()
         {
             _context = CAPI.LLVMContextCreate();
-            VoidType = new Type(CAPI.LLVMVoidTypeInContext(_context));
-            Int1Type = new Type(CAPI.LLVMInt1TypeInContext(_context));
-            Int8Type = new Type(CAPI.LLVMInt8TypeInContext(_context));
-            Int16Type = new Type(CAPI.LLVMInt16TypeInContext(_context));
-            Int32Type = new Type(CAPI.LLVMInt32TypeInContext(_context));
-            Int64Type = new Type(CAPI.LLVMInt64TypeInContext(_context));
-            Int128Type = new Type(CAPI.LLVMInt128TypeInContext(_context));
+            VoidType = CAPI.LLVMVoidTypeInContext(_context);
+            Int1Type = CAPI.LLVMInt1TypeInContext(_context);
+            Int8Type = CAPI.LLVMInt8TypeInContext(_context);
+            Int16Type = CAPI.LLVMInt16TypeInContext(_context);
+            Int32Type = CAPI.LLVMInt32TypeInContext(_context);
+            Int64Type = CAPI.LLVMInt64TypeInContext(_context);
+            Int128Type = CAPI.LLVMInt128TypeInContext(_context);
             SetDiagnosticHandler(diagnosticInfo =>
-            {
-                Console.WriteLine($"LLVM {diagnosticInfo.Severity}: {diagnosticInfo.DescriptionString}");
-            });
+                Console.WriteLine($"LLVM {diagnosticInfo.Severity}: {diagnosticInfo.DescriptionString}"));
         }
 
         public void Dispose()
@@ -57,10 +55,7 @@ namespace MonC.LLVM
             }
         }
 
-        ~Context()
-        {
-            DoDispose();
-        }
+        ~Context() => DoDispose();
 
         public Module CreateModule(string name, bool debugInfo) => new Module(name, _context, debugInfo);
         public Builder CreateBuilder() => new Builder(_context);
@@ -75,11 +70,11 @@ namespace MonC.LLVM
         public Type Int32Type;
         public Type Int64Type;
         public Type Int128Type;
-        public Type IntType(uint numBits) => new Type(CAPI.LLVMIntTypeInContext(_context, numBits));
+        public Type IntType(uint numBits) => CAPI.LLVMIntTypeInContext(_context, numBits);
 
         public Type FunctionType(Type returnType, Type[] paramTypes,
-            bool isVarArg) => new Type(CAPI.LLVMFunctionType(returnType,
-            Array.ConvertAll(paramTypes, tp => (CAPI.LLVMTypeRef) tp), (uint) paramTypes.Length, isVarArg));
+            bool isVarArg) => CAPI.LLVMFunctionType(returnType,
+            Array.ConvertAll(paramTypes, tp => (CAPI.LLVMTypeRef) tp), (uint) paramTypes.Length, isVarArg);
 
         public Metadata CreateDebugLocation(uint line, uint column, Metadata scope, Metadata inlinedAt) =>
             new Metadata(CAPI.DI.LLVMDIBuilderCreateDebugLocation(_context, line, column, scope, inlinedAt));
@@ -101,24 +96,22 @@ namespace MonC.LLVM
         {
             if (_udts.ContainsKey(name))
                 throw new InvalidOperationException($"struct '{name}' is already defined");
-            CAPI.LLVMTypeRef type = CAPI.LLVMStructCreateNamed(_context, name);
+            Type type = CAPI.LLVMStructCreateNamed(_context, name);
             CAPI.LLVMStructSetBody(type, Array.ConvertAll(elementTypes, tp => (CAPI.LLVMTypeRef) tp),
                 (uint) elementTypes.Length, packed);
-            Type ret = new Type(type);
-            _udts.Add(name, ret);
-            return ret;
+            _udts.Add(name, type);
+            return type;
         }
 
-        public BasicBlock CreateBasicBlock(string name = "") =>
-            new BasicBlock(CAPI.LLVMCreateBasicBlockInContext(_context, name));
+        public BasicBlock CreateBasicBlock(string name = "") => CAPI.LLVMCreateBasicBlockInContext(_context, name);
 
         public BasicBlock AppendBasicBlock(Value fn, string name = "") =>
-            new BasicBlock(CAPI.LLVMAppendBasicBlockInContext(_context, fn, name));
+            CAPI.LLVMAppendBasicBlockInContext(_context, fn, name);
 
         public BasicBlock InsertBasicBlock(BasicBlock before, string name = "") =>
-            new BasicBlock(CAPI.LLVMInsertBasicBlockInContext(_context, before, name));
+            CAPI.LLVMInsertBasicBlockInContext(_context, before, name);
 
-        public Value MetadataAsValue(Metadata md) => new Value(CAPI.LLVMMetadataAsValue(_context, md));
+        public Value MetadataAsValue(Metadata md) => CAPI.LLVMMetadataAsValue(_context, md);
 
         public struct DiagnosticInfo
         {
