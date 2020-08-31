@@ -5,8 +5,8 @@ namespace MonC.LLVM
 {
     public static class CAPI
     {
-        // Suppress warnings about InternalPtr fields being unused
-#pragma warning disable 169, 649
+        // Suppress warnings about InternalPtr fields not being assigned to
+#pragma warning disable 649
 
         public struct LLVMContextRef
         {
@@ -356,7 +356,7 @@ namespace MonC.LLVM
         [DllImport("LLVM-C")]
         private static extern void LLVMGetBasicBlocks(LLVMValueRef fn, IntPtr basicBlocksOutBuf);
 
-        public static LLVMBasicBlockRef[] LLVMGetBasicBlocksPublic(LLVMValueRef fn)
+        public static LLVMBasicBlockRef[] LLVMGetBasicBlocks(LLVMValueRef fn)
         {
             int elemSize = Marshal.SizeOf<LLVMBasicBlockRef>();
             int numBasicBlocks = (int) LLVMCountBasicBlocks(fn);
@@ -762,7 +762,7 @@ namespace MonC.LLVM
         private static extern bool LLVMCreateMemoryBufferWithContentsOfFile(string path,
             out LLVMMemoryBufferRef outMemBuf, out IntPtr outMessage);
 
-        public static bool LLVMCreateMemoryBufferWithContentsOfFilePublic(string path,
+        public static bool LLVMCreateMemoryBufferWithContentsOfFile(string path,
             out LLVMMemoryBufferRef outMemBuf, out string? outMessage)
         {
             bool ret = LLVMCreateMemoryBufferWithContentsOfFile(path, out outMemBuf, out IntPtr msgPtr);
@@ -787,14 +787,14 @@ namespace MonC.LLVM
         [DllImport("LLVM-C")]
         private static extern LLVMMetadataRef LLVMMDStringInContext2(LLVMContextRef c, string str, UIntPtr slen);
 
-        public static LLVMMetadataRef LLVMMDStringInContext2Public(LLVMContextRef c, string str) =>
+        public static LLVMMetadataRef LLVMMDStringInContext2(LLVMContextRef c, string str) =>
             LLVMMDStringInContext2(c, str, (UIntPtr) str.Length);
 
         [DllImport("LLVM-C")]
         private static extern LLVMMetadataRef LLVMMDNodeInContext2(LLVMContextRef c, LLVMMetadataRef[] mds,
             UIntPtr count);
 
-        public static LLVMMetadataRef LLVMMDNodeInContext2Public(LLVMContextRef c, LLVMMetadataRef[] mds) =>
+        public static LLVMMetadataRef LLVMMDNodeInContext2(LLVMContextRef c, LLVMMetadataRef[] mds) =>
             LLVMMDNodeInContext2(c, mds, (UIntPtr) mds.Length);
 
         [DllImport("LLVM-C")]
@@ -806,7 +806,7 @@ namespace MonC.LLVM
         [DllImport("LLVM-C")]
         private static extern IntPtr LLVMGetMDString(LLVMValueRef v, out uint length);
 
-        public static string LLVMGetMDStringPublic(LLVMValueRef v)
+        public static string LLVMGetMDString(LLVMValueRef v)
         {
             IntPtr strPtr = LLVMGetMDString(v, out uint length);
             return Marshal.PtrToStringAnsi(strPtr, (int) length);
@@ -818,7 +818,7 @@ namespace MonC.LLVM
         [DllImport("LLVM-C")]
         private static extern void LLVMGetMDNodeOperands(LLVMValueRef v, IntPtr valueOutBuf);
 
-        public static LLVMValueRef[] LLVMGetMDNodeOperandsPublic(LLVMValueRef v)
+        public static LLVMValueRef[] LLVMGetMDNodeOperands(LLVMValueRef v)
         {
             int elemSize = Marshal.SizeOf<LLVMValueRef>();
             int numOperands = (int) LLVMGetMDNodeNumOperands(v);
@@ -928,7 +928,7 @@ namespace MonC.LLVM
                 UIntPtr splitNameLen, LLVMDWARFEmissionKind kind, uint dwoId, bool splitDebugInlining,
                 bool debugInfoForProfiling, string sysRoot, UIntPtr sysRootLen, string sdk, UIntPtr sdkLen);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateCompileUnitPublic(LLVMDIBuilderRef builder,
+            public static LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef builder,
                 LLVMDWARFSourceLanguage lang, LLVMMetadataRef fileRef, string producer, bool isOptimized, string flags,
                 uint runtimeVer, string splitName, LLVMDWARFEmissionKind kind, uint dwoId, bool splitDebugInlining,
                 bool debugInfoForProfiling, string sysRoot, string sdk) =>
@@ -1033,7 +1033,7 @@ namespace MonC.LLVM
             private static extern LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef builder, string name,
                 UIntPtr nameLen, ulong sizeInBits, LLVMDWARFTypeEncoding encoding, LLVMDIFlags flags);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateBasicTypePublic(LLVMDIBuilderRef builder, string name,
+            public static LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef builder, string name,
                 ulong sizeInBits, LLVMDWARFTypeEncoding encoding, LLVMDIFlags flags) =>
                 LLVMDIBuilderCreateBasicType(builder, name, (UIntPtr) name.Length, sizeInBits, encoding, flags);
 
@@ -1044,7 +1044,7 @@ namespace MonC.LLVM
                 LLVMMetadataRef[] elements, uint numElements, uint runTimeLang, LLVMMetadataRef vTableHolder,
                 string uniqueId, UIntPtr uniqueIdLen);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateStructTypePublic(LLVMDIBuilderRef builder,
+            public static LLVMMetadataRef LLVMDIBuilderCreateStructType(LLVMDIBuilderRef builder,
                 LLVMMetadataRef scope, string name, LLVMMetadataRef file, uint lineNumber, ulong sizeInBits,
                 uint alignInBits, LLVMDIFlags flags, LLVMMetadataRef derivedFrom, LLVMMetadataRef[] elements,
                 uint runTimeLang, LLVMMetadataRef vTableHolder, string uniqueId) =>
@@ -1056,7 +1056,7 @@ namespace MonC.LLVM
             private static extern LLVMMetadataRef LLVMDIBuilderCreateSubroutineType(LLVMDIBuilderRef builder,
                 LLVMMetadataRef file, LLVMMetadataRef[] parameterTypes, uint numParameterTypes, LLVMDIFlags flags);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateSubroutineTypePublic(LLVMDIBuilderRef builder,
+            public static LLVMMetadataRef LLVMDIBuilderCreateSubroutineType(LLVMDIBuilderRef builder,
                 LLVMMetadataRef file, LLVMMetadataRef[] parameterTypes, LLVMDIFlags flags) =>
                 LLVMDIBuilderCreateSubroutineType(builder, file, parameterTypes, (uint) parameterTypes.Length,
                     flags);
@@ -1067,7 +1067,7 @@ namespace MonC.LLVM
                 uint runtimeLang, ulong sizeInBits, uint alignInBits, LLVMDIFlags flags, string uniqueIdentifier,
                 UIntPtr uniqueIdentifierLen);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateReplaceableCompositeTypePublic(LLVMDIBuilderRef builder,
+            public static LLVMMetadataRef LLVMDIBuilderCreateReplaceableCompositeType(LLVMDIBuilderRef builder,
                 LLVMDWARFTag tag, string name, LLVMMetadataRef scope, LLVMMetadataRef file, uint line, uint runtimeLang,
                 ulong sizeInBits, uint alignInBits, LLVMDIFlags flags, string uniqueIdentifier) =>
                 LLVMDIBuilderCreateReplaceableCompositeType(builder, tag, name, (UIntPtr) name.Length, scope,
@@ -1079,7 +1079,7 @@ namespace MonC.LLVM
                 LLVMMetadataRef pointeeTy, ulong sizeInBits, uint alignInBits, uint addressSpace, string name,
                 UIntPtr nameLen);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreatePointerTypePublic(LLVMDIBuilderRef builder,
+            public static LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef builder,
                 LLVMMetadataRef pointeeTy, ulong sizeInBits, uint alignInBits, uint addressSpace, string name) =>
                 LLVMDIBuilderCreatePointerType(builder, pointeeTy, sizeInBits, alignInBits, addressSpace, name,
                     (UIntPtr) name.Length);
@@ -1088,7 +1088,7 @@ namespace MonC.LLVM
             private static extern LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef builder, string filename,
                 UIntPtr filenameLen, string directory, UIntPtr directoryLen);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateFilePublic(LLVMDIBuilderRef builder, string filename,
+            public static LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef builder, string filename,
                 string directory) =>
                 LLVMDIBuilderCreateFile(builder, filename, (UIntPtr) filename.Length, directory,
                     (UIntPtr) directory.Length);
@@ -1099,7 +1099,7 @@ namespace MonC.LLVM
                 LLVMMetadataRef file, uint lineNo, LLVMMetadataRef ty, bool isLocalToUnit, bool isDefinition,
                 uint scopeLine, LLVMDIFlags flags, bool isOptimized);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateFunctionPublic(LLVMDIBuilderRef builder,
+            public static LLVMMetadataRef LLVMDIBuilderCreateFunction(LLVMDIBuilderRef builder,
                 LLVMMetadataRef scope, string name, string linkageName, LLVMMetadataRef file, uint lineNo,
                 LLVMMetadataRef ty, bool isLocalToUnit, bool isDefinition, uint scopeLine, LLVMDIFlags flags,
                 bool isOptimized) =>
@@ -1111,7 +1111,7 @@ namespace MonC.LLVM
             private static extern LLVMMetadataRef LLVMDIBuilderCreateEnumerator(LLVMDIBuilderRef builder, string name,
                 UIntPtr nameLen, long value, bool isUnsigned);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateEnumeratorPublic(LLVMDIBuilderRef builder, string name,
+            public static LLVMMetadataRef LLVMDIBuilderCreateEnumerator(LLVMDIBuilderRef builder, string name,
                 long value, bool isUnsigned) =>
                 LLVMDIBuilderCreateEnumerator(builder, name, (UIntPtr) name.Length, value, isUnsigned);
 
@@ -1121,7 +1121,7 @@ namespace MonC.LLVM
                 ulong sizeInBits, uint alignInBits, LLVMMetadataRef[] elements, uint numElements,
                 LLVMMetadataRef classTy);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateEnumerationTypePublic(LLVMDIBuilderRef builder,
+            public static LLVMMetadataRef LLVMDIBuilderCreateEnumerationType(LLVMDIBuilderRef builder,
                 LLVMMetadataRef scope, string name, LLVMMetadataRef file, uint lineNumber, ulong sizeInBits,
                 uint alignInBits, LLVMMetadataRef[] elements, LLVMMetadataRef classTy) =>
                 LLVMDIBuilderCreateEnumerationType(builder, scope, name, (UIntPtr) name.Length, file, lineNumber,
@@ -1131,7 +1131,7 @@ namespace MonC.LLVM
             private static extern LLVMMetadataRef LLVMDIBuilderCreateExpression(LLVMDIBuilderRef builder, long[] addr,
                 UIntPtr length);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateExpressionPublic(LLVMDIBuilderRef builder, long[] addr) =>
+            public static LLVMMetadataRef LLVMDIBuilderCreateExpression(LLVMDIBuilderRef builder, long[] addr) =>
                 LLVMDIBuilderCreateExpression(builder, addr, (UIntPtr) addr.Length);
 
             [DllImport("LLVM-C")]
@@ -1139,7 +1139,7 @@ namespace MonC.LLVM
                 LLVMMetadataRef scope, string name, UIntPtr nameLen, LLVMMetadataRef file, uint lineNo,
                 LLVMMetadataRef ty, bool alwaysPreserve, LLVMDIFlags flags, uint alignInBits);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateAutoVariablePublic(LLVMDIBuilderRef builder,
+            public static LLVMMetadataRef LLVMDIBuilderCreateAutoVariable(LLVMDIBuilderRef builder,
                 LLVMMetadataRef scope, string name, LLVMMetadataRef file, uint lineNo, LLVMMetadataRef ty,
                 bool alwaysPreserve, LLVMDIFlags flags, uint alignInBits) =>
                 LLVMDIBuilderCreateAutoVariable(builder, scope, name, (UIntPtr) name.Length, file, lineNo, ty,
@@ -1150,7 +1150,7 @@ namespace MonC.LLVM
                 LLVMMetadataRef scope, string name, UIntPtr nameLen, uint argNo, LLVMMetadataRef file, uint lineNo,
                 LLVMMetadataRef ty, bool alwaysPreserve, LLVMDIFlags flags);
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateParameterVariablePublic(LLVMDIBuilderRef builder,
+            public static LLVMMetadataRef LLVMDIBuilderCreateParameterVariable(LLVMDIBuilderRef builder,
                 LLVMMetadataRef scope, string name, uint argNo, LLVMMetadataRef file, uint lineNo, LLVMMetadataRef ty,
                 bool alwaysPreserve, LLVMDIFlags flags) =>
                 LLVMDIBuilderCreateParameterVariable(builder, scope, name, (UIntPtr) name.Length, argNo, file,
@@ -1197,7 +1197,7 @@ namespace MonC.LLVM
             LLVMValueRef theAnswer = LLVMConstInt(int32Type, int.MaxValue, true);
             LLVMBuildRet(builder, theAnswer);
 
-            LLVMBasicBlockRef[] basicBlockRefs = LLVMGetBasicBlocksPublic(function);
+            LLVMBasicBlockRef[] basicBlockRefs = LLVMGetBasicBlocks(function);
 
             LLVMDumpModule(module);
 
