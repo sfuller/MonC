@@ -14,10 +14,9 @@
         public static implicit operator CAPI.LLVMMetadataRef(Metadata metadata) => metadata._metadata;
         public static implicit operator Metadata(CAPI.LLVMMetadataRef metadata) => new Metadata(metadata);
 
-
-        public ulong TypeSizeInBits => CAPI.DI.LLVMDITypeGetSizeInBits(_metadata);
-        public ulong TypeOffsetInBits => CAPI.DI.LLVMDITypeGetOffsetInBits(_metadata);
-        public uint TypeAlignInBits => CAPI.DI.LLVMDITypeGetAlignInBits(_metadata);
+        public ulong TypeSizeInBits => CAPI.LLVMDITypeGetSizeInBits(_metadata);
+        public ulong TypeOffsetInBits => CAPI.LLVMDITypeGetOffsetInBits(_metadata);
+        public uint TypeAlignInBits => CAPI.LLVMDITypeGetAlignInBits(_metadata);
 
         public void ReplaceAllUsesWith(Metadata replacement) =>
             CAPI.LLVMMetadataReplaceAllUsesWith(_metadata, replacement);

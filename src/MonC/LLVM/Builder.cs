@@ -31,7 +31,7 @@ namespace MonC.LLVM
 
         public void PositionAtEnd(BasicBlock block) => CAPI.LLVMPositionBuilderAtEnd(_builder, block);
 
-        public BasicBlock GetInsertBlock() => CAPI.LLVMGetInsertBlock(_builder);
+        public BasicBlock InsertBlock => CAPI.LLVMGetInsertBlock(_builder);
 
         public void InsertExistingBasicBlockAfterInsertBlock(BasicBlock bb) =>
             CAPI.LLVMInsertExistingBasicBlockAfterInsertBlock(_builder, bb);

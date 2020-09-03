@@ -22,21 +22,26 @@ namespace MonC.LLVM
         public DIBuilder? DiBuilder => Module.DiBuilder;
 
         public CodeGeneratorContext(Context context, ParseModule parseModule, string fileName, string dirName,
-            bool debugInfo)
+            string targetTriple, bool optimized, bool debugInfo)
         {
             Context = context;
             ParseModule = parseModule;
 
             Module = context.CreateModule(fileName, debugInfo);
+            Module.SetTarget(targetTriple);
 
             if (DiBuilder != null) {
                 Module.AddModuleFlag(CAPI.LLVMModuleFlagBehavior.Warning, "Debug Info Version",
                     Context.DebugMetadataVersion);
+                if (targetTriple.Contains("-msvc")) {
+                    Module.AddModuleFlag(CAPI.LLVMModuleFlagBehavior.Warning, "CodeView",
+                        Metadata.FromValue(Value.ConstInt(Context.Int32Type, 1, false)));
+                }
 
                 DiFile = DiBuilder.CreateFile(fileName, dirName);
                 // Just say that MonC is C89; hopefully debuggers won't care
-                Metadata diCompileUnit = DiBuilder.CreateCompileUnit(CAPI.DI.LLVMDWARFSourceLanguage.C89, DiFile,
-                    "MonC", false, "", 0, "", CAPI.DI.LLVMDWARFEmissionKind.Full, 0, false, false, "", "");
+                Metadata diCompileUnit = DiBuilder.CreateCompileUnit(CAPI.LLVMDWARFSourceLanguage.C89, DiFile,
+                    "MonC", optimized, "", 0, "", CAPI.LLVMDWARFEmissionKind.Full, 0, false, false, "", "");
                 DiModule = DiBuilder.CreateModule(diCompileUnit, fileName, "", "", "");
             }
         }
@@ -105,8 +110,8 @@ namespace MonC.LLVM
                 if (genContext.DiBuilder != null) {
                     genContext.TryGetTokenSymbol(leaf, out Symbol range);
                     DiFwdDecl = genContext.DiBuilder.CreateReplaceableCompositeType(
-                        CAPI.DI.LLVMDWARFTag.subroutine_type, leaf.Name, genContext.DiFile, genContext.DiFile,
-                        range.LLVMLine, 0, 0, 0, CAPI.DI.LLVMDIFlags.FwdDecl, "");
+                        CAPI.LLVMDWARFTag.subroutine_type, leaf.Name, genContext.DiFile, genContext.DiFile,
+                        range.LLVMLine, 0, 0, 0, CAPI.LLVMDIFlags.FwdDecl, "");
                 }
             }
 
@@ -163,14 +168,14 @@ namespace MonC.LLVM
                     genContext.TryGetTokenSymbol(_leaf, out Symbol range);
                     Metadata subroutineType = genContext.DiBuilder.CreateSubroutineType(genContext.DiFile,
                         Array.ConvertAll(_leaf.Parameters, param => genContext.LookupDiType(param.Type)),
-                        CAPI.DI.LLVMDIFlags.Zero);
+                        CAPI.LLVMDIFlags.Zero);
                     Metadata funcLocation = genContext.Context.CreateDebugLocation(range.LLVMLine, range.LLVMColumn,
                         DiFwdDecl, Metadata.Null);
 
                     // Create subroutine debug info and substitute over forward declaration
                     DiFunctionDef = genContext.DiBuilder.CreateFunction(genContext.DiFile, _leaf.Name, _leaf.Name,
                         genContext.DiFile, range.LLVMLine, subroutineType, true, true, range.LLVMLine,
-                        CAPI.DI.LLVMDIFlags.Zero, false);
+                        CAPI.LLVMDIFlags.Zero, false);
                     DiFwdDecl.ReplaceAllUsesWith(DiFunctionDef);
 
                     // Create llvm.dbg.declare calls for each parameter's storage
@@ -181,7 +186,7 @@ namespace MonC.LLVM
                         Metadata paramType = genContext.LookupDiType(parameter.Type);
                         Metadata paramMetadata = genContext.DiBuilder.CreateParameterVariable(DiFunctionDef,
                             parameter.Name, (uint) i + 1, genContext.DiFile, paramRange.LLVMLine, paramType, true,
-                            CAPI.DI.LLVMDIFlags.Zero);
+                            CAPI.LLVMDIFlags.Zero);
                         VariableValues.TryGetValue(parameter, out Value varStorage);
                         genContext.DiBuilder.InsertDeclareAtEnd(varStorage, paramMetadata, paramExpression,
                             funcLocation, basicBlock);
@@ -233,7 +238,8 @@ namespace MonC.LLVM
 
     public static class CodeGenerator
     {
-        public static Module Generate(Context context, string path, ParseModule parseModule, bool debugInfo)
+        public static Module Generate(Context context, string path, ParseModule parseModule, string targetTriple,
+            PassManagerBuilder? optBuilder, bool debugInfo)
         {
             // Path information for debug info nodes
             string fileName = Path.GetFileName(path);
@@ -246,7 +252,7 @@ namespace MonC.LLVM
 
             // Create module and file-level debug info nodes
             CodeGeneratorContext genContext = new CodeGeneratorContext(context, parseModule, fileName, dirName,
-                debugInfo);
+                targetTriple, optBuilder != null, debugInfo);
 
             // Declaration pass
             foreach (FunctionDefinitionLeaf function in parseModule.Functions) {
@@ -262,6 +268,20 @@ namespace MonC.LLVM
 
             // Finalize debug info
             genContext.DiBuilder?.BuilderFinalize();
+
+            // Run optimization passes on functions and module if a builder is supplied
+            if (optBuilder != null) {
+                using ModulePassManager modulePassManager = new ModulePassManager(optBuilder);
+                using FunctionPassManager functionPassManager = new FunctionPassManager(genContext.Module, optBuilder);
+
+                functionPassManager.Initialize();
+                foreach (var function in genContext.DefinedFunctions) {
+                    functionPassManager.Run(function.Value.FunctionValue);
+                }
+                functionPassManager.FinalizeFunctionPassManager();
+
+                modulePassManager.Run(genContext.Module);
+            }
 
             // Done with everything in CodeGeneratorContext besides the Module
             return genContext.Module;

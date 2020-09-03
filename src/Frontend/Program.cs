@@ -21,6 +21,14 @@ namespace MonC.Frontend
             bool withDebugger = false;
             bool forceCodegen = false;
             bool llvm = false;
+            string targetTriple = "";
+            bool O0 = false;
+            bool O1 = false;
+            bool O2 = false;
+            bool Os = false;
+            bool Oz = false;
+            bool O3 = false;
+            bool debugInfo = false;
             List<string> positionals = new List<string>();
             List<int> argsToPass = new List<int>();
             List<string> libraryNames = new List<string>();
@@ -62,6 +70,30 @@ namespace MonC.Frontend
                         break;
                     case "--llvm":
                         llvm = true;
+                        break;
+                    case "--target":
+                        targetTriple = args[++i];
+                        break;
+                    case "-O0":
+                        O0 = true;
+                        break;
+                    case "-O1":
+                        O1 = true;
+                        break;
+                    case "-O2":
+                        O2 = true;
+                        break;
+                    case "-Os":
+                        Os = true;
+                        break;
+                    case "-Oz":
+                        Oz = true;
+                        break;
+                    case "-O3":
+                        O3 = true;
+                        break;
+                    case "-g":
+                        debugInfo = true;
                         break;
                     default:
                         argFound = false;
@@ -193,12 +225,49 @@ namespace MonC.Frontend
                     Environment.Exit(-1);
                 }
             } else {
+                using LLVM.PassManagerBuilder? optBuilder =
+                    O0 || O1 || O2 || Os || Oz || O3 ? new LLVM.PassManagerBuilder() : null;
+                LLVM.CAPI.LLVMCodeGenOptLevel optLevel = LLVM.CAPI.LLVMCodeGenOptLevel.None;
+                if (optBuilder != null) {
+                    if (O0) {
+                        optBuilder.SetOptLevels(0, 0);
+                        optLevel = LLVM.CAPI.LLVMCodeGenOptLevel.None;
+                    } else if (O1) {
+                        optBuilder.SetOptLevels(1, 0);
+                        optLevel = LLVM.CAPI.LLVMCodeGenOptLevel.Less;
+                    } else if (O2) {
+                        optBuilder.SetOptLevels(2, 0);
+                        optLevel = LLVM.CAPI.LLVMCodeGenOptLevel.Default;
+                    } else if (Os) {
+                        optBuilder.SetOptLevels(2, 1);
+                        optLevel = LLVM.CAPI.LLVMCodeGenOptLevel.Default;
+                    } else if (Oz) {
+                        optBuilder.SetOptLevels(2, 2);
+                        optLevel = LLVM.CAPI.LLVMCodeGenOptLevel.Default;
+                    } else if (O3) {
+                        optBuilder.SetOptLevels(3, 0);
+                        optLevel = LLVM.CAPI.LLVMCodeGenOptLevel.Aggressive;
+                    }
+                }
+
                 using (LLVM.Context llvmContext = new LLVM.Context()) {
+                    if (targetTriple.Length == 0)
+                        targetTriple = LLVM.Target.DefaultTargetTriple;
+                    targetTriple = LLVM.Target.NormalizeTargetTriple(targetTriple);
                     using (LLVM.Module llvmModule =
-                        LLVM.CodeGenerator.Generate(llvmContext, filename ?? "<stdin>", module, true)) {
+                        LLVM.CodeGenerator.Generate(llvmContext, filename ?? "<stdin>", module, targetTriple,
+                            optBuilder, debugInfo)) {
                         if (showIL) {
                             llvmModule.Dump();
                         }
+
+                        LLVM.Target.InitializeAllTargets();
+                        LLVM.Target target = LLVM.Target.FromTriple(targetTriple);
+                        using LLVM.TargetMachine targetMachine = target.CreateTargetMachine(
+                            targetTriple, "", "", optLevel, LLVM.CAPI.LLVMRelocMode.Default,
+                            LLVM.CAPI.LLVMCodeModel.Default);
+                        targetMachine.SetAsmVerbosity(true);
+                        targetMachine.EmitToFile(llvmModule, "-", LLVM.CAPI.LLVMCodeGenFileType.AssemblyFile);
                     }
                 }
             }

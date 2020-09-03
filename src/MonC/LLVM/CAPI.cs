@@ -207,6 +207,12 @@ namespace MonC.LLVM
             LLVMMetadataRef val) => LLVMAddModuleFlag(module, behavior, key, (UIntPtr) key.Length, val);
 
         [DllImport("LLVM-C")]
+        public static extern string LLVMGetTarget(LLVMModuleRef m);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMSetTarget(LLVMModuleRef m, string triple);
+
+        [DllImport("LLVM-C")]
         public static extern void LLVMDumpModule(LLVMModuleRef module);
 
         [DllImport("LLVM-C")]
@@ -772,6 +778,35 @@ namespace MonC.LLVM
         }
 
         [DllImport("LLVM-C")]
+        private static extern LLVMMemoryBufferRef LLVMCreateMemoryBufferWithMemoryRangeCopy(IntPtr inputData,
+            UIntPtr inputDataLength, string bufferName);
+
+        public static LLVMMemoryBufferRef LLVMCreateMemoryBufferWithMemoryRangeCopy(byte[] inputData, string bufferName)
+        {
+            IntPtr ptr = Marshal.AllocHGlobal(inputData.Length);
+            Marshal.Copy(inputData, 0, ptr, inputData.Length);
+            LLVMMemoryBufferRef ret =
+                LLVMCreateMemoryBufferWithMemoryRangeCopy(ptr, (UIntPtr) inputData.Length, bufferName);
+            Marshal.FreeHGlobal(ptr);
+            return ret;
+        }
+
+        [DllImport("LLVM-C")]
+        private static extern IntPtr LLVMGetBufferStart(LLVMMemoryBufferRef memBuf);
+
+        public static byte[] LLVMGetBufferStartBytes(LLVMMemoryBufferRef memBuf)
+        {
+            IntPtr ptr = LLVMGetBufferStart(memBuf);
+            UIntPtr size = LLVMGetBufferSize(memBuf);
+            byte[] ret = new byte[(uint) size];
+            Marshal.Copy(ptr, ret, 0, (int) size);
+            return ret;
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern UIntPtr LLVMGetBufferSize(LLVMMemoryBufferRef memBuf);
+
+        [DllImport("LLVM-C")]
         public static extern void LLVMDisposeMemoryBuffer(LLVMMemoryBufferRef memBuf);
 
         [DllImport("LLVM-C")]
@@ -842,333 +877,672 @@ namespace MonC.LLVM
         public static extern void LLVMSetMetadata(LLVMValueRef val, uint kindId, LLVMValueRef node);
 
 
-        public static class DI
+        public struct LLVMDIBuilderRef
         {
-            public struct LLVMDIBuilderRef
-            {
-                private IntPtr InternalPtr;
-                public bool IsValid => InternalPtr != IntPtr.Zero;
+            private IntPtr InternalPtr;
+            public bool IsValid => InternalPtr != IntPtr.Zero;
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMDIBuilderRef LLVMCreateDIBuilder(LLVMModuleRef m);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMDisposeDIBuilder(LLVMDIBuilderRef builder);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMDIBuilderFinalize(LLVMDIBuilderRef builder);
+
+        [DllImport("LLVM-C")]
+        public static extern uint LLVMDebugMetadataVersion();
+
+        public enum LLVMDWARFSourceLanguage
+        {
+            C89,
+            C,
+            Ada83,
+            C_plus_plus,
+            Cobol74,
+            Cobol85,
+            Fortran77,
+            Fortran90,
+            Pascal83,
+            Modula2,
+
+            // New in DWARF v3:
+            Java,
+            C99,
+            Ada95,
+            Fortran95,
+            PLI,
+            ObjC,
+            ObjC_plus_plus,
+            UPC,
+            D,
+
+            // New in DWARF v4:
+            Python,
+
+            // New in DWARF v5:
+            OpenCL,
+            Go,
+            Modula3,
+            Haskell,
+            C_plus_plus_03,
+            C_plus_plus_11,
+            OCaml,
+            Rust,
+            C11,
+            Swift,
+            Julia,
+            Dylan,
+            C_plus_plus_14,
+            Fortran03,
+            Fortran08,
+            RenderScript,
+            BLISS,
+
+            // Vendor extensions:
+            Mips_Assembler,
+            GOOGLE_RenderScript,
+            BORLAND_Delphi
+        }
+
+        public enum LLVMDWARFEmissionKind
+        {
+            None = 0,
+            Full,
+            LineTablesOnly
+        }
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef builder,
+            LLVMDWARFSourceLanguage lang, LLVMMetadataRef fileRef, string producer, UIntPtr producerLen,
+            bool isOptimized, string flags, UIntPtr flagsLen, uint runtimeVer, string splitName,
+            UIntPtr splitNameLen, LLVMDWARFEmissionKind kind, uint dwoId, bool splitDebugInlining,
+            bool debugInfoForProfiling, string sysRoot, UIntPtr sysRootLen, string sdk, UIntPtr sdkLen);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef builder,
+            LLVMDWARFSourceLanguage lang, LLVMMetadataRef fileRef, string producer, bool isOptimized, string flags,
+            uint runtimeVer, string splitName, LLVMDWARFEmissionKind kind, uint dwoId, bool splitDebugInlining,
+            bool debugInfoForProfiling, string sysRoot, string sdk) =>
+            LLVMDIBuilderCreateCompileUnit(builder, lang, fileRef, producer, (UIntPtr) producer.Length,
+                isOptimized, flags, (UIntPtr) flags.Length, runtimeVer, splitName, (UIntPtr) splitName.Length, kind,
+                dwoId, splitDebugInlining, debugInfoForProfiling, sysRoot, (UIntPtr) sysRoot.Length, sdk,
+                (UIntPtr) sdk.Length);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateModule(LLVMDIBuilderRef builder,
+            LLVMMetadataRef parentScope, string name, UIntPtr nameLen, string configMacros, UIntPtr configMacrosLen,
+            string includePath, UIntPtr includePathLen, string apiNotesFile, UIntPtr apiNotesFileLen);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateModule(LLVMDIBuilderRef builder,
+            LLVMMetadataRef parentScope, string name, string configMacros, string includePath,
+            string apiNotesFile) =>
+            LLVMDIBuilderCreateModule(builder, parentScope, name, (UIntPtr) name.Length, configMacros,
+                (UIntPtr) configMacros.Length, includePath, (UIntPtr) includePath.Length, apiNotesFile, (UIntPtr)
+                apiNotesFile.Length);
+
+        [DllImport("LLVM-C")]
+        public static extern ulong LLVMDITypeGetSizeInBits(LLVMMetadataRef dType);
+
+        [DllImport("LLVM-C")]
+        public static extern ulong LLVMDITypeGetOffsetInBits(LLVMMetadataRef dType);
+
+        [DllImport("LLVM-C")]
+        public static extern uint LLVMDITypeGetAlignInBits(LLVMMetadataRef dType);
+
+        public enum LLVMDIFlags
+        {
+            Zero = 0,
+            Private = 1,
+            Protected = 2,
+            Public = 3,
+            FwdDecl = 1 << 2,
+            AppleBlock = 1 << 3,
+            ReservedBit4 = 1 << 4,
+            Virtual = 1 << 5,
+            Artificial = 1 << 6,
+            Explicit = 1 << 7,
+            Prototyped = 1 << 8,
+            ObjcClassComplete = 1 << 9,
+            ObjectPointer = 1 << 10,
+            Vector = 1 << 11,
+            StaticMember = 1 << 12,
+            LValueReference = 1 << 13,
+            RValueReference = 1 << 14,
+            Reserved = 1 << 15,
+            SingleInheritance = 1 << 16,
+            MultipleInheritance = 2 << 16,
+            VirtualInheritance = 3 << 16,
+            IntroducedVirtual = 1 << 18,
+            BitField = 1 << 19,
+            NoReturn = 1 << 20,
+            TypePassByValue = 1 << 22,
+            TypePassByReference = 1 << 23,
+            EnumClass = 1 << 24,
+            FixedEnum = EnumClass, // Deprecated.
+            Thunk = 1 << 25,
+            NonTrivial = 1 << 26,
+            BigEndian = 1 << 27,
+            LittleEndian = 1 << 28,
+            IndirectVirtualBase = (1 << 2) | (1 << 5),
+
+            Accessibility = Private | Protected |
+                            Public,
+
+            PtrToMemberRep = SingleInheritance |
+                             MultipleInheritance |
+                             VirtualInheritance
+        }
+
+        public enum LLVMDWARFTag
+        {
+            subroutine_type = 0x0015
+        }
+
+        public enum LLVMDWARFTypeEncoding
+        {
+            address = 0x01,
+            boolean = 0x02,
+            complex_float = 0x03,
+            _float = 0x04,
+            signed = 0x05,
+            signed_char = 0x06,
+            unsigned = 0x07,
+            unsigned_char = 0x08,
+            imaginary_float = 0x09,
+            packed_decimal = 0x0a,
+            numeric_string = 0x0b,
+            edited = 0x0c,
+            signed_fixed = 0x0d,
+            unsigned_fixed = 0x0e,
+            decimal_float = 0x0f,
+            UTF = 0x10,
+            UCS = 0x11,
+            ASCII = 0x12
+        }
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef builder, string name,
+            UIntPtr nameLen, ulong sizeInBits, LLVMDWARFTypeEncoding encoding, LLVMDIFlags flags);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef builder, string name,
+            ulong sizeInBits, LLVMDWARFTypeEncoding encoding, LLVMDIFlags flags) =>
+            LLVMDIBuilderCreateBasicType(builder, name, (UIntPtr) name.Length, sizeInBits, encoding, flags);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateStructType(LLVMDIBuilderRef builder,
+            LLVMMetadataRef scope, string name, UIntPtr nameLen, LLVMMetadataRef file, uint lineNumber,
+            ulong sizeInBits, uint alignInBits, LLVMDIFlags flags, LLVMMetadataRef derivedFrom,
+            LLVMMetadataRef[] elements, uint numElements, uint runTimeLang, LLVMMetadataRef vTableHolder,
+            string uniqueId, UIntPtr uniqueIdLen);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateStructType(LLVMDIBuilderRef builder,
+            LLVMMetadataRef scope, string name, LLVMMetadataRef file, uint lineNumber, ulong sizeInBits,
+            uint alignInBits, LLVMDIFlags flags, LLVMMetadataRef derivedFrom, LLVMMetadataRef[] elements,
+            uint runTimeLang, LLVMMetadataRef vTableHolder, string uniqueId) =>
+            LLVMDIBuilderCreateStructType(builder, scope, name, (UIntPtr) name.Length, file, lineNumber,
+                sizeInBits, alignInBits, flags, derivedFrom, elements, (uint) elements.Length, runTimeLang,
+                vTableHolder, uniqueId, (UIntPtr) uniqueId.Length);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateSubroutineType(LLVMDIBuilderRef builder,
+            LLVMMetadataRef file, LLVMMetadataRef[] parameterTypes, uint numParameterTypes, LLVMDIFlags flags);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateSubroutineType(LLVMDIBuilderRef builder,
+            LLVMMetadataRef file, LLVMMetadataRef[] parameterTypes, LLVMDIFlags flags) =>
+            LLVMDIBuilderCreateSubroutineType(builder, file, parameterTypes, (uint) parameterTypes.Length,
+                flags);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateReplaceableCompositeType(LLVMDIBuilderRef builder,
+            LLVMDWARFTag tag, string name, UIntPtr nameLen, LLVMMetadataRef scope, LLVMMetadataRef file, uint line,
+            uint runtimeLang, ulong sizeInBits, uint alignInBits, LLVMDIFlags flags, string uniqueIdentifier,
+            UIntPtr uniqueIdentifierLen);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateReplaceableCompositeType(LLVMDIBuilderRef builder,
+            LLVMDWARFTag tag, string name, LLVMMetadataRef scope, LLVMMetadataRef file, uint line, uint runtimeLang,
+            ulong sizeInBits, uint alignInBits, LLVMDIFlags flags, string uniqueIdentifier) =>
+            LLVMDIBuilderCreateReplaceableCompositeType(builder, tag, name, (UIntPtr) name.Length, scope,
+                file, line, runtimeLang, sizeInBits, alignInBits, flags, uniqueIdentifier,
+                (UIntPtr) uniqueIdentifier.Length);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef builder,
+            LLVMMetadataRef pointeeTy, ulong sizeInBits, uint alignInBits, uint addressSpace, string name,
+            UIntPtr nameLen);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef builder,
+            LLVMMetadataRef pointeeTy, ulong sizeInBits, uint alignInBits, uint addressSpace, string name) =>
+            LLVMDIBuilderCreatePointerType(builder, pointeeTy, sizeInBits, alignInBits, addressSpace, name,
+                (UIntPtr) name.Length);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef builder, string filename,
+            UIntPtr filenameLen, string directory, UIntPtr directoryLen);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef builder, string filename,
+            string directory) =>
+            LLVMDIBuilderCreateFile(builder, filename, (UIntPtr) filename.Length, directory,
+                (UIntPtr) directory.Length);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateFunction(LLVMDIBuilderRef builder,
+            LLVMMetadataRef scope, string name, UIntPtr nameLen, string linkageName, UIntPtr linkageNameLen,
+            LLVMMetadataRef file, uint lineNo, LLVMMetadataRef ty, bool isLocalToUnit, bool isDefinition,
+            uint scopeLine, LLVMDIFlags flags, bool isOptimized);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateFunction(LLVMDIBuilderRef builder,
+            LLVMMetadataRef scope, string name, string linkageName, LLVMMetadataRef file, uint lineNo,
+            LLVMMetadataRef ty, bool isLocalToUnit, bool isDefinition, uint scopeLine, LLVMDIFlags flags,
+            bool isOptimized) =>
+            LLVMDIBuilderCreateFunction(builder, scope, name, (UIntPtr) name.Length, linkageName,
+                (UIntPtr) linkageName.Length, file, lineNo, ty, isLocalToUnit, isDefinition, scopeLine, flags,
+                isOptimized);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMMetadataRef LLVMDIBuilderCreateLexicalBlock(LLVMDIBuilderRef builder,
+            LLVMMetadataRef scope, LLVMMetadataRef file, uint line, uint column);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateEnumerator(LLVMDIBuilderRef builder, string name,
+            UIntPtr nameLen, long value, bool isUnsigned);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateEnumerator(LLVMDIBuilderRef builder, string name,
+            long value, bool isUnsigned) =>
+            LLVMDIBuilderCreateEnumerator(builder, name, (UIntPtr) name.Length, value, isUnsigned);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateEnumerationType(LLVMDIBuilderRef builder,
+            LLVMMetadataRef scope, string name, UIntPtr nameLen, LLVMMetadataRef file, uint lineNumber,
+            ulong sizeInBits, uint alignInBits, LLVMMetadataRef[] elements, uint numElements,
+            LLVMMetadataRef classTy);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateEnumerationType(LLVMDIBuilderRef builder,
+            LLVMMetadataRef scope, string name, LLVMMetadataRef file, uint lineNumber, ulong sizeInBits,
+            uint alignInBits, LLVMMetadataRef[] elements, LLVMMetadataRef classTy) =>
+            LLVMDIBuilderCreateEnumerationType(builder, scope, name, (UIntPtr) name.Length, file, lineNumber,
+                sizeInBits, alignInBits, elements, (uint) elements.Length, classTy);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateExpression(LLVMDIBuilderRef builder, long[] addr,
+            UIntPtr length);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateExpression(LLVMDIBuilderRef builder, long[] addr) =>
+            LLVMDIBuilderCreateExpression(builder, addr, (UIntPtr) addr.Length);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateAutoVariable(LLVMDIBuilderRef builder,
+            LLVMMetadataRef scope, string name, UIntPtr nameLen, LLVMMetadataRef file, uint lineNo,
+            LLVMMetadataRef ty, bool alwaysPreserve, LLVMDIFlags flags, uint alignInBits);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateAutoVariable(LLVMDIBuilderRef builder,
+            LLVMMetadataRef scope, string name, LLVMMetadataRef file, uint lineNo, LLVMMetadataRef ty,
+            bool alwaysPreserve, LLVMDIFlags flags, uint alignInBits) =>
+            LLVMDIBuilderCreateAutoVariable(builder, scope, name, (UIntPtr) name.Length, file, lineNo, ty,
+                alwaysPreserve, flags, alignInBits);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMMetadataRef LLVMDIBuilderCreateParameterVariable(LLVMDIBuilderRef builder,
+            LLVMMetadataRef scope, string name, UIntPtr nameLen, uint argNo, LLVMMetadataRef file, uint lineNo,
+            LLVMMetadataRef ty, bool alwaysPreserve, LLVMDIFlags flags);
+
+        public static LLVMMetadataRef LLVMDIBuilderCreateParameterVariable(LLVMDIBuilderRef builder,
+            LLVMMetadataRef scope, string name, uint argNo, LLVMMetadataRef file, uint lineNo, LLVMMetadataRef ty,
+            bool alwaysPreserve, LLVMDIFlags flags) =>
+            LLVMDIBuilderCreateParameterVariable(builder, scope, name, (UIntPtr) name.Length, argNo, file,
+                lineNo, ty, alwaysPreserve, flags);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMDIBuilderInsertDeclareAtEnd(LLVMDIBuilderRef builder,
+            LLVMValueRef storage, LLVMMetadataRef varInfo, LLVMMetadataRef expr, LLVMMetadataRef debugLoc,
+            LLVMBasicBlockRef block);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMDIBuilderInsertDbgValueAtEnd(LLVMDIBuilderRef builder,
+            LLVMValueRef val, LLVMMetadataRef varInfo, LLVMMetadataRef expr, LLVMMetadataRef debugLoc,
+            LLVMBasicBlockRef block);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMMetadataRef LLVMDIBuilderCreateDebugLocation(LLVMContextRef ctx, uint line,
+            uint column, LLVMMetadataRef scope, LLVMMetadataRef inlinedAt);
+
+
+        public struct LLVMPassManagerRef
+        {
+            private IntPtr InternalPtr;
+            public bool IsValid => InternalPtr != IntPtr.Zero;
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMPassManagerRef LLVMCreatePassManager();
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMPassManagerRef LLVMCreateFunctionPassManagerForModule(LLVMModuleRef m);
+
+        [DllImport("LLVM-C")]
+        public static extern bool LLVMRunPassManager(LLVMPassManagerRef pm, LLVMModuleRef m);
+
+        [DllImport("LLVM-C")]
+        public static extern bool LLVMInitializeFunctionPassManager(LLVMPassManagerRef fpm);
+
+        [DllImport("LLVM-C")]
+        public static extern bool LLVMRunFunctionPassManager(LLVMPassManagerRef fpm, LLVMValueRef f);
+
+        [DllImport("LLVM-C")]
+        public static extern bool LLVMFinalizeFunctionPassManager(LLVMPassManagerRef fpm);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMDisposePassManager(LLVMPassManagerRef pm);
+
+        public struct LLVMPassManagerBuilderRef
+        {
+            private IntPtr InternalPtr;
+            public bool IsValid => InternalPtr != IntPtr.Zero;
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMPassManagerBuilderRef LLVMPassManagerBuilderCreate();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMPassManagerBuilderDispose(LLVMPassManagerBuilderRef pmb);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMPassManagerBuilderSetOptLevel(LLVMPassManagerBuilderRef pmb, uint optLevel);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMPassManagerBuilderSetSizeLevel(LLVMPassManagerBuilderRef pmb, uint sizeLevel);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMPassManagerBuilderSetDisableUnrollLoops(LLVMPassManagerBuilderRef pmb,
+            bool value);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMPassManagerBuilderUseInlinerWithThreshold(LLVMPassManagerBuilderRef pmb,
+            uint threshold);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMPassManagerBuilderPopulateFunctionPassManager(LLVMPassManagerBuilderRef pmb,
+            LLVMPassManagerRef pm);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMPassManagerBuilderPopulateModulePassManager(LLVMPassManagerBuilderRef pmb,
+            LLVMPassManagerRef pm);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMPassManagerBuilderPopulateLTOPassManager(LLVMPassManagerBuilderRef pmb,
+            LLVMPassManagerRef pm, bool internalize, bool runInliner);
+
+
+        public enum LLVMCodeGenOptLevel
+        {
+            None,
+            Less,
+            Default,
+            Aggressive
+        }
+
+        public enum LLVMRelocMode
+        {
+            Default,
+            Static,
+            PIC,
+            DynamicNoPic,
+            ROPI,
+            RWPI,
+            ROPI_RWPI
+        }
+
+        public enum LLVMCodeModel
+        {
+            Default,
+            JITDefault,
+            Tiny,
+            Small,
+            Kernel,
+            Medium,
+            Large
+        }
+
+        public enum LLVMCodeGenFileType
+        {
+            AssemblyFile,
+            ObjectFile
+        }
+
+        public struct LLVMTargetRef
+        {
+            private IntPtr InternalPtr;
+            public bool IsValid => InternalPtr != IntPtr.Zero;
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMTargetRef LLVMGetTargetFromName(string name);
+
+        [DllImport("LLVM-C")]
+        private static extern bool LLVMGetTargetFromTriple(string triple, out LLVMTargetRef t, out IntPtr errorMessage);
+
+        public static bool LLVMGetTargetFromTriple(string triple, out LLVMTargetRef t, out string? errorMessage)
+        {
+            if (LLVMGetTargetFromTriple(triple, out t, out IntPtr errorMessagePtr)) {
+                string nullableErrorMessage = Marshal.PtrToStringAnsi(errorMessagePtr);
+                LLVMDisposeMessage(errorMessagePtr);
+                errorMessage = nullableErrorMessage ??
+                               throw new NullReferenceException("null string marshalled from LLVM");
+                return true;
             }
 
-            [DllImport("LLVM-C")]
-            public static extern LLVMDIBuilderRef LLVMCreateDIBuilder(LLVMModuleRef m);
+            errorMessage = null;
+            return false;
+        }
 
-            [DllImport("LLVM-C")]
-            public static extern void LLVMDisposeDIBuilder(LLVMDIBuilderRef builder);
+        [DllImport("LLVM-C")]
+        public static extern string LLVMGetTargetName(LLVMTargetRef t);
 
-            [DllImport("LLVM-C")]
-            public static extern void LLVMDIBuilderFinalize(LLVMDIBuilderRef builder);
+        [DllImport("LLVM-C")]
+        public static extern string LLVMGetTargetDescription(LLVMTargetRef t);
 
-            [DllImport("LLVM-C")]
-            public static extern uint LLVMDebugMetadataVersion();
+        [DllImport("LLVM-C")]
+        public static extern bool LLVMTargetHasJIT(LLVMTargetRef t);
 
-            public enum LLVMDWARFSourceLanguage
-            {
-                C89,
-                C,
-                Ada83,
-                C_plus_plus,
-                Cobol74,
-                Cobol85,
-                Fortran77,
-                Fortran90,
-                Pascal83,
-                Modula2,
+        [DllImport("LLVM-C")]
+        public static extern bool LLVMTargetHasTargetMachine(LLVMTargetRef t);
 
-                // New in DWARF v3:
-                Java,
-                C99,
-                Ada95,
-                Fortran95,
-                PLI,
-                ObjC,
-                ObjC_plus_plus,
-                UPC,
-                D,
+        [DllImport("LLVM-C")]
+        public static extern bool LLVMTargetHasAsmBackend(LLVMTargetRef t);
 
-                // New in DWARF v4:
-                Python,
+        public struct LLVMTargetMachineRef
+        {
+            private IntPtr InternalPtr;
+            public bool IsValid => InternalPtr != IntPtr.Zero;
+        }
 
-                // New in DWARF v5:
-                OpenCL,
-                Go,
-                Modula3,
-                Haskell,
-                C_plus_plus_03,
-                C_plus_plus_11,
-                OCaml,
-                Rust,
-                C11,
-                Swift,
-                Julia,
-                Dylan,
-                C_plus_plus_14,
-                Fortran03,
-                Fortran08,
-                RenderScript,
-                BLISS,
+        [DllImport("LLVM-C")]
+        public static extern LLVMTargetMachineRef LLVMCreateTargetMachine(LLVMTargetRef t, string triple, string cpu,
+            string features, LLVMCodeGenOptLevel level, LLVMRelocMode reloc, LLVMCodeModel codeModel);
 
-                // Vendor extensions:
-                Mips_Assembler,
-                GOOGLE_RenderScript,
-                BORLAND_Delphi
+        [DllImport("LLVM-C")]
+        public static extern void LLVMDisposeTargetMachine(LLVMTargetMachineRef t);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMTargetRef LLVMGetTargetMachineTarget(LLVMTargetMachineRef t);
+
+        [DllImport("LLVM-C")]
+        public static extern string LLVMGetTargetMachineTriple(LLVMTargetMachineRef t);
+
+        [DllImport("LLVM-C")]
+        public static extern string LLVMGetTargetMachineCPU(LLVMTargetMachineRef t);
+
+        [DllImport("LLVM-C")]
+        public static extern string LLVMGetTargetMachineFeatureString(LLVMTargetMachineRef t);
+
+        public struct LLVMTargetDataRef
+        {
+            private IntPtr InternalPtr;
+            public bool IsValid => InternalPtr != IntPtr.Zero;
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMTargetDataRef LLVMCreateTargetDataLayout(LLVMTargetMachineRef t);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMSetTargetMachineAsmVerbosity(LLVMTargetMachineRef t, bool verboseAsm);
+
+        [DllImport("LLVM-C")]
+        private static extern bool LLVMTargetMachineEmitToFile(LLVMTargetMachineRef t, LLVMModuleRef m, string filename,
+            LLVMCodeGenFileType codegen, out IntPtr errorMessage);
+
+        public static bool LLVMTargetMachineEmitToFile(LLVMTargetMachineRef t, LLVMModuleRef m, string filename,
+            LLVMCodeGenFileType codegen, out string? errorMessage)
+        {
+            if (LLVMTargetMachineEmitToFile(t, m, filename, codegen, out IntPtr errorMessagePtr)) {
+                string nullableErrorMessage = Marshal.PtrToStringAnsi(errorMessagePtr);
+                LLVMDisposeMessage(errorMessagePtr);
+                errorMessage = nullableErrorMessage ??
+                               throw new NullReferenceException("null string marshalled from LLVM");
+                return true;
             }
 
-            public enum LLVMDWARFEmissionKind
-            {
-                None = 0,
-                Full,
-                LineTablesOnly
+            errorMessage = null;
+            return false;
+        }
+
+        [DllImport("LLVM-C")]
+        private static extern bool LLVMTargetMachineEmitToMemoryBuffer(LLVMTargetMachineRef t, LLVMModuleRef m,
+            LLVMCodeGenFileType codegen, out IntPtr errorMessage, out LLVMMemoryBufferRef outMemBuf);
+
+        public static bool LLVMTargetMachineEmitToMemoryBuffer(LLVMTargetMachineRef t, LLVMModuleRef m,
+            LLVMCodeGenFileType codegen, out string? errorMessage, out LLVMMemoryBufferRef outMemBuf)
+        {
+            if (LLVMTargetMachineEmitToMemoryBuffer(t, m, codegen, out IntPtr errorMessagePtr, out outMemBuf)) {
+                string nullableErrorMessage = Marshal.PtrToStringAnsi(errorMessagePtr);
+                LLVMDisposeMessage(errorMessagePtr);
+                errorMessage = nullableErrorMessage ??
+                               throw new NullReferenceException("null string marshalled from LLVM");
+                return true;
             }
 
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef builder,
-                LLVMDWARFSourceLanguage lang, LLVMMetadataRef fileRef, string producer, UIntPtr producerLen,
-                bool isOptimized, string flags, UIntPtr flagsLen, uint runtimeVer, string splitName,
-                UIntPtr splitNameLen, LLVMDWARFEmissionKind kind, uint dwoId, bool splitDebugInlining,
-                bool debugInfoForProfiling, string sysRoot, UIntPtr sysRootLen, string sdk, UIntPtr sdkLen);
+            errorMessage = null;
+            return false;
+        }
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateCompileUnit(LLVMDIBuilderRef builder,
-                LLVMDWARFSourceLanguage lang, LLVMMetadataRef fileRef, string producer, bool isOptimized, string flags,
-                uint runtimeVer, string splitName, LLVMDWARFEmissionKind kind, uint dwoId, bool splitDebugInlining,
-                bool debugInfoForProfiling, string sysRoot, string sdk) =>
-                LLVMDIBuilderCreateCompileUnit(builder, lang, fileRef, producer, (UIntPtr) producer.Length,
-                    isOptimized, flags, (UIntPtr) flags.Length, runtimeVer, splitName, (UIntPtr) splitName.Length, kind,
-                    dwoId, splitDebugInlining, debugInfoForProfiling, sysRoot, (UIntPtr) sysRoot.Length, sdk,
-                    (UIntPtr) sdk.Length);
 
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateModule(LLVMDIBuilderRef builder,
-                LLVMMetadataRef parentScope, string name, UIntPtr nameLen, string configMacros, UIntPtr configMacrosLen,
-                string includePath, UIntPtr includePathLen, string apiNotesFile, UIntPtr apiNotesFileLen);
+        [DllImport("LLVM-C")]
+        private static extern IntPtr LLVMGetDefaultTargetTriple();
 
-            public static LLVMMetadataRef LLVMDIBuilderCreateModule(LLVMDIBuilderRef builder,
-                LLVMMetadataRef parentScope, string name, string configMacros, string includePath,
-                string apiNotesFile) =>
-                LLVMDIBuilderCreateModule(builder, parentScope, name, (UIntPtr) name.Length, configMacros,
-                    (UIntPtr) configMacros.Length, includePath, (UIntPtr) includePath.Length, apiNotesFile, (UIntPtr)
-                    apiNotesFile.Length);
+        public static string LLVMGetDefaultTargetTripleString()
+        {
+            IntPtr strPtr = LLVMGetDefaultTargetTriple();
+            string str = Marshal.PtrToStringAnsi(strPtr);
+            LLVMDisposeMessage(strPtr);
+            if (str == null)
+                throw new NullReferenceException("null string marshalled from LLVM");
+            return str;
+        }
 
-            [DllImport("LLVM-C")]
-            public static extern ulong LLVMDITypeGetSizeInBits(LLVMMetadataRef dType);
+        [DllImport("LLVM-C")]
+        private static extern IntPtr LLVMNormalizeTargetTriple(string triple);
 
-            [DllImport("LLVM-C")]
-            public static extern ulong LLVMDITypeGetOffsetInBits(LLVMMetadataRef dType);
+        public static string LLVMNormalizeTargetTripleString(string triple)
+        {
+            IntPtr strPtr = LLVMNormalizeTargetTriple(triple);
+            string str = Marshal.PtrToStringAnsi(strPtr);
+            LLVMDisposeMessage(strPtr);
+            if (str == null)
+                throw new NullReferenceException("null string marshalled from LLVM");
+            return str;
+        }
 
-            [DllImport("LLVM-C")]
-            public static extern uint LLVMDITypeGetAlignInBits(LLVMMetadataRef dType);
+        [DllImport("LLVM-C")]
+        private static extern IntPtr LLVMGetHostCPUName();
 
-            public enum LLVMDIFlags
-            {
-                Zero = 0,
-                Private = 1,
-                Protected = 2,
-                Public = 3,
-                FwdDecl = 1 << 2,
-                AppleBlock = 1 << 3,
-                ReservedBit4 = 1 << 4,
-                Virtual = 1 << 5,
-                Artificial = 1 << 6,
-                Explicit = 1 << 7,
-                Prototyped = 1 << 8,
-                ObjcClassComplete = 1 << 9,
-                ObjectPointer = 1 << 10,
-                Vector = 1 << 11,
-                StaticMember = 1 << 12,
-                LValueReference = 1 << 13,
-                RValueReference = 1 << 14,
-                Reserved = 1 << 15,
-                SingleInheritance = 1 << 16,
-                MultipleInheritance = 2 << 16,
-                VirtualInheritance = 3 << 16,
-                IntroducedVirtual = 1 << 18,
-                BitField = 1 << 19,
-                NoReturn = 1 << 20,
-                TypePassByValue = 1 << 22,
-                TypePassByReference = 1 << 23,
-                EnumClass = 1 << 24,
-                FixedEnum = EnumClass, // Deprecated.
-                Thunk = 1 << 25,
-                NonTrivial = 1 << 26,
-                BigEndian = 1 << 27,
-                LittleEndian = 1 << 28,
-                IndirectVirtualBase = (1 << 2) | (1 << 5),
+        public static string LLVMGetHostCPUNameString()
+        {
+            IntPtr strPtr = LLVMGetHostCPUName();
+            string str = Marshal.PtrToStringAnsi(strPtr);
+            LLVMDisposeMessage(strPtr);
+            if (str == null)
+                throw new NullReferenceException("null string marshalled from LLVM");
+            return str;
+        }
 
-                Accessibility = Private | Protected |
-                                Public,
+        [DllImport("LLVM-C")]
+        private static extern IntPtr LLVMGetHostCPUFeatures();
 
-                PtrToMemberRep = SingleInheritance |
-                                 MultipleInheritance |
-                                 VirtualInheritance
+        public static string LLVMGetHostCPUFeaturesString()
+        {
+            IntPtr strPtr = LLVMGetHostCPUFeatures();
+            string str = Marshal.PtrToStringAnsi(strPtr);
+            LLVMDisposeMessage(strPtr);
+            if (str == null)
+                throw new NullReferenceException("null string marshalled from LLVM");
+            return str;
+        }
+
+        // TODO: These symbols can be resolved dynamically with string concatenation by leveraging
+        // System.Runtime.InteropServices.NativeLibrary and Marshal.GetDelegateForFunctionPointer().
+        // However, this requires .net core 3
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeX86TargetInfo();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeX86Target();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeX86TargetMC();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeX86AsmPrinter();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeARMTargetInfo();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeARMTarget();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeARMTargetMC();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeARMAsmPrinter();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeAArch64TargetInfo();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeAArch64Target();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeAArch64TargetMC();
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMInitializeAArch64AsmPrinter();
+
+        public static void LLVMInitializeAllTargets()
+        {
+            try {
+                LLVMInitializeX86TargetInfo();
+                LLVMInitializeX86Target();
+                LLVMInitializeX86TargetMC();
+                LLVMInitializeX86AsmPrinter();
+            } catch (EntryPointNotFoundException) {
             }
 
-            public enum LLVMDWARFTag
-            {
-                subroutine_type = 0x0015
+            try {
+                LLVMInitializeARMTargetInfo();
+                LLVMInitializeARMTarget();
+                LLVMInitializeARMTargetMC();
+                LLVMInitializeARMAsmPrinter();
+            } catch (EntryPointNotFoundException) {
             }
 
-            public enum LLVMDWARFTypeEncoding
-            {
-                address = 0x01,
-                boolean = 0x02,
-                complex_float = 0x03,
-                _float = 0x04,
-                signed = 0x05,
-                signed_char = 0x06,
-                unsigned = 0x07,
-                unsigned_char = 0x08,
-                imaginary_float = 0x09,
-                packed_decimal = 0x0a,
-                numeric_string = 0x0b,
-                edited = 0x0c,
-                signed_fixed = 0x0d,
-                unsigned_fixed = 0x0e,
-                decimal_float = 0x0f,
-                UTF = 0x10,
-                UCS = 0x11,
-                ASCII = 0x12
+            try {
+                LLVMInitializeAArch64TargetInfo();
+                LLVMInitializeAArch64Target();
+                LLVMInitializeAArch64TargetMC();
+                LLVMInitializeAArch64AsmPrinter();
+            } catch (EntryPointNotFoundException) {
             }
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef builder, string name,
-                UIntPtr nameLen, ulong sizeInBits, LLVMDWARFTypeEncoding encoding, LLVMDIFlags flags);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreateBasicType(LLVMDIBuilderRef builder, string name,
-                ulong sizeInBits, LLVMDWARFTypeEncoding encoding, LLVMDIFlags flags) =>
-                LLVMDIBuilderCreateBasicType(builder, name, (UIntPtr) name.Length, sizeInBits, encoding, flags);
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateStructType(LLVMDIBuilderRef builder,
-                LLVMMetadataRef scope, string name, UIntPtr nameLen, LLVMMetadataRef file, uint lineNumber,
-                ulong sizeInBits, uint alignInBits, LLVMDIFlags flags, LLVMMetadataRef derivedFrom,
-                LLVMMetadataRef[] elements, uint numElements, uint runTimeLang, LLVMMetadataRef vTableHolder,
-                string uniqueId, UIntPtr uniqueIdLen);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreateStructType(LLVMDIBuilderRef builder,
-                LLVMMetadataRef scope, string name, LLVMMetadataRef file, uint lineNumber, ulong sizeInBits,
-                uint alignInBits, LLVMDIFlags flags, LLVMMetadataRef derivedFrom, LLVMMetadataRef[] elements,
-                uint runTimeLang, LLVMMetadataRef vTableHolder, string uniqueId) =>
-                LLVMDIBuilderCreateStructType(builder, scope, name, (UIntPtr) name.Length, file, lineNumber,
-                    sizeInBits, alignInBits, flags, derivedFrom, elements, (uint) elements.Length, runTimeLang,
-                    vTableHolder, uniqueId, (UIntPtr) uniqueId.Length);
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateSubroutineType(LLVMDIBuilderRef builder,
-                LLVMMetadataRef file, LLVMMetadataRef[] parameterTypes, uint numParameterTypes, LLVMDIFlags flags);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreateSubroutineType(LLVMDIBuilderRef builder,
-                LLVMMetadataRef file, LLVMMetadataRef[] parameterTypes, LLVMDIFlags flags) =>
-                LLVMDIBuilderCreateSubroutineType(builder, file, parameterTypes, (uint) parameterTypes.Length,
-                    flags);
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateReplaceableCompositeType(LLVMDIBuilderRef builder,
-                LLVMDWARFTag tag, string name, UIntPtr nameLen, LLVMMetadataRef scope, LLVMMetadataRef file, uint line,
-                uint runtimeLang, ulong sizeInBits, uint alignInBits, LLVMDIFlags flags, string uniqueIdentifier,
-                UIntPtr uniqueIdentifierLen);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreateReplaceableCompositeType(LLVMDIBuilderRef builder,
-                LLVMDWARFTag tag, string name, LLVMMetadataRef scope, LLVMMetadataRef file, uint line, uint runtimeLang,
-                ulong sizeInBits, uint alignInBits, LLVMDIFlags flags, string uniqueIdentifier) =>
-                LLVMDIBuilderCreateReplaceableCompositeType(builder, tag, name, (UIntPtr) name.Length, scope,
-                    file, line, runtimeLang, sizeInBits, alignInBits, flags, uniqueIdentifier,
-                    (UIntPtr) uniqueIdentifier.Length);
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef builder,
-                LLVMMetadataRef pointeeTy, ulong sizeInBits, uint alignInBits, uint addressSpace, string name,
-                UIntPtr nameLen);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreatePointerType(LLVMDIBuilderRef builder,
-                LLVMMetadataRef pointeeTy, ulong sizeInBits, uint alignInBits, uint addressSpace, string name) =>
-                LLVMDIBuilderCreatePointerType(builder, pointeeTy, sizeInBits, alignInBits, addressSpace, name,
-                    (UIntPtr) name.Length);
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef builder, string filename,
-                UIntPtr filenameLen, string directory, UIntPtr directoryLen);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreateFile(LLVMDIBuilderRef builder, string filename,
-                string directory) =>
-                LLVMDIBuilderCreateFile(builder, filename, (UIntPtr) filename.Length, directory,
-                    (UIntPtr) directory.Length);
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateFunction(LLVMDIBuilderRef builder,
-                LLVMMetadataRef scope, string name, UIntPtr nameLen, string linkageName, UIntPtr linkageNameLen,
-                LLVMMetadataRef file, uint lineNo, LLVMMetadataRef ty, bool isLocalToUnit, bool isDefinition,
-                uint scopeLine, LLVMDIFlags flags, bool isOptimized);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreateFunction(LLVMDIBuilderRef builder,
-                LLVMMetadataRef scope, string name, string linkageName, LLVMMetadataRef file, uint lineNo,
-                LLVMMetadataRef ty, bool isLocalToUnit, bool isDefinition, uint scopeLine, LLVMDIFlags flags,
-                bool isOptimized) =>
-                LLVMDIBuilderCreateFunction(builder, scope, name, (UIntPtr) name.Length, linkageName,
-                    (UIntPtr) linkageName.Length, file, lineNo, ty, isLocalToUnit, isDefinition, scopeLine, flags,
-                    isOptimized);
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateEnumerator(LLVMDIBuilderRef builder, string name,
-                UIntPtr nameLen, long value, bool isUnsigned);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreateEnumerator(LLVMDIBuilderRef builder, string name,
-                long value, bool isUnsigned) =>
-                LLVMDIBuilderCreateEnumerator(builder, name, (UIntPtr) name.Length, value, isUnsigned);
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateEnumerationType(LLVMDIBuilderRef builder,
-                LLVMMetadataRef scope, string name, UIntPtr nameLen, LLVMMetadataRef file, uint lineNumber,
-                ulong sizeInBits, uint alignInBits, LLVMMetadataRef[] elements, uint numElements,
-                LLVMMetadataRef classTy);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreateEnumerationType(LLVMDIBuilderRef builder,
-                LLVMMetadataRef scope, string name, LLVMMetadataRef file, uint lineNumber, ulong sizeInBits,
-                uint alignInBits, LLVMMetadataRef[] elements, LLVMMetadataRef classTy) =>
-                LLVMDIBuilderCreateEnumerationType(builder, scope, name, (UIntPtr) name.Length, file, lineNumber,
-                    sizeInBits, alignInBits, elements, (uint) elements.Length, classTy);
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateExpression(LLVMDIBuilderRef builder, long[] addr,
-                UIntPtr length);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreateExpression(LLVMDIBuilderRef builder, long[] addr) =>
-                LLVMDIBuilderCreateExpression(builder, addr, (UIntPtr) addr.Length);
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateAutoVariable(LLVMDIBuilderRef builder,
-                LLVMMetadataRef scope, string name, UIntPtr nameLen, LLVMMetadataRef file, uint lineNo,
-                LLVMMetadataRef ty, bool alwaysPreserve, LLVMDIFlags flags, uint alignInBits);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreateAutoVariable(LLVMDIBuilderRef builder,
-                LLVMMetadataRef scope, string name, LLVMMetadataRef file, uint lineNo, LLVMMetadataRef ty,
-                bool alwaysPreserve, LLVMDIFlags flags, uint alignInBits) =>
-                LLVMDIBuilderCreateAutoVariable(builder, scope, name, (UIntPtr) name.Length, file, lineNo, ty,
-                    alwaysPreserve, flags, alignInBits);
-
-            [DllImport("LLVM-C")]
-            private static extern LLVMMetadataRef LLVMDIBuilderCreateParameterVariable(LLVMDIBuilderRef builder,
-                LLVMMetadataRef scope, string name, UIntPtr nameLen, uint argNo, LLVMMetadataRef file, uint lineNo,
-                LLVMMetadataRef ty, bool alwaysPreserve, LLVMDIFlags flags);
-
-            public static LLVMMetadataRef LLVMDIBuilderCreateParameterVariable(LLVMDIBuilderRef builder,
-                LLVMMetadataRef scope, string name, uint argNo, LLVMMetadataRef file, uint lineNo, LLVMMetadataRef ty,
-                bool alwaysPreserve, LLVMDIFlags flags) =>
-                LLVMDIBuilderCreateParameterVariable(builder, scope, name, (UIntPtr) name.Length, argNo, file,
-                    lineNo, ty, alwaysPreserve, flags);
-
-            [DllImport("LLVM-C")]
-            public static extern LLVMValueRef LLVMDIBuilderInsertDeclareAtEnd(LLVMDIBuilderRef builder,
-                LLVMValueRef storage, LLVMMetadataRef varInfo, LLVMMetadataRef expr, LLVMMetadataRef debugLoc,
-                LLVMBasicBlockRef block);
-
-            [DllImport("LLVM-C")]
-            public static extern LLVMValueRef LLVMDIBuilderInsertDbgValueAtEnd(LLVMDIBuilderRef builder,
-                LLVMValueRef val, LLVMMetadataRef varInfo, LLVMMetadataRef expr, LLVMMetadataRef debugLoc,
-                LLVMBasicBlockRef block);
-
-            [DllImport("LLVM-C")]
-            public static extern LLVMMetadataRef LLVMDIBuilderCreateDebugLocation(LLVMContextRef ctx, uint line,
-                uint column, LLVMMetadataRef scope, LLVMMetadataRef inlinedAt);
         }
 
 

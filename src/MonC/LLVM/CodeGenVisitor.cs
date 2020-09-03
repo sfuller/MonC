@@ -26,12 +26,12 @@ namespace MonC.LLVM
 
             if (_genContext.DiBuilder != null) {
                 _genContext.TryGetTokenSymbol(leaf, out Symbol range);
-                Metadata location = _genContext.Context.CreateDebugLocation(range.LLVMLine, range.LLVMColumn,
+                Metadata location = _genContext.Context.CreateDebugLocation(range.LLVMLine, /*range.LLVMColumn,*/ 0,
                     _lexicalScope, Metadata.Null);
                 _builder.SetCurrentDebugLocation(location);
                 return location;
             }
-            
+
             return Metadata.Null;
         }
 
@@ -41,7 +41,7 @@ namespace MonC.LLVM
                 throw new InvalidOperationException("NULL BUILDER");
             }
 
-            if (_builder.GetInsertBlock().LastInstruction.InstructionOpcode != CAPI.LLVMOpcode.Br) {
+            if (_builder.InsertBlock.LastInstruction.InstructionOpcode != CAPI.LLVMOpcode.Br) {
                 _builder.BuildBr(dest);
             }
         }
@@ -130,7 +130,7 @@ namespace MonC.LLVM
             BasicBlock rhsBlock = _genContext.Context.CreateBasicBlock("lor.rhs");
 
             _builder.BuildCondBr(lhs, contBlock, rhsBlock);
-            BasicBlock lhsPredBlock = _builder.GetInsertBlock();
+            BasicBlock lhsPredBlock = _builder.InsertBlock;
 
             _builder.InsertExistingBasicBlockAfterInsertBlock(rhsBlock);
             _builder.PositionAtEnd(rhsBlock);
@@ -146,7 +146,7 @@ namespace MonC.LLVM
             SetCurrentDebugLocation(leaf);
             rhs = ConvertToBool(rhs);
             _builder.BuildBr(contBlock);
-            BasicBlock rhsPredBlock = _builder.GetInsertBlock();
+            BasicBlock rhsPredBlock = _builder.InsertBlock;
 
             // A phi instruction is used to generate a boolean true if the LHS' branch is taken
             // Otherwise, the RHS value is used
@@ -178,7 +178,7 @@ namespace MonC.LLVM
             BasicBlock rhsBlock = _genContext.Context.CreateBasicBlock("land.rhs");
 
             _builder.BuildCondBr(lhs, rhsBlock, contBlock);
-            BasicBlock lhsPredBlock = _builder.GetInsertBlock();
+            BasicBlock lhsPredBlock = _builder.InsertBlock;
 
             _builder.InsertExistingBasicBlockAfterInsertBlock(rhsBlock);
             _builder.PositionAtEnd(rhsBlock);
@@ -193,7 +193,7 @@ namespace MonC.LLVM
 
             SetCurrentDebugLocation(leaf);
             rhs = ConvertToBool(rhs);
-            BasicBlock rhsPredBlock = _builder.GetInsertBlock();
+            BasicBlock rhsPredBlock = _builder.InsertBlock;
 
             // A phi instruction is used to generate a boolean false if the LHS' branch is taken
             // Otherwise, the RHS value is used
@@ -301,10 +301,26 @@ namespace MonC.LLVM
 
         public void VisitBody(BodyLeaf leaf)
         {
+            Metadata oldLexicalScope = _lexicalScope;
+
+            if (_lexicalScope.IsValid) {
+                // Push new lexical block
+                if (_genContext.DiBuilder != null) {
+                    _genContext.TryGetTokenSymbol(leaf, out Symbol range);
+                    _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                        range.LLVMLine, range.LLVMColumn);
+                }
+            } else {
+                // Bootstrap lexical scope with function
+                _lexicalScope = _function.DiFunctionDef;
+            }
+
             for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
                 IASTLeaf statement = leaf.GetStatement(i);
                 statement.Accept(this);
             }
+
+            _lexicalScope = oldLexicalScope;
         }
 
         public void VisitDeclaration(DeclarationLeaf leaf)
@@ -329,11 +345,11 @@ namespace MonC.LLVM
             if (_genContext.DiBuilder != null) {
                 _genContext.TryGetTokenSymbol(leaf, out Symbol varRange);
                 Metadata varType = _genContext.LookupDiType(leaf.Type);
-                Metadata varMetadata = _genContext.DiBuilder.CreateAutoVariable(_function.DiFunctionDef, leaf.Name,
-                    _genContext.DiFile, varRange.LLVMLine, varType, true, CAPI.DI.LLVMDIFlags.Zero,
+                Metadata varMetadata = _genContext.DiBuilder.CreateAutoVariable(_lexicalScope, leaf.Name,
+                    _genContext.DiFile, varRange.LLVMLine, varType, true, CAPI.LLVMDIFlags.Zero,
                     varType.TypeAlignInBits);
                 _genContext.DiBuilder.InsertDeclareAtEnd(varStorage, varMetadata,
-                    _genContext.DiBuilder.CreateExpression(), dbgLocation, _builder.GetInsertBlock());
+                    _genContext.DiBuilder.CreateExpression(), dbgLocation, _builder.InsertBlock);
             }
 
             _visitedValue = _builder.BuildStore(_visitedValue, varStorage);
@@ -358,11 +374,18 @@ namespace MonC.LLVM
                 _builder = builder;
                 _basicBlock = _function.StartDefinition(_genContext, _builder);
                 _builder.PositionAtEnd(_basicBlock);
-                _lexicalScope = _function.DiFunctionDef;
                 leaf.Body.Accept(this);
                 if (_function.ReturnBlock != null && _function.RetvalStorage != null) {
                     _builder.InsertExistingBasicBlockAfterInsertBlock(_function.ReturnBlock.Value);
                     _builder.PositionAtEnd(_function.ReturnBlock.Value);
+
+                    if (_genContext.DiBuilder != null) {
+                        _genContext.TryGetTokenSymbol(leaf, out Symbol range);
+                        Metadata location = _genContext.Context.CreateDebugLocation(range.End.Line,
+                            range.End.Column + 1, _function.DiFunctionDef, Metadata.Null);
+                        _builder.SetCurrentDebugLocation(location);
+                    }
+
                     Value retVal = _builder.BuildLoad(_function.FunctionType.ReturnType, _function.RetvalStorage.Value);
                     _builder.BuildRet(retVal);
                 }

@@ -61,7 +61,7 @@ namespace MonC.LLVM
         public Builder CreateBuilder() => new Builder(_context);
 
         public Metadata DebugMetadataVersion =>
-            Metadata.FromValue(Value.ConstInt(Int32Type, CAPI.DI.LLVMDebugMetadataVersion(), false));
+            Metadata.FromValue(Value.ConstInt(Int32Type, CAPI.LLVMDebugMetadataVersion(), false));
 
         public Type VoidType;
         public Type Int1Type;
@@ -77,7 +77,7 @@ namespace MonC.LLVM
             Array.ConvertAll(paramTypes, tp => (CAPI.LLVMTypeRef) tp), (uint) paramTypes.Length, isVarArg);
 
         public Metadata CreateDebugLocation(uint line, uint column, Metadata scope, Metadata inlinedAt) =>
-            new Metadata(CAPI.DI.LLVMDIBuilderCreateDebugLocation(_context, line, column, scope, inlinedAt));
+            CAPI.LLVMDIBuilderCreateDebugLocation(_context, line, column, scope, inlinedAt);
 
         private Dictionary<string, Type> _udts = new Dictionary<string, Type>();
 
