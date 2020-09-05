@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using MonC.SyntaxTree;
 
 namespace MonC.LLVM
@@ -26,8 +27,8 @@ namespace MonC.LLVM
 
             if (_genContext.DiBuilder != null) {
                 _genContext.TryGetTokenSymbol(leaf, out Symbol range);
-                Metadata location = _genContext.Context.CreateDebugLocation(range.LLVMLine, /*range.LLVMColumn,*/ 0,
-                    _lexicalScope, Metadata.Null);
+                Metadata location = _genContext.Context.CreateDebugLocation(range.LLVMLine,
+                    _genContext.ColumnInfo ? range.LLVMColumn : 0, _lexicalScope, Metadata.Null);
                 _builder.SetCurrentDebugLocation(location);
                 return location;
             }
@@ -355,8 +356,59 @@ namespace MonC.LLVM
             _visitedValue = _builder.BuildStore(_visitedValue, varStorage);
         }
 
+        private struct BreakContinue
+        {
+            public BasicBlock BreakBlock { get; }
+            public BasicBlock ContinueBlock { get; }
+
+            public BreakContinue(BasicBlock b, BasicBlock c)
+            {
+                BreakBlock = b;
+                ContinueBlock = c;
+            }
+        }
+
+        private readonly Stack<BreakContinue> _breakContinueStack = new Stack<BreakContinue>();
+
         public void VisitFor(ForLeaf leaf)
         {
+            if (_builder == null) {
+                throw new InvalidOperationException("NULL BUILDER");
+            }
+
+            leaf.Declaration.Accept(this);
+
+            BasicBlock condBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "for.cond");
+            BasicBlock bodyBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "for.body");
+            BasicBlock incBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "for.inc");
+            BasicBlock endBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "for.end");
+
+            SetCurrentDebugLocation(leaf);
+            BuildBrIfNecessary(condBasicBlock);
+            
+            _builder.PositionAtEnd(condBasicBlock);
+            leaf.Condition.Accept(this);
+            Value condVal = _visitedValue;
+            if (!condVal.IsValid) {
+                throw new InvalidOperationException("condition did not produce a usable rvalue");
+            }
+
+            SetCurrentDebugLocation(leaf);
+            condVal = ConvertToBool(condVal);
+
+            _builder.BuildCondBr(condVal, bodyBasicBlock, endBasicBlock);
+
+            _builder.PositionAtEnd(bodyBasicBlock);
+            _breakContinueStack.Push(new BreakContinue(endBasicBlock, incBasicBlock));
+            leaf.Body.Accept(this);
+            _breakContinueStack.Pop();
+            BuildBrIfNecessary(incBasicBlock);
+
+            _builder.PositionAtEnd(incBasicBlock);
+            leaf.Update.Accept(this);
+            BuildBrIfNecessary(condBasicBlock);
+
+            _builder.PositionAtEnd(endBasicBlock);
         }
 
         private bool _hasVisitedFunctionDefinition;
@@ -380,9 +432,9 @@ namespace MonC.LLVM
                     _builder.PositionAtEnd(_function.ReturnBlock.Value);
 
                     if (_genContext.DiBuilder != null) {
-                        _genContext.TryGetTokenSymbol(leaf, out Symbol range);
-                        Metadata location = _genContext.Context.CreateDebugLocation(range.End.Line,
-                            range.End.Column + 1, _function.DiFunctionDef, Metadata.Null);
+                        _genContext.TryGetTokenSymbol(leaf.Body, out Symbol range);
+                        Metadata location = _genContext.Context.CreateDebugLocation(range.End.Line + 1,
+                            _genContext.ColumnInfo ? range.End.Column + 1 : 0, _function.DiFunctionDef, Metadata.Null);
                         _builder.SetCurrentDebugLocation(location);
                     }
 
@@ -421,13 +473,15 @@ namespace MonC.LLVM
                 throw new InvalidOperationException("condition did not produce a usable rvalue");
             }
 
+            SetCurrentDebugLocation(leaf);
+            condVal = ConvertToBool(condVal);
+
             BasicBlock ifThenBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "if.then");
             BasicBlock ifElseBasicBlock = BasicBlock.Null;
             if (leaf.ElseBody != null)
                 ifElseBasicBlock = _genContext.Context.CreateBasicBlock("if.else");
             BasicBlock ifEndBasicBlock = _genContext.Context.CreateBasicBlock("if.end");
 
-            SetCurrentDebugLocation(leaf);
             _builder.BuildCondBr(condVal, ifThenBasicBlock,
                 ifElseBasicBlock.IsValid ? ifElseBasicBlock : ifEndBasicBlock);
 
@@ -460,10 +514,22 @@ namespace MonC.LLVM
 
         public void VisitBreak(BreakLeaf leaf)
         {
+            if (_builder == null) {
+                throw new InvalidOperationException("NULL BUILDER");
+            }
+
+            SetCurrentDebugLocation(leaf);
+            _builder.BuildBr(_breakContinueStack.Peek().BreakBlock);
         }
 
         public void VisitContinue(ContinueLeaf leaf)
         {
+            if (_builder == null) {
+                throw new InvalidOperationException("NULL BUILDER");
+            }
+
+            SetCurrentDebugLocation(leaf);
+            _builder.BuildBr(_breakContinueStack.Peek().ContinueBlock);
         }
 
         public void VisitReturn(ReturnLeaf leaf)

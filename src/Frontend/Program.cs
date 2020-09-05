@@ -29,6 +29,7 @@ namespace MonC.Frontend
             bool Oz = false;
             bool O3 = false;
             bool debugInfo = false;
+            bool columnInfo = false;
             List<string> positionals = new List<string>();
             List<int> argsToPass = new List<int>();
             List<string> libraryNames = new List<string>();
@@ -94,6 +95,9 @@ namespace MonC.Frontend
                         break;
                     case "-g":
                         debugInfo = true;
+                        break;
+                    case "-gcolumn-info":
+                        columnInfo = true;
                         break;
                     default:
                         argFound = false;
@@ -256,7 +260,7 @@ namespace MonC.Frontend
                     targetTriple = LLVM.Target.NormalizeTargetTriple(targetTriple);
                     using (LLVM.Module llvmModule =
                         LLVM.CodeGenerator.Generate(llvmContext, filename ?? "<stdin>", module, targetTriple,
-                            optBuilder, debugInfo)) {
+                            optBuilder, debugInfo, columnInfo)) {
                         if (showIL) {
                             llvmModule.Dump();
                         }

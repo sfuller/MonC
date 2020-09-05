@@ -20,9 +20,10 @@ namespace MonC.LLVM
         public Metadata DiFile { get; }
         public Metadata DiModule { get; }
         public DIBuilder? DiBuilder => Module.DiBuilder;
+        public bool ColumnInfo { get; }
 
         public CodeGeneratorContext(Context context, ParseModule parseModule, string fileName, string dirName,
-            string targetTriple, bool optimized, bool debugInfo)
+            string targetTriple, bool optimized, bool debugInfo, bool columnInfo)
         {
             Context = context;
             ParseModule = parseModule;
@@ -44,6 +45,8 @@ namespace MonC.LLVM
                     "MonC", optimized, "", 0, "", CAPI.LLVMDWARFEmissionKind.Full, 0, false, false, "", "");
                 DiModule = DiBuilder.CreateModule(diCompileUnit, fileName, "", "", "");
             }
+
+            ColumnInfo = columnInfo && DiBuilder != null;
         }
 
         public Type LookupType(TypeSpecifierLeaf specifierLeaf)
@@ -169,8 +172,8 @@ namespace MonC.LLVM
                     Metadata subroutineType = genContext.DiBuilder.CreateSubroutineType(genContext.DiFile,
                         Array.ConvertAll(_leaf.Parameters, param => genContext.LookupDiType(param.Type)),
                         CAPI.LLVMDIFlags.Zero);
-                    Metadata funcLocation = genContext.Context.CreateDebugLocation(range.LLVMLine, range.LLVMColumn,
-                        DiFwdDecl, Metadata.Null);
+                    Metadata funcLocation = genContext.Context.CreateDebugLocation(range.LLVMLine,
+                        genContext.ColumnInfo ? range.LLVMColumn : 0, DiFwdDecl, Metadata.Null);
 
                     // Create subroutine debug info and substitute over forward declaration
                     DiFunctionDef = genContext.DiBuilder.CreateFunction(genContext.DiFile, _leaf.Name, _leaf.Name,
@@ -239,7 +242,7 @@ namespace MonC.LLVM
     public static class CodeGenerator
     {
         public static Module Generate(Context context, string path, ParseModule parseModule, string targetTriple,
-            PassManagerBuilder? optBuilder, bool debugInfo)
+            PassManagerBuilder? optBuilder, bool debugInfo, bool columnInfo)
         {
             // Path information for debug info nodes
             string fileName = Path.GetFileName(path);
@@ -252,7 +255,7 @@ namespace MonC.LLVM
 
             // Create module and file-level debug info nodes
             CodeGeneratorContext genContext = new CodeGeneratorContext(context, parseModule, fileName, dirName,
-                targetTriple, optBuilder != null, debugInfo);
+                targetTriple, optBuilder != null, debugInfo, columnInfo);
 
             // Declaration pass
             foreach (FunctionDefinitionLeaf function in parseModule.Functions) {
@@ -278,6 +281,7 @@ namespace MonC.LLVM
                 foreach (var function in genContext.DefinedFunctions) {
                     functionPassManager.Run(function.Value.FunctionValue);
                 }
+
                 functionPassManager.FinalizeFunctionPassManager();
 
                 modulePassManager.Run(genContext.Module);
