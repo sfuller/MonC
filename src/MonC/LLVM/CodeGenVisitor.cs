@@ -42,9 +42,12 @@ namespace MonC.LLVM
                 throw new InvalidOperationException("NULL BUILDER");
             }
 
-            if (_builder.InsertBlock.LastInstruction.InstructionOpcode != CAPI.LLVMOpcode.Br) {
-                _builder.BuildBr(dest);
-            }
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
+
+            _builder.BuildBr(dest);
+            _builder.ClearInsertionPosition();
         }
 
         private Value ConvertToBool(Value val, bool invert = false)
@@ -53,17 +56,74 @@ namespace MonC.LLVM
                 throw new InvalidOperationException("NULL BUILDER");
             }
 
+            // TODO: Support pointers
             Type valType = val.TypeOf;
-            if (valType.Kind != CAPI.LLVMTypeKind.Integer) {
-                throw new InvalidOperationException("only integers can be converted to bool");
+            if (valType.Kind == CAPI.LLVMTypeKind.Integer) {
+                if (valType.IntTypeWidth == 1) {
+                    return val;
+                }
+
+                return _builder.BuildICmp(invert ? CAPI.LLVMIntPredicate.IntEQ : CAPI.LLVMIntPredicate.IntNE, val,
+                    Value.ConstInt(valType, 0, true), "tobool");
+            } else if (valType.IsFloatingPointTy()) {
+                return _builder.BuildFCmp(invert ? CAPI.LLVMRealPredicate.RealUEQ : CAPI.LLVMRealPredicate.RealUNE, val,
+                    Value.ConstReal(valType, 0.0), "tobool");
             }
 
-            if (valType.IntTypeWidth == 1) {
+            throw new InvalidOperationException("only integers and floating point values can be converted to bool");
+        }
+
+        private CAPI.LLVMOpcode GetCastOpcode(Value val, Type tp)
+        {
+            Type valType = val.TypeOf;
+
+            // TODO: This is a hack to not sign-extend bools; Make a better way to track signedness
+            bool sext = valType.Kind == CAPI.LLVMTypeKind.Integer && valType.IntTypeWidth != 1;
+
+            // TODO: support unsigned values
+            return Builder.GetCastOpcode(val, sext, tp, true);
+        }
+
+        private Value ConvertToType(Value val, Type tp)
+        {
+            if (_builder == null) {
+                throw new InvalidOperationException("NULL BUILDER");
+            }
+
+            if (val.TypeOf == tp) {
                 return val;
             }
 
-            return _builder.BuildICmp(invert ? CAPI.LLVMIntPredicate.IntEQ : CAPI.LLVMIntPredicate.IntNE, val,
-                Value.ConstInt(valType, 0, true), "tobool");
+            CAPI.LLVMOpcode castOp = GetCastOpcode(val, tp);
+            return _builder.BuildCast(castOp, val, tp);
+        }
+
+        private void TypePromotionForBinaryOperation(ref Value lhs, ref Value rhs, out bool isFloat)
+        {
+            if (_builder == null) {
+                throw new InvalidOperationException("NULL BUILDER");
+            }
+
+            Type lhsTp = lhs.TypeOf;
+            Type rhsTp = rhs.TypeOf;
+
+            if (lhsTp == rhsTp) {
+                isFloat = lhsTp.IsFloatingPointTy();
+                return;
+            }
+
+            // TODO: support unsigned values
+            CAPI.LLVMOpcode lhsCastOp = GetCastOpcode(lhs, rhsTp);
+            if (lhsCastOp != CAPI.LLVMOpcode.Trunc && lhsCastOp != CAPI.LLVMOpcode.FPTrunc) {
+                lhs = _builder.BuildCast(lhsCastOp, lhs, rhsTp);
+                isFloat = rhsTp.IsFloatingPointTy();
+                return;
+            }
+
+            // TODO: support unsigned values
+            CAPI.LLVMOpcode rhsCastOp = GetCastOpcode(rhs, lhsTp);
+            rhs = _builder.BuildCast(rhsCastOp, rhs, lhsTp);
+            isFloat = lhsTp.IsFloatingPointTy();
         }
 
         private Value GenerateRelationalComparison(BinaryOperationExpressionLeaf leaf)
@@ -84,32 +144,63 @@ namespace MonC.LLVM
                 throw new InvalidOperationException("RHS did not produce a usable rvalue");
             }
 
-            CAPI.LLVMIntPredicate opPred;
-            switch (leaf.Op.Value) {
-                case ">":
-                    opPred = CAPI.LLVMIntPredicate.IntSGT;
-                    break;
-                case "<":
-                    opPred = CAPI.LLVMIntPredicate.IntSLT;
-                    break;
-                case Syntax.GREATER_THAN_OR_EQUAL_TO:
-                    opPred = CAPI.LLVMIntPredicate.IntSGE;
-                    break;
-                case Syntax.LESS_THAN_OR_EQUAL_TO:
-                    opPred = CAPI.LLVMIntPredicate.IntSLE;
-                    break;
-                case Syntax.EQUALS:
-                    opPred = CAPI.LLVMIntPredicate.IntEQ;
-                    break;
-                case Syntax.NOT_EQUALS:
-                    opPred = CAPI.LLVMIntPredicate.IntNE;
-                    break;
-                default:
-                    throw new NotImplementedException(leaf.Op.Value);
-            }
-
             SetCurrentDebugLocation(leaf);
-            return _builder.BuildICmp(opPred, lhs, rhs, "cmp");
+            TypePromotionForBinaryOperation(ref lhs, ref rhs, out bool isFloat);
+
+            if (!isFloat) {
+                // TODO: Support unsigned values
+                CAPI.LLVMIntPredicate opPred;
+                switch (leaf.Op.Value) {
+                    case ">":
+                        opPred = CAPI.LLVMIntPredicate.IntSGT;
+                        break;
+                    case "<":
+                        opPred = CAPI.LLVMIntPredicate.IntSLT;
+                        break;
+                    case Syntax.GREATER_THAN_OR_EQUAL_TO:
+                        opPred = CAPI.LLVMIntPredicate.IntSGE;
+                        break;
+                    case Syntax.LESS_THAN_OR_EQUAL_TO:
+                        opPred = CAPI.LLVMIntPredicate.IntSLE;
+                        break;
+                    case Syntax.EQUALS:
+                        opPred = CAPI.LLVMIntPredicate.IntEQ;
+                        break;
+                    case Syntax.NOT_EQUALS:
+                        opPred = CAPI.LLVMIntPredicate.IntNE;
+                        break;
+                    default:
+                        throw new NotImplementedException(leaf.Op.Value);
+                }
+
+                return _builder.BuildICmp(opPred, lhs, rhs, "cmp");
+            } else {
+                CAPI.LLVMRealPredicate opPred;
+                switch (leaf.Op.Value) {
+                    case ">":
+                        opPred = CAPI.LLVMRealPredicate.RealOGT;
+                        break;
+                    case "<":
+                        opPred = CAPI.LLVMRealPredicate.RealOLT;
+                        break;
+                    case Syntax.GREATER_THAN_OR_EQUAL_TO:
+                        opPred = CAPI.LLVMRealPredicate.RealOGE;
+                        break;
+                    case Syntax.LESS_THAN_OR_EQUAL_TO:
+                        opPred = CAPI.LLVMRealPredicate.RealOLE;
+                        break;
+                    case Syntax.EQUALS:
+                        opPred = CAPI.LLVMRealPredicate.RealUEQ;
+                        break;
+                    case Syntax.NOT_EQUALS:
+                        opPred = CAPI.LLVMRealPredicate.RealUNE;
+                        break;
+                    default:
+                        throw new NotImplementedException(leaf.Op.Value);
+                }
+
+                return _builder.BuildFCmp(opPred, lhs, rhs, "cmp");
+            }
         }
 
         private Value GenerateLogicalOr(BinaryOperationExpressionLeaf leaf)
@@ -194,6 +285,7 @@ namespace MonC.LLVM
 
             SetCurrentDebugLocation(leaf);
             rhs = ConvertToBool(rhs);
+            _builder.BuildBr(contBlock);
             BasicBlock rhsPredBlock = _builder.InsertBlock;
 
             // A phi instruction is used to generate a boolean false if the LHS' branch is taken
@@ -226,19 +318,37 @@ namespace MonC.LLVM
             }
 
             SetCurrentDebugLocation(leaf);
-            switch (leaf.Op.Value) {
-                case "+":
-                    return _builder.BuildAdd(lhs, rhs);
-                case "-":
-                    return _builder.BuildSub(lhs, rhs);
-                case "*":
-                    return _builder.BuildMul(lhs, rhs);
-                case "/":
-                    return _builder.BuildSDiv(lhs, rhs);
-                case "%":
-                    return _builder.BuildSRem(lhs, rhs);
-                default:
-                    throw new NotImplementedException(leaf.Op.Value);
+            TypePromotionForBinaryOperation(ref lhs, ref rhs, out bool isFloat);
+            if (!isFloat) {
+                switch (leaf.Op.Value) {
+                    case "+":
+                        return _builder.BuildAdd(lhs, rhs);
+                    case "-":
+                        return _builder.BuildSub(lhs, rhs);
+                    case "*":
+                        return _builder.BuildMul(lhs, rhs);
+                    case "/":
+                        return _builder.BuildSDiv(lhs, rhs);
+                    case "%":
+                        return _builder.BuildSRem(lhs, rhs);
+                    default:
+                        throw new NotImplementedException(leaf.Op.Value);
+                }
+            } else {
+                switch (leaf.Op.Value) {
+                    case "+":
+                        return _builder.BuildFAdd(lhs, rhs);
+                    case "-":
+                        return _builder.BuildFSub(lhs, rhs);
+                    case "*":
+                        return _builder.BuildFMul(lhs, rhs);
+                    case "/":
+                        return _builder.BuildFDiv(lhs, rhs);
+                    case "%":
+                        return _builder.BuildFRem(lhs, rhs);
+                    default:
+                        throw new NotImplementedException(leaf.Op.Value);
+                }
             }
         }
 
@@ -247,6 +357,10 @@ namespace MonC.LLVM
             if (_builder == null) {
                 throw new InvalidOperationException("NULL BUILDER");
             }
+
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
 
             switch (leaf.Op.Value) {
                 case ">":
@@ -281,6 +395,10 @@ namespace MonC.LLVM
                 throw new InvalidOperationException("NULL BUILDER");
             }
 
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
+
             leaf.RHS.Accept(this);
             Value rhs = _visitedValue;
             if (!rhs.IsValid) {
@@ -309,7 +427,7 @@ namespace MonC.LLVM
                 if (_genContext.DiBuilder != null) {
                     _genContext.TryGetTokenSymbol(leaf, out Symbol range);
                     _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
-                        range.LLVMLine, range.LLVMColumn);
+                        range.LLVMLine, _genContext.ColumnInfo ? range.LLVMColumn : 0);
                 }
             } else {
                 // Bootstrap lexical scope with function
@@ -329,6 +447,10 @@ namespace MonC.LLVM
             if (_builder == null) {
                 throw new InvalidOperationException("NULL BUILDER");
             }
+
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
 
             IASTLeaf? assignment = leaf.Assignment;
             if (assignment == null) {
@@ -368,12 +490,23 @@ namespace MonC.LLVM
             }
         }
 
-        private readonly Stack<BreakContinue> _breakContinueStack = new Stack<BreakContinue>();
+        private BreakContinue _breakContinueTop;
 
         public void VisitFor(ForLeaf leaf)
         {
             if (_builder == null) {
                 throw new InvalidOperationException("NULL BUILDER");
+            }
+
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
+
+            Metadata oldLexicalScope = _lexicalScope;
+            if (_genContext.DiBuilder != null) {
+                _genContext.TryGetTokenSymbol(leaf.Declaration, out Symbol declRange);
+                _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                    declRange.LLVMLine, _genContext.ColumnInfo ? declRange.LLVMColumn : 0);
             }
 
             leaf.Declaration.Accept(this);
@@ -385,7 +518,7 @@ namespace MonC.LLVM
 
             SetCurrentDebugLocation(leaf);
             BuildBrIfNecessary(condBasicBlock);
-            
+
             _builder.PositionAtEnd(condBasicBlock);
             leaf.Condition.Accept(this);
             Value condVal = _visitedValue;
@@ -399,9 +532,10 @@ namespace MonC.LLVM
             _builder.BuildCondBr(condVal, bodyBasicBlock, endBasicBlock);
 
             _builder.PositionAtEnd(bodyBasicBlock);
-            _breakContinueStack.Push(new BreakContinue(endBasicBlock, incBasicBlock));
+            BreakContinue oldBreakContinueTop = _breakContinueTop;
+            _breakContinueTop = new BreakContinue(endBasicBlock, incBasicBlock);
             leaf.Body.Accept(this);
-            _breakContinueStack.Pop();
+            _breakContinueTop = oldBreakContinueTop;
             BuildBrIfNecessary(incBasicBlock);
 
             _builder.PositionAtEnd(incBasicBlock);
@@ -409,6 +543,8 @@ namespace MonC.LLVM
             BuildBrIfNecessary(condBasicBlock);
 
             _builder.PositionAtEnd(endBasicBlock);
+
+            _lexicalScope = oldLexicalScope;
         }
 
         private bool _hasVisitedFunctionDefinition;
@@ -428,7 +564,7 @@ namespace MonC.LLVM
                 _builder.PositionAtEnd(_basicBlock);
                 leaf.Body.Accept(this);
                 if (_function.ReturnBlock != null && _function.RetvalStorage != null) {
-                    _builder.InsertExistingBasicBlockAfterInsertBlock(_function.ReturnBlock.Value);
+                    _function.FunctionValue.AppendExistingBasicBlock(_function.ReturnBlock.Value);
                     _builder.PositionAtEnd(_function.ReturnBlock.Value);
 
                     if (_genContext.DiBuilder != null) {
@@ -448,6 +584,29 @@ namespace MonC.LLVM
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
         {
+            if (_builder == null) {
+                throw new InvalidOperationException("NULL BUILDER");
+            }
+
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
+
+            CodeGeneratorContext.Function func = _genContext.GetFunctionDeclaration(leaf.LHS);
+            Type[] paramTypes = func.FunctionType.ParamTypes;
+
+            Value[] args = new Value[leaf.ArgumentCount];
+            for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
+                leaf.GetArgument(i).Accept(this);
+                if (!_visitedValue.IsValid) {
+                    throw new InvalidOperationException("argument did not produce a usable rvalue");
+                }
+
+                args[i] = ConvertToType(_visitedValue, paramTypes[i]);
+            }
+
+            SetCurrentDebugLocation(leaf);
+            _visitedValue = _builder.BuildCall(func.FunctionType, func.FunctionValue, args);
         }
 
         public void VisitVariable(VariableLeaf leaf)
@@ -455,6 +614,10 @@ namespace MonC.LLVM
             if (_builder == null) {
                 throw new InvalidOperationException("NULL BUILDER");
             }
+
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
 
             SetCurrentDebugLocation(leaf);
             _function.VariableValues.TryGetValue(leaf.Declaration, out Value varStorage);
@@ -465,6 +628,17 @@ namespace MonC.LLVM
         {
             if (_builder == null) {
                 throw new InvalidOperationException("NULL BUILDER");
+            }
+
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
+
+            Metadata oldLexicalScope = _lexicalScope;
+            if (_genContext.DiBuilder != null) {
+                _genContext.TryGetTokenSymbol(leaf.Condition, out Symbol condRange);
+                _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                    condRange.LLVMLine, _genContext.ColumnInfo ? condRange.LLVMColumn : 0);
             }
 
             leaf.Condition.Accept(this);
@@ -489,14 +663,16 @@ namespace MonC.LLVM
             leaf.IfBody.Accept(this);
             BuildBrIfNecessary(ifEndBasicBlock);
             if (leaf.ElseBody != null) {
-                _builder.InsertExistingBasicBlockAfterInsertBlock(ifElseBasicBlock);
+                _function.FunctionValue.AppendExistingBasicBlock(ifElseBasicBlock);
                 _builder.PositionAtEnd(ifElseBasicBlock);
                 leaf.ElseBody.Accept(this);
                 BuildBrIfNecessary(ifEndBasicBlock);
             }
 
-            _builder.InsertExistingBasicBlockAfterInsertBlock(ifEndBasicBlock);
+            _function.FunctionValue.AppendExistingBasicBlock(ifEndBasicBlock);
             _builder.PositionAtEnd(ifEndBasicBlock);
+
+            _lexicalScope = oldLexicalScope;
         }
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)
@@ -506,10 +682,63 @@ namespace MonC.LLVM
 
         public void VisitStringLiteral(StringLiteralLeaf leaf)
         {
+            if (_builder == null) {
+                throw new InvalidOperationException("NULL BUILDER");
+            }
+
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
+            
+            _visitedValue = _builder.BuildGlobalStringPtr(leaf.Value);
         }
 
         public void VisitWhile(WhileLeaf leaf)
         {
+            if (_builder == null) {
+                throw new InvalidOperationException("NULL BUILDER");
+            }
+
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
+
+            Metadata oldLexicalScope = _lexicalScope;
+            if (_genContext.DiBuilder != null) {
+                _genContext.TryGetTokenSymbol(leaf.Condition, out Symbol condRange);
+                _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                    condRange.LLVMLine, _genContext.ColumnInfo ? condRange.LLVMColumn : 0);
+            }
+
+            BasicBlock condBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "while.cond");
+            BasicBlock bodyBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "while.body");
+            BasicBlock endBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "while.end");
+
+            SetCurrentDebugLocation(leaf);
+            BuildBrIfNecessary(condBasicBlock);
+
+            _builder.PositionAtEnd(condBasicBlock);
+            leaf.Condition.Accept(this);
+            Value condVal = _visitedValue;
+            if (!condVal.IsValid) {
+                throw new InvalidOperationException("condition did not produce a usable rvalue");
+            }
+
+            SetCurrentDebugLocation(leaf);
+            condVal = ConvertToBool(condVal);
+
+            _builder.BuildCondBr(condVal, bodyBasicBlock, endBasicBlock);
+
+            _builder.PositionAtEnd(bodyBasicBlock);
+            BreakContinue oldBreakContinueTop = _breakContinueTop;
+            _breakContinueTop = new BreakContinue(endBasicBlock, condBasicBlock);
+            leaf.Body.Accept(this);
+            _breakContinueTop = oldBreakContinueTop;
+            BuildBrIfNecessary(condBasicBlock);
+
+            _builder.PositionAtEnd(endBasicBlock);
+
+            _lexicalScope = oldLexicalScope;
         }
 
         public void VisitBreak(BreakLeaf leaf)
@@ -518,8 +747,13 @@ namespace MonC.LLVM
                 throw new InvalidOperationException("NULL BUILDER");
             }
 
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
+
             SetCurrentDebugLocation(leaf);
-            _builder.BuildBr(_breakContinueStack.Peek().BreakBlock);
+            _builder.BuildBr(_breakContinueTop.BreakBlock);
+            _builder.ClearInsertionPosition();
         }
 
         public void VisitContinue(ContinueLeaf leaf)
@@ -528,8 +762,13 @@ namespace MonC.LLVM
                 throw new InvalidOperationException("NULL BUILDER");
             }
 
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
+
             SetCurrentDebugLocation(leaf);
-            _builder.BuildBr(_breakContinueStack.Peek().ContinueBlock);
+            _builder.BuildBr(_breakContinueTop.ContinueBlock);
+            _builder.ClearInsertionPosition();
         }
 
         public void VisitReturn(ReturnLeaf leaf)
@@ -537,6 +776,10 @@ namespace MonC.LLVM
             if (_builder == null) {
                 throw new InvalidOperationException("NULL BUILDER");
             }
+
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
 
             if (leaf.RHS == null) {
                 SetCurrentDebugLocation(leaf);
@@ -546,6 +789,7 @@ namespace MonC.LLVM
                     _visitedValue = _builder.BuildRetVoid();
                 }
 
+                _builder.ClearInsertionPosition();
                 return;
             }
 
@@ -556,12 +800,16 @@ namespace MonC.LLVM
             }
 
             SetCurrentDebugLocation(leaf);
+            retVal = ConvertToType(retVal, _function.FunctionType.ReturnType);
+
             if (_function.ReturnBlock != null && _function.RetvalStorage != null) {
                 _builder.BuildStore(retVal, _function.RetvalStorage.Value);
                 _visitedValue = _builder.BuildBr(_function.ReturnBlock.Value);
             } else {
                 _visitedValue = _builder.BuildRet(retVal);
             }
+
+            _builder.ClearInsertionPosition();
         }
 
         public void VisitAssignment(AssignmentLeaf leaf)
@@ -569,6 +817,10 @@ namespace MonC.LLVM
             if (_builder == null) {
                 throw new InvalidOperationException("NULL BUILDER");
             }
+
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
 
             leaf.RHS.Accept(this);
             if (!_visitedValue.IsValid) {

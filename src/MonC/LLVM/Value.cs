@@ -18,6 +18,8 @@ namespace MonC.LLVM
 
         public static Value ConstInt(Type intTy, ulong n, bool signExtend) => CAPI.LLVMConstInt(intTy, n, signExtend);
 
+        public static Value ConstReal(Type fltTy, double n) => CAPI.LLVMConstReal(fltTy, n);
+
         public BasicBlock FirstBasicBlock => CAPI.LLVMGetFirstBasicBlock(_value);
         public BasicBlock LastBasicBlock => CAPI.LLVMGetLastBasicBlock(_value);
 
@@ -40,5 +42,7 @@ namespace MonC.LLVM
         public void AddIncoming(Value[] incomingValues, BasicBlock[] incomingBlocks) =>
             CAPI.LLVMAddIncoming(_value, Array.ConvertAll(incomingValues, val => (CAPI.LLVMValueRef) val),
                 Array.ConvertAll(incomingBlocks, block => (CAPI.LLVMBasicBlockRef) block));
+
+        public void AppendExistingBasicBlock(BasicBlock bb) => CAPI.LLVMAppendExistingBasicBlock(_value, bb);
     }
 }

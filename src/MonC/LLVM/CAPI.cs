@@ -69,6 +69,17 @@ namespace MonC.LLVM
         {
             private IntPtr InternalPtr;
             public bool IsValid => InternalPtr != IntPtr.Zero;
+            public static bool operator ==(LLVMTypeRef a, LLVMTypeRef b) => a.InternalPtr == b.InternalPtr;
+            public static bool operator !=(LLVMTypeRef a, LLVMTypeRef b) => a.InternalPtr != b.InternalPtr;
+
+            public override bool Equals(Object obj)
+            {
+                if (GetType() != obj.GetType())
+                    return false;
+                return this == (LLVMTypeRef) obj;
+            }
+
+            public override int GetHashCode() => InternalPtr.GetHashCode();
         }
 
         [DllImport("LLVM-C")]
@@ -166,6 +177,15 @@ namespace MonC.LLVM
         [DllImport("LLVM-C")]
         public static extern LLVMTypeKind LLVMGetTypeKind(LLVMTypeRef ty);
 
+        [DllImport("LLVM-C")]
+        public static extern LLVMTypeRef LLVMGetElementType(LLVMTypeRef ty);
+
+        [DllImport("LLVM-C")]
+        public static extern uint LLVMGetVectorSize(LLVMTypeRef vectorTy);
+
+        [DllImport("LLVM-C")]
+        public static extern uint LLVMGetPointerAddressSpace(LLVMTypeRef pointerTy);
+
 
         public struct LLVMValueRef
         {
@@ -175,6 +195,9 @@ namespace MonC.LLVM
 
         [DllImport("LLVM-C")]
         public static extern LLVMValueRef LLVMConstInt(LLVMTypeRef intTy, ulong n, bool signExtend);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMConstReal(LLVMTypeRef realTy, double n);
 
 
         public struct LLVMModuleRef
@@ -349,6 +372,9 @@ namespace MonC.LLVM
         [DllImport("LLVM-C")]
         public static extern void LLVMInsertExistingBasicBlockAfterInsertBlock(LLVMBuilderRef builder,
             LLVMBasicBlockRef bb);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMAppendExistingBasicBlock(LLVMValueRef fn, LLVMBasicBlockRef bb);
 
         [DllImport("LLVM-C")]
         public static extern LLVMValueRef LLVMGetBasicBlockParent(LLVMBasicBlockRef basicBlock);
@@ -576,6 +602,14 @@ namespace MonC.LLVM
         [DllImport("LLVM-C")]
         public static extern LLVMValueRef LLVMBuildNot(LLVMBuilderRef builder, LLVMValueRef v, string name);
 
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildCast(LLVMBuilderRef builder, LLVMOpcode op, LLVMValueRef val,
+            LLVMTypeRef destTy, string name);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildPointerCast(LLVMBuilderRef builder, LLVMValueRef val,
+            LLVMTypeRef destTy, string name);
+
         public enum LLVMIntPredicate
         {
             IntEQ = 32,
@@ -622,6 +656,17 @@ namespace MonC.LLVM
         public static extern LLVMValueRef LLVMBuildPhi(LLVMBuilderRef builder, LLVMTypeRef ty, string name);
 
         [DllImport("LLVM-C")]
+        private static extern LLVMValueRef LLVMBuildCall2(LLVMBuilderRef builder, LLVMTypeRef ty, LLVMValueRef fn,
+            LLVMValueRef[] args, uint numArgs, string name);
+
+        public static LLVMValueRef LLVMBuildCall2(LLVMBuilderRef builder, LLVMTypeRef ty, LLVMValueRef fn,
+            LLVMValueRef[] args, string name) => LLVMBuildCall2(builder, ty, fn, args, (uint) args.Length, name);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildSelect(LLVMBuilderRef builder, LLVMValueRef _if, LLVMValueRef then,
+            LLVMValueRef _else, string name);
+
+        [DllImport("LLVM-C")]
         private static extern void LLVMAddIncoming(LLVMValueRef phiNode, LLVMValueRef[] incomingValues,
             LLVMBasicBlockRef[] incomingBlocks, uint count);
 
@@ -646,6 +691,12 @@ namespace MonC.LLVM
 
         [DllImport("LLVM-C")]
         public static extern LLVMValueRef LLVMBuildStore(LLVMBuilderRef builder, LLVMValueRef val, LLVMValueRef ptr);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildGlobalString(LLVMBuilderRef builder, string str, string name);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildGlobalStringPtr(LLVMBuilderRef builder, string str, string name);
 
         [DllImport("LLVM-C")]
         public static extern LLVMBasicBlockRef LLVMGetInstructionParent(LLVMValueRef inst);

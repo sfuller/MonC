@@ -133,6 +133,12 @@ namespace MonC.LLVM
 
         public Value BuildNot(Value v, string name = "") => CAPI.LLVMBuildNot(_builder, v, name);
 
+        public Value BuildCast(CAPI.LLVMOpcode op, Value val, Type destTy, string name = "") =>
+            CAPI.LLVMBuildCast(_builder, op, val, destTy, name);
+
+        public Value BuildPointerCast(Value val, Type destTy, string name = "") =>
+            CAPI.LLVMBuildPointerCast(_builder, val, destTy, name);
+
         public Value BuildICmp(CAPI.LLVMIntPredicate op, Value lhs, Value rhs, string name = "") =>
             CAPI.LLVMBuildICmp(_builder, op, lhs, rhs, name);
 
@@ -140,6 +146,12 @@ namespace MonC.LLVM
             CAPI.LLVMBuildFCmp(_builder, op, lhs, rhs, name);
 
         public Value BuildPhi(Type ty, string name = "") => CAPI.LLVMBuildPhi(_builder, ty, name);
+
+        public Value BuildCall(Type ty, Value fn, Value[] args, string name = "") => CAPI.LLVMBuildCall2(_builder, ty,
+            fn, Array.ConvertAll(args, a => (CAPI.LLVMValueRef) a), name);
+
+        public Value BuildSelect(Value _if, Value then, Value _else, string name = "") =>
+            CAPI.LLVMBuildSelect(_builder, _if, then, _else, name);
 
         public Value BuildAlloca(Type ty, string name = "") => CAPI.LLVMBuildAlloca(_builder, ty, name);
 
@@ -150,6 +162,114 @@ namespace MonC.LLVM
 
         public Value BuildStore(Value val, Value ptr) => CAPI.LLVMBuildStore(_builder, val, ptr);
 
+        public Value BuildGlobalString(string str, string name = "") => CAPI.LLVMBuildGlobalString(_builder, str, name);
+
+        public Value BuildGlobalStringPtr(string str, string name = "") =>
+            CAPI.LLVMBuildGlobalStringPtr(_builder, str, name);
+
         public void SetCurrentDebugLocation(Metadata loc) => CAPI.LLVMSetCurrentDebugLocation2(_builder, loc);
+
+        /// <summary>
+        /// Port of CastInst::getCastOpcode
+        /// </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public static CAPI.LLVMOpcode GetCastOpcode(Value src, bool srcIsSigned, Type destTy, bool destIsSigned)
+        {
+            Type srcTy = src.TypeOf;
+
+            if (!srcTy.IsFirstClassType() || !destTy.IsFirstClassType())
+                throw new InvalidCastException("Only first class types are castable!");
+
+            if (srcTy == destTy)
+                return CAPI.LLVMOpcode.BitCast;
+
+            // FIXME: Check address space sizes here
+            if (srcTy.Kind == CAPI.LLVMTypeKind.Vector)
+                if (destTy.Kind == CAPI.LLVMTypeKind.Vector)
+                    if (srcTy.VectorSize == destTy.VectorSize) {
+                        // An element by element cast.  Find the appropriate opcode based on the
+                        // element types.
+                        srcTy = srcTy.ElementType;
+                        destTy = destTy.ElementType;
+                    }
+
+            // Get the bit sizes, we'll need these
+            uint srcBits = srcTy.GetPrimitiveSizeInBits(); // 0 for ptr
+            uint destBits = destTy.GetPrimitiveSizeInBits(); // 0 for ptr
+
+            // Run through the possibilities ...
+            if (destTy.Kind == CAPI.LLVMTypeKind.Integer) { // Casting to integral
+                if (srcTy.Kind == CAPI.LLVMTypeKind.Integer) { // Casting from integral
+                    if (destBits < srcBits)
+                        return CAPI.LLVMOpcode.Trunc; // int -> smaller int
+                    else if (destBits > srcBits) { // its an extension
+                        if (srcIsSigned)
+                            return CAPI.LLVMOpcode.SExt; // signed -> SEXT
+                        else
+                            return CAPI.LLVMOpcode.ZExt; // unsigned -> ZEXT
+                    } else {
+                        return CAPI.LLVMOpcode.BitCast; // Same size, No-op cast
+                    }
+                } else if (srcTy.IsFloatingPointTy()) { // Casting from floating pt
+                    if (destIsSigned)
+                        return CAPI.LLVMOpcode.FPToSI; // FP -> sint
+                    else
+                        return CAPI.LLVMOpcode.FPToUI; // FP -> uint
+                } else if (srcTy.Kind == CAPI.LLVMTypeKind.Vector) {
+                    if (destBits != srcBits)
+                        throw new InvalidCastException("Casting vector to integer of different width");
+                    return CAPI.LLVMOpcode.BitCast; // Same size, no-op cast
+                } else {
+                    if (srcTy.Kind != CAPI.LLVMTypeKind.Pointer)
+                        throw new InvalidCastException("Casting from a value that is not first-class type");
+                    return CAPI.LLVMOpcode.PtrToInt; // ptr -> int
+                }
+            } else if (srcTy.IsFloatingPointTy()) { // Casting to floating pt
+                if (srcTy.Kind == CAPI.LLVMTypeKind.Integer) { // Casting from integral
+                    if (srcIsSigned)
+                        return CAPI.LLVMOpcode.SIToFP; // sint -> FP
+                    else
+                        return CAPI.LLVMOpcode.UIToFP; // uint -> FP
+                } else if (srcTy.IsFloatingPointTy()) { // Casting from floating pt
+                    if (destBits < srcBits) {
+                        return CAPI.LLVMOpcode.FPTrunc; // FP -> smaller FP
+                    } else if (destBits > srcBits) {
+                        return CAPI.LLVMOpcode.FPExt; // FP -> larger FP
+                    } else {
+                        return CAPI.LLVMOpcode.BitCast; // same size, no-op cast
+                    }
+                } else if (srcTy.Kind == CAPI.LLVMTypeKind.Vector) {
+                    if (destBits != srcBits)
+                        throw new InvalidCastException("Casting vector to floating point of different width");
+                    return CAPI.LLVMOpcode.BitCast; // same size, no-op cast
+                }
+
+                throw new InvalidCastException("Casting pointer or non-first class to float");
+            } else if (destTy.Kind == CAPI.LLVMTypeKind.Vector) {
+                if (destBits != srcBits)
+                    throw new InvalidCastException("Illegal cast to vector (wrong type or size)");
+                return CAPI.LLVMOpcode.BitCast;
+            } else if (destTy.Kind == CAPI.LLVMTypeKind.Pointer) {
+                if (srcTy.Kind == CAPI.LLVMTypeKind.Pointer) {
+                    if (destTy.PointerAddressSpace != srcTy.PointerAddressSpace)
+                        return CAPI.LLVMOpcode.AddrSpaceCast;
+                    return CAPI.LLVMOpcode.BitCast; // ptr -> ptr
+                } else if (srcTy.Kind == CAPI.LLVMTypeKind.Integer) {
+                    return CAPI.LLVMOpcode.IntToPtr; // int -> ptr
+                }
+
+                throw new InvalidCastException("Casting pointer to other than pointer or int");
+            } else if (destTy.Kind == CAPI.LLVMTypeKind.X86_MMX) {
+                if (srcTy.Kind == CAPI.LLVMTypeKind.Vector) {
+                    if (destBits != srcBits)
+                        throw new InvalidCastException("Casting vector of wrong width to X86_MMX");
+                    return CAPI.LLVMOpcode.BitCast; // 64-bit vector to MMX
+                }
+
+                throw new InvalidCastException("Illegal cast to X86_MMX");
+            }
+
+            throw new InvalidCastException("Casting to type that is not first-class");
+        }
     }
 }
