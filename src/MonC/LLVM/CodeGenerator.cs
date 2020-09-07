@@ -19,7 +19,7 @@ namespace MonC.LLVM
         public Module Module { get; }
         public Metadata DiFile { get; }
         public Metadata DiModule { get; }
-        public DIBuilder? DiBuilder => Module.DiBuilder;
+        public DIBuilder? DiBuilder { get; }
         public bool ColumnInfo { get; }
 
         public CodeGeneratorContext(Context context, ParseModule parseModule, string fileName, string dirName,
@@ -28,25 +28,26 @@ namespace MonC.LLVM
             Context = context;
             ParseModule = parseModule;
 
-            Module = context.CreateModule(fileName, debugInfo);
+            Module = context.CreateModule(fileName);
             Module.SetTarget(targetTriple);
 
-            if (DiBuilder != null) {
-                Module.AddModuleFlag(CAPI.LLVMModuleFlagBehavior.Warning, "Debug Info Version",
-                    Context.DebugMetadataVersion);
-                if (targetTriple.Contains("-msvc")) {
-                    Module.AddModuleFlag(CAPI.LLVMModuleFlagBehavior.Warning, "CodeView",
-                        Metadata.FromValue(Value.ConstInt(Context.Int32Type, 1, false)));
-                }
-
-                DiFile = DiBuilder.CreateFile(fileName, dirName);
-                // Just say that MonC is C89; hopefully debuggers won't care
-                Metadata diCompileUnit = DiBuilder.CreateCompileUnit(CAPI.LLVMDWARFSourceLanguage.C89, DiFile,
-                    "MonC", optimized, "", 0, "", CAPI.LLVMDWARFEmissionKind.Full, 0, false, false, "", "");
-                DiModule = DiBuilder.CreateModule(diCompileUnit, fileName, "", "", "");
+            // Debug compile unit is always emitted even if debug info is not requested
+            // This provides a standardized way to export enums in the module
+            Module.AddModuleFlag(CAPI.LLVMModuleFlagBehavior.Warning, "Debug Info Version",
+                Context.DebugMetadataVersion);
+            if (targetTriple.Contains("-msvc")) {
+                Module.AddModuleFlag(CAPI.LLVMModuleFlagBehavior.Warning, "CodeView",
+                    Metadata.FromValue(Value.ConstInt(Context.Int32Type, 1, false)));
             }
 
-            ColumnInfo = columnInfo && DiBuilder != null;
+            DiFile = Module.DiBuilder.CreateFile(fileName, dirName);
+            // Just say that MonC is C89; hopefully debuggers won't care
+            Metadata diCompileUnit = Module.DiBuilder.CreateCompileUnit(CAPI.LLVMDWARFSourceLanguage.C89, DiFile,
+                "MonC", optimized, "", 0, "", CAPI.LLVMDWARFEmissionKind.Full, 0, false, false, "", "");
+            DiModule = Module.DiBuilder.CreateModule(diCompileUnit, fileName, "", "", "");
+
+            DiBuilder = debugInfo ? Module.DiBuilder : null;
+            ColumnInfo = columnInfo && debugInfo;
         }
 
         public Type LookupType(TypeSpecifierLeaf specifierLeaf)
@@ -269,8 +270,27 @@ namespace MonC.LLVM
                 function.Accept(codeGenVisitor);
             }
 
+            // Enum pass
+            foreach (EnumLeaf enumLeaf in parseModule.Enums) {
+                KeyValuePair<string, int>[] enumerations = enumLeaf.Enumerations;
+
+                Metadata[] enumerators = new Metadata[enumerations.Length];
+                for (int i = 0, ilen = enumerations.Length; i < ilen; ++i) {
+                    var enumeration = enumerations[i];
+                    enumerators[i] =
+                        genContext.Module.DiBuilder.CreateEnumerator(enumeration.Key, enumeration.Value, false);
+                }
+
+                genContext.TryGetTokenSymbol(enumLeaf, out Symbol range);
+                genContext.Module.DiBuilder.CreateEnumerationType(genContext.DiFile,
+                    (enumLeaf.IsExported ? "export." : "") + $"enum.{fileName}.{range.LLVMLine}", genContext.DiFile,
+                    range.LLVMLine, genContext.Module.DiBuilder.Int32Type.TypeSizeInBits,
+                    genContext.Module.DiBuilder.Int32Type.TypeAlignInBits, enumerators,
+                    genContext.Module.DiBuilder.Int32Type);
+            }
+
             // Finalize debug info
-            genContext.DiBuilder?.BuilderFinalize();
+            genContext.Module.DiBuilder.BuilderFinalize();
 
             // Run optimization passes on functions and module if a builder is supplied
             if (optBuilder != null) {

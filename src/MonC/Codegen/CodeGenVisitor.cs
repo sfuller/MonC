@@ -220,7 +220,7 @@ namespace MonC.Codegen
 
         public void VisitTypeSpecifier(TypeSpecifierLeaf leaf)
         {
-            throw new InvalidOperationException("Enum leaf shouldn't be part of a function AST");
+            throw new InvalidOperationException("Type specifier leaf shouldn't be part of a function AST");
         }
 
         public void VisitBody(BodyLeaf leaf)

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 
 namespace MonC.LLVM
 {
@@ -57,7 +56,7 @@ namespace MonC.LLVM
 
         ~Context() => DoDispose();
 
-        public Module CreateModule(string name, bool debugInfo) => new Module(name, _context, debugInfo);
+        public Module CreateModule(string name) => new Module(name, _context);
         public Builder CreateBuilder() => new Builder(_context);
 
         public Metadata DebugMetadataVersion =>
@@ -147,7 +146,7 @@ namespace MonC.LLVM
         public static void Main(string[] args)
         {
             using (Context context = new Context()) {
-                using (Module module = context.CreateModule("MyModule", true)) {
+                using (Module module = context.CreateModule("MyModule")) {
                     Type funcType = context.FunctionType(context.Int32Type, new Type[] { }, false);
                     Value function = module.AddFunction("GetDragonsBankBalance", funcType);
 

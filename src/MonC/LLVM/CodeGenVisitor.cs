@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Linq;
 using MonC.SyntaxTree;
 
 namespace MonC.LLVM
@@ -834,14 +834,18 @@ namespace MonC.LLVM
 
         public void VisitEnum(EnumLeaf leaf)
         {
+            throw new InvalidOperationException("Enum leaf shouldn't be part of a function AST");
         }
 
         public void VisitEnumValue(EnumValueLeaf leaf)
         {
+            int value = leaf.Enum.Enumerations.First(kvp => kvp.Key == leaf.Name).Value;
+            _visitedValue = Value.ConstInt(_genContext.Context.Int32Type, (ulong) value, true);
         }
 
         public void VisitTypeSpecifier(TypeSpecifierLeaf leaf)
         {
+            throw new InvalidOperationException("Type specifier leaf shouldn't be part of a function AST");
         }
     }
 }

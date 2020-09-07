@@ -34,7 +34,7 @@ namespace MonC.LLVM
         }
 
         public ModulePassManager(PassManagerBuilder optBuilder) : base(CAPI.LLVMCreatePassManager()) =>
-            CAPI.LLVMPassManagerBuilderPopulateModulePassManager(optBuilder, _passManager);
+            optBuilder.PopulateModulePassManager(this);
 
         public bool Run(Module m) => CAPI.LLVMRunPassManager(_passManager, m);
     }
@@ -46,7 +46,7 @@ namespace MonC.LLVM
         }
 
         public LTOPassManager(PassManagerBuilder optBuilder, bool internalize, bool runInliner) =>
-            CAPI.LLVMPassManagerBuilderPopulateLTOPassManager(optBuilder, _passManager, internalize, runInliner);
+            optBuilder.PopulateLTOPassManager(this, internalize, runInliner);
     }
 
     public sealed class FunctionPassManager : PassManager
@@ -56,8 +56,7 @@ namespace MonC.LLVM
         }
 
         public FunctionPassManager(Module module, PassManagerBuilder optBuilder) : base(
-            CAPI.LLVMCreateFunctionPassManagerForModule(module)) =>
-            CAPI.LLVMPassManagerBuilderPopulateFunctionPassManager(optBuilder, _passManager);
+            CAPI.LLVMCreateFunctionPassManagerForModule(module)) => optBuilder.PopulateFunctionPassManager(this);
 
         public bool Initialize() => CAPI.LLVMInitializeFunctionPassManager(_passManager);
 

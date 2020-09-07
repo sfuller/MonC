@@ -87,9 +87,8 @@ namespace MonC.LLVM
         public Metadata CreateEnumerator(string name, long value, bool isUnsigned) =>
             CAPI.LLVMDIBuilderCreateEnumerator(_builder, name, value, isUnsigned);
 
-        public Metadata CreateEnumerationType(Metadata scope, string name, UIntPtr nameLen, Metadata file,
-            uint lineNumber, ulong sizeInBits, uint alignInBits, Metadata[] elements, uint numElements,
-            Metadata classTy) =>
+        public Metadata CreateEnumerationType(Metadata scope, string name, Metadata file, uint lineNumber,
+            ulong sizeInBits, uint alignInBits, Metadata[] elements, Metadata classTy) =>
             CAPI.LLVMDIBuilderCreateEnumerationType(_builder, scope, name, file, lineNumber, sizeInBits, alignInBits,
                 Array.ConvertAll(elements, elem => (CAPI.LLVMMetadataRef) elem), classTy);
 

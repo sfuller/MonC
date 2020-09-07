@@ -65,7 +65,7 @@ namespace MonC.LLVM
         public void PopulateModulePassManager(ModulePassManager pm) =>
             CAPI.LLVMPassManagerBuilderPopulateModulePassManager(_passManagerBuilder, pm);
 
-        public void PopulateLTOPassManager(ModulePassManager pm, bool internalize, bool runInliner) =>
+        public void PopulateLTOPassManager(LTOPassManager pm, bool internalize, bool runInliner) =>
             CAPI.LLVMPassManagerBuilderPopulateLTOPassManager(_passManagerBuilder, pm, internalize, runInliner);
     }
 }
