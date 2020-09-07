@@ -6,8 +6,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\src\Frontend\Frontend.csproj" />
-      <ProjectReference Include="..\src\MonC\MonC.csproj" />
+      <ProjectReference Include="..\Frontend\Frontend.csproj" />
+      <ProjectReference Include="..\MonC\MonC.csproj" />
     </ItemGroup>
 
 </Project>
