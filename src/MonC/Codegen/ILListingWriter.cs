@@ -1,18 +1,17 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using MonC.Bytecode;
-using MonC.Codegen;
 
-namespace MonC.Frontend
+namespace MonC.Codegen
 {
-    public class IntermediateLanguageWriter
+    public class ILListingWriter
     {
         private readonly TextWriter _writer;
         private readonly Dictionary<string, string[]> _files = new Dictionary<string, string[]>();
 
-        public IntermediateLanguageWriter(TextWriter writer)
+        public ILListingWriter(TextWriter writer)
         {
             _writer = writer;
         }
@@ -105,6 +104,5 @@ namespace MonC.Frontend
             _files[path] = file;
             return file;
         }
-        
     }
 }
