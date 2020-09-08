@@ -32,6 +32,26 @@ namespace MonC
             while (Lex(tokens)) { }
         }
 
+        public void LexLine(string source, IList<Token> tokens)
+        {
+            Lex(source, tokens);
+
+            _sourceString = "\n";
+            _sourceIndex = 0;
+            while (Lex(tokens)) { }
+        }
+
+        public void LexFullModule(string source, IList<Token> tokens)
+        {
+            Lex(source, tokens);
+            FinishLex(tokens);
+        }
+
+        public void FinishLex(IList<Token> tokens)
+        {
+            tokens.Add(new Token(TokenType.None, "", GetCurrentLocation()));
+        }
+
         private bool Lex(IList<Token> tokens)
         {
             if (_currentTokenType == TokenType.None) {
@@ -42,7 +62,6 @@ namespace MonC
             
             switch (_currentTokenType) {
                 default:
-                    tokens.Add(new Token(TokenType.None, "", GetCurrentLocation()));
                     canContinue = false;
                     break;
                 case TokenType.Identifier:
