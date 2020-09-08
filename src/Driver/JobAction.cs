@@ -18,24 +18,28 @@ namespace Driver
     public interface IParseInput : IInput
     {
         public List<Token> GetTokens();
-        public string GetFilename();
+        public FileInfo GetFileInfo();
     }
 
     public interface ICodeGenInput : IInput
     {
         public ParseModule GetParseModule();
+        public FileInfo GetFileInfo();
     }
 
     public interface IBackendInput : IInput
     {
+        public ModuleArtifact GetModuleArtifact();
     }
 
     public interface ILinkInput : IInput
     {
+        public List<ModuleArtifact> GetModuleArtifacts();
     }
 
     public interface IVMInput : IInput
     {
+        public ExecutableArtifact GetExecutableArtifact();
     }
 
     public interface IJobAction

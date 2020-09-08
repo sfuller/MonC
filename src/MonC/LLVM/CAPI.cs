@@ -57,7 +57,7 @@ namespace MonC.LLVM
         public static string LLVMGetDiagInfoDescriptionString(LLVMDiagnosticInfoRef diagnosticInfo)
         {
             IntPtr strPtr = LLVMGetDiagInfoDescription(diagnosticInfo);
-            string str = Marshal.PtrToStringAnsi(strPtr);
+            string? str = Marshal.PtrToStringAnsi(strPtr);
             LLVMDisposeMessage(strPtr);
             if (str == null)
                 throw new NullReferenceException("null string marshalled from LLVM");
@@ -237,6 +237,31 @@ namespace MonC.LLVM
 
         [DllImport("LLVM-C")]
         public static extern void LLVMDumpModule(LLVMModuleRef module);
+
+        [DllImport("LLVM-C")]
+        private static extern bool
+            LLVMPrintModuleToFile(LLVMModuleRef module, string filename, out IntPtr errorMessage);
+
+        public static bool LLVMPrintModuleToFile(LLVMModuleRef module, string filename, out string? errorMessage)
+        {
+            bool ret = LLVMPrintModuleToFile(module, filename, out IntPtr msgPtr);
+            errorMessage = Marshal.PtrToStringAnsi(msgPtr);
+            LLVMDisposeMessage(msgPtr);
+            return ret;
+        }
+
+        [DllImport("LLVM-C")]
+        private static extern IntPtr LLVMPrintModuleToString(LLVMModuleRef module);
+
+        public static string LLVMPrintModuleToStringPublic(LLVMModuleRef module)
+        {
+            IntPtr strPtr = LLVMPrintModuleToString(module);
+            string? str = Marshal.PtrToStringAnsi(strPtr);
+            LLVMDisposeMessage(strPtr);
+            if (str == null)
+                throw new NullReferenceException("null string marshalled from LLVM");
+            return str;
+        }
 
         [DllImport("LLVM-C")]
         public static extern LLVMValueRef LLVMAddFunction(LLVMModuleRef module, string name, LLVMTypeRef functionTy);
@@ -1376,7 +1401,7 @@ namespace MonC.LLVM
         public static bool LLVMGetTargetFromTriple(string triple, out LLVMTargetRef t, out string? errorMessage)
         {
             if (LLVMGetTargetFromTriple(triple, out t, out IntPtr errorMessagePtr)) {
-                string nullableErrorMessage = Marshal.PtrToStringAnsi(errorMessagePtr);
+                string? nullableErrorMessage = Marshal.PtrToStringAnsi(errorMessagePtr);
                 LLVMDisposeMessage(errorMessagePtr);
                 errorMessage = nullableErrorMessage ??
                                throw new NullReferenceException("null string marshalled from LLVM");
@@ -1447,7 +1472,7 @@ namespace MonC.LLVM
             LLVMCodeGenFileType codegen, out string? errorMessage)
         {
             if (LLVMTargetMachineEmitToFile(t, m, filename, codegen, out IntPtr errorMessagePtr)) {
-                string nullableErrorMessage = Marshal.PtrToStringAnsi(errorMessagePtr);
+                string? nullableErrorMessage = Marshal.PtrToStringAnsi(errorMessagePtr);
                 LLVMDisposeMessage(errorMessagePtr);
                 errorMessage = nullableErrorMessage ??
                                throw new NullReferenceException("null string marshalled from LLVM");
@@ -1466,7 +1491,7 @@ namespace MonC.LLVM
             LLVMCodeGenFileType codegen, out string? errorMessage, out LLVMMemoryBufferRef outMemBuf)
         {
             if (LLVMTargetMachineEmitToMemoryBuffer(t, m, codegen, out IntPtr errorMessagePtr, out outMemBuf)) {
-                string nullableErrorMessage = Marshal.PtrToStringAnsi(errorMessagePtr);
+                string? nullableErrorMessage = Marshal.PtrToStringAnsi(errorMessagePtr);
                 LLVMDisposeMessage(errorMessagePtr);
                 errorMessage = nullableErrorMessage ??
                                throw new NullReferenceException("null string marshalled from LLVM");
@@ -1484,7 +1509,7 @@ namespace MonC.LLVM
         public static string LLVMGetDefaultTargetTripleString()
         {
             IntPtr strPtr = LLVMGetDefaultTargetTriple();
-            string str = Marshal.PtrToStringAnsi(strPtr);
+            string? str = Marshal.PtrToStringAnsi(strPtr);
             LLVMDisposeMessage(strPtr);
             if (str == null)
                 throw new NullReferenceException("null string marshalled from LLVM");
@@ -1497,7 +1522,7 @@ namespace MonC.LLVM
         public static string LLVMNormalizeTargetTripleString(string triple)
         {
             IntPtr strPtr = LLVMNormalizeTargetTriple(triple);
-            string str = Marshal.PtrToStringAnsi(strPtr);
+            string? str = Marshal.PtrToStringAnsi(strPtr);
             LLVMDisposeMessage(strPtr);
             if (str == null)
                 throw new NullReferenceException("null string marshalled from LLVM");
@@ -1510,7 +1535,7 @@ namespace MonC.LLVM
         public static string LLVMGetHostCPUNameString()
         {
             IntPtr strPtr = LLVMGetHostCPUName();
-            string str = Marshal.PtrToStringAnsi(strPtr);
+            string? str = Marshal.PtrToStringAnsi(strPtr);
             LLVMDisposeMessage(strPtr);
             if (str == null)
                 throw new NullReferenceException("null string marshalled from LLVM");
@@ -1523,7 +1548,7 @@ namespace MonC.LLVM
         public static string LLVMGetHostCPUFeaturesString()
         {
             IntPtr strPtr = LLVMGetHostCPUFeatures();
-            string str = Marshal.PtrToStringAnsi(strPtr);
+            string? str = Marshal.PtrToStringAnsi(strPtr);
             LLVMDisposeMessage(strPtr);
             if (str == null)
                 throw new NullReferenceException("null string marshalled from LLVM");

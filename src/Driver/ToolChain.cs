@@ -4,7 +4,7 @@ using System.IO;
 
 namespace Driver
 {
-    public abstract class ToolChain
+    public abstract class ToolChain : IDisposable
     {
         public static readonly KeyValuePair<string, Type>[] ToolChains =
         {
@@ -47,5 +47,13 @@ namespace Driver
         public virtual ITool BuildLinkJobTool(Job job, ILinkInput input) => throw new NotImplementedException();
 
         public virtual ITool BuildVMJobTool(Job job, IVMInput input) => throw new NotImplementedException();
+
+        public virtual void Initialize()
+        {
+        }
+        
+        public virtual void Dispose()
+        {
+        }
     }
 }

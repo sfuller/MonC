@@ -10,24 +10,21 @@ namespace Driver
     {
         [CommandLine("-showlex", "Show lexer tokens while processing")]
         private bool _showLex = false;
-        
+
         protected void Lex(string input, Lexer lexer, List<Token> tokens)
         {
-            List<Token> newTokens = new List<Token>();
-            lexer.Lex(input, newTokens);
+            int firstTokenIdx = tokens.Count;
+            lexer.Lex(input, tokens);
 
             if (_showLex) {
-                for (int i = 0, ilen = newTokens.Count; i < ilen; ++i) {
-                    Console.WriteLine(newTokens[i]);
+                for (int i = firstTokenIdx, ilen = tokens.Count; i < ilen; ++i) {
+                    Console.WriteLine(tokens[i]);
                 }
             }
-
-            tokens.AddRange(newTokens);
         }
-
+        
         public virtual List<Token> GetTokens() => throw new NotImplementedException();
-
-        public virtual string GetFilename() => throw new NotImplementedException();
+        public virtual FileInfo GetFileInfo() => throw new NotImplementedException();
 
         public virtual void WriteInputChain(TextWriter writer) => throw new NotImplementedException();
 
@@ -44,13 +41,13 @@ namespace Driver
     public sealed class FileLexTool : LexTool
     {
         private FileInfo _fileInfo;
-        
+
         internal FileLexTool(FileInfo fileInfo) => _fileInfo = fileInfo;
 
         public override List<Token> GetTokens()
         {
             List<Token> tokens = new List<Token>();
-            string input; 
+            string input;
             Lexer lexer = new Lexer();
 
             TextReader reader = _fileInfo.GetTextReader();
@@ -59,10 +56,11 @@ namespace Driver
                 Lex("\n", lexer, tokens);
             }
 
+            lexer.AddEOF(tokens);
             return tokens;
         }
 
-        public override string GetFilename() => _fileInfo.FullPath;
+        public override FileInfo GetFileInfo() => _fileInfo;
 
         public override void WriteInputChain(TextWriter writer)
         {
@@ -92,10 +90,11 @@ namespace Driver
                 WritePrompt();
             }
 
+            lexer.AddEOF(tokens);
             return tokens;
         }
 
-        public override string GetFilename() => null;
+        public override FileInfo GetFileInfo() => FileInfo.Interactive;
 
         public override void WriteInputChain(TextWriter writer)
         {

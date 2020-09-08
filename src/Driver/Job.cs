@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using MonC;
 using MonC.DotNetInterop;
 using MonC.Parsing;
 
@@ -10,11 +11,14 @@ namespace Driver
     using ToolChainSelection = KeyValuePair<string, Type>;
 
     [CommandLineCategory]
-    public class Job
+    public class Job : IDisposable, ILinkInput
     {
+        [CommandLine("-i", "Enter MonC source code with an interactive prompt")]
+        private bool _interactive = false;
+        
         private List<FileInfo> _inputFiles;
 
-        [CommandLine("-output", "Path of output file", "path")]
+        [CommandLine("-o", "Path of output file", "path")]
         private string _outputPath = null;
 
         private FileInfo _outputFile;
@@ -36,7 +40,7 @@ namespace Driver
 
         private Phase _targetPhase;
 
-        private List<IExecutableTool> _inputFileTools;
+        private List<IModuleTool> _moduleFileTools;
 
         [CommandLine("-l", "Add library module to link list", "name")]
         private List<string> _libraryNames = new List<string>();
@@ -45,6 +49,10 @@ namespace Driver
 
         [CommandLine("-showtools", "List tools that will be invoked for each file")]
         private bool _showTools = false;
+
+        private List<ModuleArtifact> _moduleArtifacts;
+
+        private IExecutableTool _executableTool;
 
         private ToolChainSelection SelectToolChain()
         {
@@ -138,7 +146,7 @@ namespace Driver
             commandLine.ApplyTo(this);
 
             // Build input file list
-            _inputFiles = new List<FileInfo>(commandLine.PositionalArguments.Count);
+            _inputFiles = new List<FileInfo>(commandLine.PositionalArguments.Count + (_interactive ? 1 : 0));
             foreach (string filePath in commandLine.PositionalArguments) {
                 FileInfo tmpFile = new FileInfo(filePath);
                 if (!tmpFile.Exists) {
@@ -152,6 +160,11 @@ namespace Driver
                 } else {
                     _inputFiles.Add(tmpFile);
                 }
+            }
+
+            // Additional interactive input file if requested
+            if (_interactive) {
+                _inputFiles.Add(FileInfo.Interactive);
             }
 
             Diagnostics.ThrowIfErrors();
@@ -168,6 +181,11 @@ namespace Driver
             // Set output file if provided and not using VM
             _outputFile = _outputPath != null && !_vm ? new FileInfo(_outputPath) : null;
 
+            // Assembly output defaults to stdout if not specified
+            if (_asm && _outputFile == null) {
+                _outputFile = FileInfo.StdIo;
+            }
+
             // Select toolchain by user request or input files / output file
             _toolChainSelection = SelectToolChain();
 
@@ -177,26 +195,44 @@ namespace Driver
 
             // Determine target phase based on output file (if provided) and command line flags
             _targetPhase = SelectTargetPhase();
-            
-            // Initialize open input phase set with pre-link phases up to target
-            PhaseSet openInputPhaseSet =
+
+            // Initialize module phase open set with pre-link phases up to target
+            PhaseSet modulePhaseOpenSet =
                 _toolChain.FilterPhases(
-                    PhaseSet.AllPhasesTo((Phase) Math.Min((int) _targetPhase, (int) Phase.Backend)));
+                    PhaseSet.AllPhasesTo((Phase) Math.Min((int) _targetPhase, (int) Phase.Link - 1)));
 
             // Visit JobActions for each file; building a chain of tools
-            _inputFileTools = new List<IExecutableTool>(_inputFiles.Count);
+            _moduleFileTools = new List<IModuleTool>(_inputFiles.Count);
             foreach (FileInfo inputFile in _inputFiles) {
                 ITool tool = null;
-                foreach (Phase phase in inputFile.PossiblePhases & openInputPhaseSet) {
+                foreach (Phase phase in inputFile.PossiblePhases & modulePhaseOpenSet) {
                     tool = IJobAction.FromPhase(phase)
                         .Accept(_toolChain, this, tool != null ? (IInput) tool : inputFile);
                     commandLine.ApplyTo(tool);
                 }
 
-                if (tool is IExecutableTool executableTool)
-                    _inputFileTools.Add(executableTool);
+                if (tool is IModuleTool moduleTool)
+                    _moduleFileTools.Add(moduleTool);
                 else
-                    throw new InvalidOperationException("toolchain did not produce an executable input file tool");
+                    throw new InvalidOperationException("toolchain did not produce a module input file tool");
+            }
+
+            // Set up link and subsequent tools
+            if (_targetPhase >= Phase.Link) {
+                PhaseSet linkPhaseOpenSet =
+                    _toolChain.FilterPhases(PhaseSet.AllPhasesTo(_targetPhase) & PhaseSet.AllPhasesFrom(Phase.Link));
+
+                ITool tool = null;
+                foreach (Phase phase in linkPhaseOpenSet) {
+                    tool = IJobAction.FromPhase(phase)
+                        .Accept(_toolChain, this, tool != null ? (IInput) tool : this);
+                    commandLine.ApplyTo(tool);
+                }
+
+                if (tool is IExecutableTool executableTool)
+                    _executableTool = executableTool;
+                else
+                    throw new InvalidOperationException("toolchain did not produce an executable tool");
             }
         }
 
@@ -217,17 +253,46 @@ namespace Driver
         {
             if (_showTools) {
                 for (int i = 0, iend = _inputFiles.Count; i < iend; ++i) {
-                    Diagnostics.Report(Diagnostics.Severity.Info,
-                        $"The following tools will be ran on {_inputFiles[i].OriginalPath}:",
-                        _inputFileTools[i].WriteInputChain);
+                    Diagnostics.Report(Diagnostics.Severity.Info, $"{_inputFiles[i].OriginalPath}:",
+                        _moduleFileTools[i].WriteInputChain);
+                }
+
+                if (_executableTool != null) {
+                    Diagnostics.Report(Diagnostics.Severity.Info, "Link:", _executableTool.WriteInputChain);
                 }
             }
 
+            // This only applies to LLVM which has an unmanaged context
+            _toolChain.Initialize();
+
             ResolveInteropLibs();
 
-            foreach (IExecutableTool tool in _inputFileTools) {
-                tool.Execute();
+            // Produce per-module artifacts
+            _moduleArtifacts = _moduleFileTools.ConvertAll(tool => tool.GetModuleArtifact());
+
+            // Output assembly if requested
+            if (_asm) {
+                _moduleArtifacts[0].WriteListing(_outputFile.GetTextWriter());
             }
+
+            // Run link-phase and beyond tools
+            _executableTool?.Execute();
+
+            // Dispose per-module artifacts
+            _moduleArtifacts.ForEach(artifact => artifact.Dispose());
+        }
+
+        public void WriteInputChain(TextWriter writer)
+        {
+            writer.WriteLine("  -Module Job Tools");
+        }
+
+        public List<ModuleArtifact> GetModuleArtifacts() => _moduleArtifacts;
+
+        public void Dispose()
+        {
+            // This only applies to LLVM which has an unmanaged context
+            _toolChain.Dispose();
         }
     }
 }

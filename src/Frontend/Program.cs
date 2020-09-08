@@ -156,6 +156,8 @@ namespace MonC.Frontend
                 Lex(input, lexer, tokens, verbose: showLex);
             }
 
+            lexer.AddEOF(tokens);
+
             Parser parser = new Parser();
             List<ParseError> errors = new List<ParseError>();
             ParseModule module = parser.Parse(filename, tokens, interopHeaderModule, errors);
@@ -180,8 +182,7 @@ namespace MonC.Frontend
                 Codegen.CodeGenerator generator = new Codegen.CodeGenerator();
                 Codegen.ILModule ilmodule = generator.Generate(module);
                 if (showIL) {
-                    IntermediateLanguageWriter writer = new IntermediateLanguageWriter(Console.Out);
-                    writer.Write(ilmodule);
+                    ilmodule.WriteListing(Console.Out);
                 }
 
                 if (errors.Count > 0) {
@@ -294,16 +295,14 @@ namespace MonC.Frontend
 
         private static void Lex(string input, Lexer lexer, List<Token> tokens, bool verbose)
         {
-            List<Token> newTokens = new List<Token>();
-            lexer.Lex(input, newTokens);
+            int firstTokenIdx = tokens.Count;
+            lexer.Lex(input, tokens);
 
             if (verbose) {
-                for (int i = 0, ilen = newTokens.Count; i < ilen; ++i) {
-                    Console.WriteLine(newTokens[i]);
+                for (int i = firstTokenIdx, ilen = tokens.Count; i < ilen; ++i) {
+                    Console.WriteLine(tokens[i]);
                 }
             }
-
-            tokens.AddRange(newTokens);
         }
 
         private static void HandleBreak(VirtualMachine vm, Debugger debugger, VMDebugger vmDebugger)

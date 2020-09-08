@@ -7,11 +7,22 @@ namespace Driver
     {
         public System.IO.FileInfo SystemFileInfo { get; }
 
-        public string FullPath => SystemFileInfo.FullName;
+        public string FullPath
+        {
+            get
+            {
+                if (IsInteractive)
+                    return "<interactive>";
+                if (IsStdIo)
+                    return "<stdin>";
+                return SystemFileInfo.FullName;
+            }
+        }
+
         public string OriginalPath => SystemFileInfo.ToString();
-        public bool IsStdin => OriginalPath == "-";
+        public bool IsStdIo => OriginalPath == "-";
         public bool IsInteractive => OriginalPath == "<interactive>";
-        public bool Exists => IsStdin || IsInteractive || SystemFileInfo.Exists;
+        public bool Exists => IsStdIo || IsInteractive || SystemFileInfo.Exists;
 
         public FileType.Kind Kind { get; }
 
@@ -20,7 +31,7 @@ namespace Driver
             SystemFileInfo = new System.IO.FileInfo(path);
 
             // TODO: Support other types via stdin (-x flag?)
-            if (IsStdin || IsInteractive) {
+            if (IsStdIo || IsInteractive) {
                 Kind = FileType.Kind.MONC_SOURCE;
                 return;
             }
@@ -53,6 +64,10 @@ namespace Driver
                     break;
             }
         }
+        
+        public static FileInfo Interactive => new FileInfo("<interactive>");
+
+        public static FileInfo StdIo => new FileInfo("-");
 
         public PhaseSet PossiblePhases => FileType.GetPossiblePhases(Kind);
 
@@ -64,9 +79,18 @@ namespace Driver
         public TextReader GetTextReader()
         {
             try {
-                return IsStdin ? Console.In : new StreamReader(FullPath);
+                return IsStdIo ? Console.In : new StreamReader(FullPath);
             } catch (Exception ex) {
                 throw Diagnostics.ThrowError($"{ex.GetType()} exception while opening StreamReader: {ex.Message}");
+            }
+        }
+
+        public TextWriter GetTextWriter()
+        {
+            try {
+                return IsStdIo ? Console.Out : new StreamWriter(FullPath);
+            } catch (Exception ex) {
+                throw Diagnostics.ThrowError($"{ex.GetType()} exception while opening StreamWriter: {ex.Message}");
             }
         }
 
@@ -74,7 +98,7 @@ namespace Driver
         {
             if (IsInteractive)
                 writer.WriteLine("  -Read Interactive Input");
-            else if (IsStdin)
+            else if (IsStdIo)
                 writer.WriteLine("  -Read Standard Input");
             else
                 writer.WriteLine($"  -Read {FullPath}");

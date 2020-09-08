@@ -1,20 +1,19 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+using MonC;
+using MonC.Codegen;
+using MonC.Frontend;
 
 namespace Driver.ToolChains
 {
-    public class MonCCodeGenTool : IExecutableTool, ILinkInput
+    public class MonCCodeGenTool : IModuleTool
     {
-        private MonC _toolchain;
         private ICodeGenInput _input;
 
-        private MonCCodeGenTool(MonC toolchain, ICodeGenInput input)
-        {
-            _toolchain = toolchain;
-            _input = input;
-        }
+        private MonCCodeGenTool(ICodeGenInput input) => _input = input;
 
         public static MonCCodeGenTool Construct(Job job, MonC toolchain, ICodeGenInput input) =>
-            new MonCCodeGenTool(toolchain, input);
+            new MonCCodeGenTool(input);
 
         public void WriteInputChain(TextWriter writer)
         {
@@ -22,6 +21,10 @@ namespace Driver.ToolChains
             writer.WriteLine("  -MonCCodeGenTool");
         }
 
-        public void Execute() => throw new System.NotImplementedException();
+        public ModuleArtifact GetModuleArtifact()
+        {
+            CodeGenerator generator = new CodeGenerator();
+            return generator.Generate(_input.GetParseModule());
+        }
     }
 }

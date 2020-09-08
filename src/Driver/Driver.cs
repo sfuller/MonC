@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 
 namespace Driver
 {
@@ -12,7 +13,7 @@ namespace Driver
             }
 
             try {
-                Job job = new Job(commandLine);
+                using Job job = new Job(commandLine);
                 commandLine.OutputUnusedArguments();
                 job.Execute();
             } catch (DiagnosticsException) {

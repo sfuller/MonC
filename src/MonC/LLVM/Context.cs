@@ -21,7 +21,11 @@ namespace MonC.LLVM
     public sealed class Context : IDisposable
     {
         private CAPI.LLVMContextRef _context;
+
         private GCHandle _diagnosticHandlerHandle;
+        private uint _childModuleCount;
+
+        public static implicit operator CAPI.LLVMContextRef(Context context) => context._context;
 
         public Context()
         {
@@ -46,6 +50,10 @@ namespace MonC.LLVM
         private void DoDispose()
         {
             if (_context.IsValid) {
+                if (_childModuleCount != 0) {
+                    throw new InvalidOperationException("Live child modules are still present");
+                }
+                
                 if (_diagnosticHandlerHandle.IsAllocated)
                     _diagnosticHandlerHandle.Free();
 
@@ -56,7 +64,7 @@ namespace MonC.LLVM
 
         ~Context() => DoDispose();
 
-        public Module CreateModule(string name) => new Module(name, _context);
+        public Module CreateModule(string name) => new Module(name, this);
         public Builder CreateBuilder() => new Builder(_context);
 
         public Metadata DebugMetadataVersion =>
@@ -141,6 +149,9 @@ namespace MonC.LLVM
             // Also set this handler in the global context for APIs that do not use a specific context
             CAPI.LLVMContextSetDiagnosticHandler(CAPI.LLVMGetGlobalContext(), internalHandler, IntPtr.Zero);
         }
+
+        internal void IncrementModule() => ++_childModuleCount;
+        internal void DecrementModule() => --_childModuleCount;
 
 
         public static void Main(string[] args)

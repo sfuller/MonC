@@ -55,8 +55,10 @@ namespace Driver
 
         public static PhaseSet NoPhases => new PhaseSet(0);
         public static PhaseSet AllPhases => new PhaseSet(~0);
-        public static PhaseSet AllPhasesTo(Phase lastPhase) => new PhaseSet((1 << (int) (lastPhase + 1)) - 2);
-        
+        public static PhaseSet AllPhasesTo(Phase lastPhase) => new PhaseSet((1 << (int) (lastPhase + 1)) - 1);
+        public static PhaseSet AllPhasesFrom(Phase firstPhase) =>
+            AllPhases & ~new PhaseSet((1 << (int) firstPhase) - 1);
+
         public static PhaseSet operator |(PhaseSet a, PhaseSet b) => new PhaseSet(a._phaseMask | b._phaseMask);
         public static PhaseSet operator &(PhaseSet a, PhaseSet b) => new PhaseSet(a._phaseMask & b._phaseMask);
         public static PhaseSet operator ~(PhaseSet a) => new PhaseSet(~a._phaseMask);

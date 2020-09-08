@@ -32,6 +32,11 @@ namespace MonC
             while (Lex(tokens)) { }
         }
 
+        public void AddEOF(IList<Token> tokens)
+        {
+            tokens.Add(new Token(TokenType.None, "", GetCurrentLocation()));
+        }
+
         private bool Lex(IList<Token> tokens)
         {
             if (_currentTokenType == TokenType.None) {
@@ -42,7 +47,6 @@ namespace MonC
             
             switch (_currentTokenType) {
                 default:
-                    tokens.Add(new Token(TokenType.None, "", GetCurrentLocation()));
                     canContinue = false;
                     break;
                 case TokenType.Identifier:

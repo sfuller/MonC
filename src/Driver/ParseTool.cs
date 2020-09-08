@@ -30,7 +30,7 @@ namespace Driver
         {
             Parser parser = new Parser();
             List<ParseError> errors = new List<ParseError>();
-            ParseModule module = parser.Parse(_parseInput.GetFilename(), _parseInput.GetTokens(),
+            ParseModule module = parser.Parse(_parseInput.GetFileInfo().FullPath, _parseInput.GetTokens(),
                 _job.InteropHeaderModule, errors);
 
             for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
@@ -51,6 +51,8 @@ namespace Driver
 
             return module;
         }
+
+        public FileInfo GetFileInfo() => _parseInput.GetFileInfo();
 
         public void WriteInputChain(TextWriter writer)
         {

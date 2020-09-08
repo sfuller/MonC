@@ -1,8 +1,10 @@
 ﻿using System.IO;
+using MonC;
+using MonC.LLVM;
 
 namespace Driver.ToolChains
 {
-    public class LLVMCodeGenTool : IExecutableTool, IBackendInput, ILinkInput
+    public class LLVMCodeGenTool : IModuleTool, IBackendInput
     {
         private LLVM _toolchain;
         private ICodeGenInput _input;
@@ -12,7 +14,7 @@ namespace Driver.ToolChains
             _toolchain = toolchain;
             _input = input;
         }
-        
+
         public static LLVMCodeGenTool Construct(Job job, LLVM toolchain, ICodeGenInput input) =>
             new LLVMCodeGenTool(toolchain, input);
 
@@ -22,6 +24,7 @@ namespace Driver.ToolChains
             writer.WriteLine("  -LLVMCodeGenTool");
         }
 
-        public void Execute() => throw new System.NotImplementedException();
+        public ModuleArtifact GetModuleArtifact() =>
+            _toolchain.CreateModule(_input.GetFileInfo(), _input.GetParseModule());
     }
 }
