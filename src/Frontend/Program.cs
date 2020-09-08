@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using System.Text;
 using MonC.Codegen;
 using MonC.Debugging;
 using MonC.DotNetInterop;
@@ -94,30 +93,29 @@ namespace MonC.Frontend
             Lexer lexer = new Lexer();
             List<Token> tokens = new List<Token>();
 
-            string input;
+            string? input;
 
             if (isInteractive) {
                 WritePrompt();
                 while ((input = Console.ReadLine()) != null) {
-                    Lex(input, lexer, tokens, verbose: showLex);
-                    Lex("\n", lexer, tokens, verbose: showLex);
+                    LexLine(input, lexer, tokens, verbose: showLex);
                     WritePrompt();
                 }
             } else {
                 if (filename == null) {
-                    string? line;
-                    StringBuilder inputBuilder = new StringBuilder();
-                    while ((line = Console.In.ReadLine()) != null) {
-                        inputBuilder.AppendLine(line);
+                    while ((input = Console.In.ReadLine()) != null) {
+                        LexLine(input, lexer, tokens, verbose: showLex);
                     }
-                    input = inputBuilder.ToString();
                 } else {
                     filename = Path.GetFullPath(filename);
-                    input = File.ReadAllText(filename);
+                    using StreamReader reader = new StreamReader(filename);
+                    while ((input = reader.ReadLine()) != null) {
+                        LexLine(input, lexer, tokens, verbose: showLex);
+                    }
                 }
-
-                Lex(input, lexer, tokens, verbose: showLex);
             }
+
+            lexer.FinishLex(tokens);
 
             Parser parser = new Parser();
             List<ParseError> errors = new List<ParseError>();
@@ -142,8 +140,7 @@ namespace MonC.Frontend
             CodeGenerator generator = new CodeGenerator();
             ILModule ilmodule = generator.Generate(module);
             if (showIL) {
-                IntermediateLanguageWriter writer = new IntermediateLanguageWriter(Console.Out);
-                writer.Write(ilmodule);
+                ilmodule.WriteListing(Console.Out);
             }
 
             if (errors.Count > 0) {
@@ -209,17 +206,16 @@ namespace MonC.Frontend
             Console.Out.Flush();
         }
 
-        private static void Lex(string input, Lexer lexer, List<Token> tokens, bool verbose)
+        private static void LexLine(string input, Lexer lexer, List<Token> tokens, bool verbose)
         {
-            List<Token> newTokens = new List<Token>();
-            lexer.Lex(input, newTokens);
+            int firstTokenIdx = tokens.Count;
+            lexer.LexLine(input, tokens);
 
             if (verbose) {
-                for (int i = 0, ilen = newTokens.Count; i < ilen; ++i) {
-                    Console.WriteLine(newTokens[i]);
+                for (int i = firstTokenIdx, ilen = tokens.Count; i < ilen; ++i) {
+                    Console.WriteLine(tokens[i]);
                 }
             }
-            tokens.AddRange(newTokens);
         }
 
         private static void HandleBreak(VirtualMachine vm, Debugger debugger, VMDebugger vmDebugger)
