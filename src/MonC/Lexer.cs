@@ -35,10 +35,7 @@ namespace MonC
         public void LexLine(string source, IList<Token> tokens)
         {
             Lex(source, tokens);
-
-            _sourceString = "\n";
-            _sourceIndex = 0;
-            while (Lex(tokens)) { }
+            Lex("\n", tokens);
         }
 
         public void LexFullModule(string source, IList<Token> tokens)
