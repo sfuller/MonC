@@ -22,7 +22,7 @@ namespace MonC
         {
             Lexer lexer = new Lexer();
             List<Token> tokens = new List<Token>();
-            lexer.Lex(source, tokens);
+            lexer.LexFullModule(source, tokens);
 
             if (headerModule == null) {
                 headerModule = new ParseModule();
