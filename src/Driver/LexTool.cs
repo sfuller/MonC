@@ -11,10 +11,10 @@ namespace Driver
         [CommandLine("-showlex", "Show lexer tokens while processing")]
         private bool _showLex = false;
 
-        protected void Lex(string input, Lexer lexer, List<Token> tokens)
+        protected void LexLine(string input, Lexer lexer, List<Token> tokens)
         {
             int firstTokenIdx = tokens.Count;
-            lexer.Lex(input, tokens);
+            lexer.LexLine(input, tokens);
 
             if (_showLex) {
                 for (int i = firstTokenIdx, ilen = tokens.Count; i < ilen; ++i) {
@@ -52,11 +52,10 @@ namespace Driver
 
             TextReader reader = _fileInfo.GetTextReader();
             while ((input = reader.ReadLine()) != null) {
-                Lex(input, lexer, tokens);
-                Lex("\n", lexer, tokens);
+                LexLine(input, lexer, tokens);
             }
 
-            lexer.AddEOF(tokens);
+            lexer.FinishLex(tokens);
             return tokens;
         }
 
@@ -85,12 +84,11 @@ namespace Driver
 
             WritePrompt();
             while ((input = Console.ReadLine()) != null) {
-                Lex(input, lexer, tokens);
-                Lex("\n", lexer, tokens);
+                LexLine(input, lexer, tokens);
                 WritePrompt();
             }
 
-            lexer.AddEOF(tokens);
+            lexer.FinishLex(tokens);
             return tokens;
         }
 
