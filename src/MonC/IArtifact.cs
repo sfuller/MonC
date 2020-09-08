@@ -6,27 +6,18 @@ namespace MonC
     /// <summary>
     /// Abstract compiler artifact which may potentially own unmanaged resources
     /// </summary>
-    public abstract class Artifact : IDisposable
-    {
-        public virtual void Dispose()
-        {
-        }
-    }
+    public interface IArtifact : IDisposable { }
 
     /// <summary>
     /// Abstract compiler artifact intended to be used as linker input
     /// </summary>
-    public abstract class ModuleArtifact : Artifact
+    public interface IModuleArtifact : IArtifact
     {
-        public virtual void WriteListing(TextWriter writer)
-        {
-        }
+        public void WriteListing(TextWriter writer);
     }
 
     /// <summary>
     /// Abstract compiler artifact intended to be used as VM input
     /// </summary>
-    public abstract class ExecutableArtifact : Artifact
-    {
-    }
+    public interface IExecutableArtifact : IArtifact { }
 }
