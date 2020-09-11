@@ -3,7 +3,7 @@ using MonC.Codegen;
 
 namespace MonC.VM
 {
-    public class VMModule
+    public class VMModule : IVMModuleArtifact
     {
         public readonly ILModule ILModule;
         public readonly Dictionary<int, VMFunction> VMFunctions;
@@ -13,13 +13,15 @@ namespace MonC.VM
             ILModule = new ILModule();
             VMFunctions = new Dictionary<int, VMFunction>();
         }
-        
+
         public VMModule(ILModule ilModule, Dictionary<int, VMFunction> vmFunctions)
         {
             ILModule = ilModule;
             VMFunctions = vmFunctions;
         }
-        
-        public static readonly VMModule Default = new VMModule(); 
+
+        public static readonly VMModule Default = new VMModule();
+
+        public void Dispose() { }
     }
 }

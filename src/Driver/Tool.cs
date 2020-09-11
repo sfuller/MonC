@@ -12,6 +12,6 @@ namespace Driver
 
     public interface IExecutableTool : ITool
     {
-        public void Execute();
+        public int Execute();
     }
 }

@@ -19,5 +19,5 @@ namespace MonC
     /// <summary>
     /// Abstract compiler artifact intended to be used as VM input
     /// </summary>
-    public interface IExecutableArtifact : IArtifact { }
+    public interface IVMModuleArtifact : IArtifact { }
 }

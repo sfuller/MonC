@@ -38,6 +38,9 @@ namespace Driver
         [CommandLine("-vm", "Execute linked code in a virtual machine rather than outputting to a file")]
         private bool _vm = false;
 
+        [CommandLine("-debugger", "Run virtual machine with an interactive debugger")]
+        internal bool _debugger = false;
+
         private Phase _targetPhase;
 
         private List<IModuleTool> _moduleFileTools;
@@ -45,7 +48,12 @@ namespace Driver
         [CommandLine("-l", "Add library module to link list", "name")]
         private List<string> _libraryNames = new List<string>();
 
+        internal InteropResolver InteropResolver;
+
         internal ParseModule InteropHeaderModule;
+
+        [CommandLine("-a", "Add argument to pass to VM invocation", "int")]
+        internal List<int> _argsToPass = new List<int>();
 
         [CommandLine("-showtools", "List tools that will be invoked for each file")]
         private bool _showTools = false;
@@ -177,6 +185,11 @@ namespace Driver
                 throw Diagnostics.ThrowError("-c or -S flag may only be set for one input file");
             }
 
+            // VM is implied for debugger
+            if (_debugger) {
+                _vm = true;
+            }
+
             // Set output file if provided and not using VM
             _outputFile = _outputPath != null && !_vm ? new FileInfo(_outputPath) : null;
 
@@ -237,19 +250,24 @@ namespace Driver
 
         private void ResolveInteropLibs()
         {
-            InteropResolver interopResolver = new InteropResolver();
+            InteropResolver = new InteropResolver();
 
             foreach (string libraryName in _libraryNames) {
                 Assembly lib = Assembly.LoadFile(Path.GetFullPath(libraryName));
-                interopResolver.ImportAssembly(lib,
+                InteropResolver.ImportAssembly(lib,
                     BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static);
             }
 
-            InteropHeaderModule = interopResolver.CreateHeaderModule();
+            InteropHeaderModule = InteropResolver.CreateHeaderModule();
         }
 
-        public void Execute()
+        public int Execute()
         {
+            if (_moduleFileTools.Count == 0) {
+                Diagnostics.Report(Diagnostics.Severity.Error, "No valid input files");
+                return 1;
+            }
+
             if (_showTools) {
                 for (int i = 0, iend = _inputFiles.Count; i < iend; ++i) {
                     Diagnostics.Report(Diagnostics.Severity.Info, $"{_inputFiles[i].OriginalPath}:",
@@ -275,10 +293,12 @@ namespace Driver
             }
 
             // Run link-phase and beyond tools
-            _executableTool?.Execute();
+            int ret = _executableTool?.Execute() ?? 0;
 
             // Dispose per-module artifacts
             _moduleArtifacts.ForEach(artifact => artifact.Dispose());
+
+            return ret;
         }
 
         public void WriteInputChain(TextWriter writer)

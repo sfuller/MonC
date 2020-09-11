@@ -62,8 +62,8 @@ namespace MonC.Frontend
                         withDebugger = true;
                         break;
                     case "--force-codegen":
-                        // Indicate that the compiler should attempt to code gen IL, even if the parse stage failed. 
-                        // This can be helpful to diagnose generated IL for code that doesn't compile outside of a 
+                        // Indicate that the compiler should attempt to code gen IL, even if the parse stage failed.
+                        // This can be helpful to diagnose generated IL for code that doesn't compile outside of a
                         // specific project due to undefined references. The parser tries its hardest to produce a
                         // usable AST, even if there are semantic errors. Syntax errors? Not so much.
                         forceCodegen = true;
@@ -163,7 +163,7 @@ namespace MonC.Frontend
             }
 
             if (showAST) {
-                PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
+                PrintTreeVisitor treeVisitor = new PrintTreeVisitor(Console.Out);
                 for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
                     module.Functions[i].Accept(treeVisitor);
                 }

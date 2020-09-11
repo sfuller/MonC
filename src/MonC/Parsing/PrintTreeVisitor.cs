@@ -1,14 +1,16 @@
-using System;
-using MonC.Parsing;
+﻿using System.IO;
 using MonC.Parsing.ParseTreeLeaves;
 using MonC.SyntaxTree;
 
-namespace MonC.Frontend
+namespace MonC.Parsing
 {
     public class PrintTreeVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
     {
+        private TextWriter _writer;
         private int _currentIndent;
-        
+
+        public PrintTreeVisitor(TextWriter writer) => _writer = writer;
+
         public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
         {
             Print($"Binary Operation ({leaf.Op})");
@@ -156,11 +158,10 @@ namespace MonC.Frontend
             }
             VisitSubleaf(leaf);
         }
-        
+
         private void Print(string text)
         {
-            Console.WriteLine(new string(' ', _currentIndent) + text);
+            _writer.WriteLine(new string(' ', _currentIndent) + text);
         }
-        
     }
 }

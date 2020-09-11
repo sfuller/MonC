@@ -1555,6 +1555,69 @@ namespace MonC.LLVM
             return str;
         }
 
+
+        public struct LLVMGenericValueRef
+        {
+            private IntPtr InternalPtr;
+            public bool IsValid => InternalPtr != IntPtr.Zero;
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMGenericValueRef LLVMCreateGenericValueOfInt(LLVMTypeRef ty, ulong n, bool isSigned);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMGenericValueRef LLVMCreateGenericValueOfPointer(IntPtr p);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMGenericValueRef LLVMCreateGenericValueOfFloat(LLVMTypeRef ty, double n);
+
+        [DllImport("LLVM-C")]
+        public static extern uint LLVMGenericValueIntWidth(LLVMGenericValueRef genValRef);
+
+        [DllImport("LLVM-C")]
+        public static extern ulong LLVMGenericValueToInt(LLVMGenericValueRef genVal, bool isSigned);
+
+        [DllImport("LLVM-C")]
+        public static extern IntPtr LLVMGenericValueToPointer(LLVMGenericValueRef genVal);
+
+        [DllImport("LLVM-C")]
+        public static extern double LLVMGenericValueToFloat(LLVMTypeRef tyRef, LLVMGenericValueRef genVal);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMDisposeGenericValue(LLVMGenericValueRef genVal);
+
+
+        public struct LLVMExecutionEngineRef
+        {
+            private IntPtr InternalPtr;
+            public bool IsValid => InternalPtr != IntPtr.Zero;
+        }
+
+        [DllImport("LLVM-C")]
+        private static extern bool LLVMCreateExecutionEngineForModule(out LLVMExecutionEngineRef outEE, LLVMModuleRef m,
+            out IntPtr errorOutBuf);
+
+        public static bool LLVMCreateExecutionEngineForModule(out LLVMExecutionEngineRef outEE, LLVMModuleRef m,
+            out string? errorMessage)
+        {
+            bool ret = LLVMCreateExecutionEngineForModule(out outEE, m, out IntPtr errPtr);
+            errorMessage = Marshal.PtrToStringAnsi(errPtr);
+            LLVMDisposeMessage(errPtr);
+            return ret;
+        }
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMDisposeExecutionEngine(LLVMExecutionEngineRef ee);
+
+        [DllImport("LLVM-C")]
+        private static extern LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef ee, LLVMValueRef f,
+            uint numArgs, LLVMGenericValueRef[] args);
+
+        public static LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef ee, LLVMValueRef f,
+            LLVMGenericValueRef[] args) =>
+            LLVMRunFunction(ee, f, (uint) args.Length, args);
+
+
         // TODO: These symbols can be resolved dynamically with string concatenation by leveraging
         // System.Runtime.InteropServices.NativeLibrary and Marshal.GetDelegateForFunctionPointer().
         // However, this requires .net core 3

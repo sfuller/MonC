@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 
@@ -163,6 +164,12 @@ namespace Driver
         {
             if (_printHelp) {
                 WriteWithPride(versionString);
+                Console.WriteLine();
+                string processName = Process.GetCurrentProcess().ProcessName;
+                if (processName == "dotnet")
+                    processName = $"dotnet {System.IO.Path.GetFileName(Assembly.GetEntryAssembly()?.Location)}";
+                WriteWithColor($"Usage: {processName} [options] input-files...",
+                    ConsoleColor.White);
                 Console.WriteLine();
                 Console.WriteLine();
                 foreach (Type clClass in CommandLineClasses) {

@@ -37,7 +37,7 @@ namespace Driver
 
     public interface IVMInput : IInput
     {
-        public IExecutableArtifact GetExecutableArtifact();
+        public IVMModuleArtifact GetVMModuleArtifact();
     }
 
     public interface IJobAction

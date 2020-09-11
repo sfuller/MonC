@@ -4,19 +4,19 @@ namespace Driver
 {
     public static class Driver
     {
-        public static void Main(string[] args)
+        public static int Main(string[] args)
         {
             CommandLine commandLine = new CommandLine(args);
             if (commandLine.OutputHelpIfRequested("MonC v1.OwO")) {
-                Environment.Exit(0);
+                return 0;
             }
 
             try {
                 using Job job = new Job(commandLine);
                 commandLine.OutputUnusedArguments();
-                job.Execute();
+                return job.Execute();
             } catch (DiagnosticsException) {
-                Environment.Exit(1);
+                return 1;
             }
         }
     }

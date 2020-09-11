@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using MonC;
 using MonC.Frontend;
@@ -40,7 +41,7 @@ namespace Driver
             }
 
             if (_showAST) {
-                PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
+                PrintTreeVisitor treeVisitor = new PrintTreeVisitor(Console.Out);
                 for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
                     module.Functions[i].Accept(treeVisitor);
                 }
