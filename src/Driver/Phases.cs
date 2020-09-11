@@ -34,7 +34,7 @@ namespace Driver
 
         private PhaseSet(int phaseMask)
         {
-            _phaseMask = phaseMask & (1 << (int) Phase.MaxPhase) - 2;
+            _phaseMask = phaseMask & ((1 << (int) Phase.MaxPhase) - 2);
 
             NumPhases = 0;
             FirstPhase = Phase.Null;
@@ -49,13 +49,12 @@ namespace Driver
             }
         }
 
-        public PhaseSet(params Phase[] phases) : this(BuildPhaseMask(phases))
-        {
-        }
+        public PhaseSet(params Phase[] phases) : this(BuildPhaseMask(phases)) { }
 
         public static PhaseSet NoPhases => new PhaseSet(0);
         public static PhaseSet AllPhases => new PhaseSet(~0);
         public static PhaseSet AllPhasesTo(Phase lastPhase) => new PhaseSet((1 << (int) (lastPhase + 1)) - 1);
+
         public static PhaseSet AllPhasesFrom(Phase firstPhase) =>
             AllPhases & ~new PhaseSet((1 << (int) firstPhase) - 1);
 
@@ -89,9 +88,7 @@ namespace Driver
 
             public void Reset() => Current = Phase.Null;
 
-            public void Dispose()
-            {
-            }
+            public void Dispose() { }
         }
 
         public IEnumerator<Phase> GetEnumerator() => new Enumerator(_phaseMask);

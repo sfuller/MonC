@@ -39,13 +39,8 @@ namespace Driver
     [CommandLineCategory("Command Line")]
     public class CommandLine
     {
-        private static readonly Type[] CommandLineClasses =
-        {
-            typeof(CommandLine),
-            typeof(Job),
-            typeof(LexTool),
-            typeof(ParseTool),
-            typeof(ToolChains.LLVM)
+        private static readonly Type[] CommandLineClasses = {
+            typeof(CommandLine), typeof(Job), typeof(LexTool), typeof(ParseTool), typeof(ToolChains.LLVM)
         };
 
         [CommandLine("-h", "Print this help message")]

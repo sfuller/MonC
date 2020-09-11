@@ -15,7 +15,7 @@ namespace Driver
     {
         [CommandLine("-i", "Enter MonC source code with an interactive prompt")]
         private bool _interactive = false;
-        
+
         private List<FileInfo> _inputFiles;
 
         [CommandLine("-o", "Path of output file", "path")]
@@ -50,7 +50,7 @@ namespace Driver
         [CommandLine("-showtools", "List tools that will be invoked for each file")]
         private bool _showTools = false;
 
-        private List<ModuleArtifact> _moduleArtifacts;
+        private List<IModuleArtifact> _moduleArtifacts;
 
         private IExecutableTool _executableTool;
 
@@ -62,8 +62,7 @@ namespace Driver
                 if (!ToolChain.TryGetToolchain(_requestedToolChain, out Type requestedType)) {
                     throw Diagnostics.ThrowError(
                         $"{_requestedToolChain} is not a supported toolchain",
-                        writer =>
-                        {
+                        writer => {
                             writer.WriteLine("Accepted toolchains:");
                             ToolChain.WriteOutToolChains(writer);
                         });
@@ -287,7 +286,7 @@ namespace Driver
             writer.WriteLine("  -Module Job Tools");
         }
 
-        public List<ModuleArtifact> GetModuleArtifacts() => _moduleArtifacts;
+        public List<IModuleArtifact> GetModuleArtifacts() => _moduleArtifacts;
 
         public void Dispose()
         {

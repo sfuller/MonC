@@ -21,7 +21,7 @@ namespace Driver.ToolChains
             writer.WriteLine("  -MonCCodeGenTool");
         }
 
-        public ModuleArtifact GetModuleArtifact()
+        public IModuleArtifact GetModuleArtifact()
         {
             CodeGenerator generator = new CodeGenerator();
             return generator.Generate(_input.GetParseModule());

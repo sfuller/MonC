@@ -11,9 +11,7 @@ namespace Driver
         public void WriteInputChain(TextWriter writer);
     }
 
-    public interface ILexInput : IInput
-    {
-    }
+    public interface ILexInput : IInput { }
 
     public interface IParseInput : IInput
     {
@@ -29,17 +27,17 @@ namespace Driver
 
     public interface IBackendInput : IInput
     {
-        public ModuleArtifact GetModuleArtifact();
+        public IModuleArtifact GetModuleArtifact();
     }
 
     public interface ILinkInput : IInput
     {
-        public List<ModuleArtifact> GetModuleArtifacts();
+        public List<IModuleArtifact> GetModuleArtifacts();
     }
 
     public interface IVMInput : IInput
     {
-        public ExecutableArtifact GetExecutableArtifact();
+        public IExecutableArtifact GetExecutableArtifact();
     }
 
     public interface IJobAction

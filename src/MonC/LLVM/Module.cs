@@ -3,7 +3,7 @@ using System.IO;
 
 namespace MonC.LLVM
 {
-    public sealed class Module : ModuleArtifact
+    public sealed class Module : IModuleArtifact
     {
         private CAPI.LLVMModuleRef _module;
         private Context _parent;
@@ -20,7 +20,7 @@ namespace MonC.LLVM
             _parent.IncrementModule();
         }
 
-        public override void Dispose()
+        public void Dispose()
         {
             DoDispose(true);
             GC.SuppressFinalize(this);
@@ -57,7 +57,7 @@ namespace MonC.LLVM
 
         public string PrintToString() => CAPI.LLVMPrintModuleToStringPublic(_module);
 
-        public override void WriteListing(TextWriter writer)
+        public void WriteListing(TextWriter writer)
         {
             // If the writer is determined to be a file writer, use LLVM's native file I/O
             if (writer is StreamWriter streamWriter) {

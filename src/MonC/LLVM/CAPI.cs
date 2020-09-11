@@ -1601,24 +1601,21 @@ namespace MonC.LLVM
                 LLVMInitializeX86Target();
                 LLVMInitializeX86TargetMC();
                 LLVMInitializeX86AsmPrinter();
-            } catch (EntryPointNotFoundException) {
-            }
+            } catch (EntryPointNotFoundException) { }
 
             try {
                 LLVMInitializeARMTargetInfo();
                 LLVMInitializeARMTarget();
                 LLVMInitializeARMTargetMC();
                 LLVMInitializeARMAsmPrinter();
-            } catch (EntryPointNotFoundException) {
-            }
+            } catch (EntryPointNotFoundException) { }
 
             try {
                 LLVMInitializeAArch64TargetInfo();
                 LLVMInitializeAArch64Target();
                 LLVMInitializeAArch64TargetMC();
                 LLVMInitializeAArch64AsmPrinter();
-            } catch (EntryPointNotFoundException) {
-            }
+            } catch (EntryPointNotFoundException) { }
         }
 
 
@@ -1626,8 +1623,7 @@ namespace MonC.LLVM
         {
             LLVMContextRef context = LLVMContextCreate();
 
-            LLVMContextSetDiagnosticHandler(context, (diagnosticInfo, diagnosticContext) =>
-            {
+            LLVMContextSetDiagnosticHandler(context, (diagnosticInfo, diagnosticContext) => {
                 var severity = LLVMGetDiagInfoSeverity(diagnosticInfo);
                 var description = LLVMGetDiagInfoDescriptionString(diagnosticInfo);
                 Console.Write(severity + " " + description);

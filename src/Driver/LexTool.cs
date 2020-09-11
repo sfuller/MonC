@@ -22,7 +22,7 @@ namespace Driver
                 }
             }
         }
-        
+
         public virtual List<Token> GetTokens() => throw new NotImplementedException();
         public virtual FileInfo GetFileInfo() => throw new NotImplementedException();
 

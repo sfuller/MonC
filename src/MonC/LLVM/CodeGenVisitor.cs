@@ -689,7 +689,7 @@ namespace MonC.LLVM
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
-            
+
             _visitedValue = _builder.BuildGlobalStringPtr(leaf.Value);
         }
 

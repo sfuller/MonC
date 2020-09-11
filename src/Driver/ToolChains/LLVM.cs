@@ -55,16 +55,6 @@ namespace Driver.ToolChains
             return Phase.CodeGen;
         }
 
-        public override ITool BuildCodeGenJobTool(Job job, ICodeGenInput input) =>
-            LLVMCodeGenTool.Construct(job, this, input);
-
-        public override ITool BuildBackendJobTool(Job job, IBackendInput input) =>
-            LLVMBackendTool.Construct(job, this, input);
-
-        internal Module CreateModule(FileInfo fileInfo, ParseModule parseModule) =>
-            CodeGenerator.Generate(_context, fileInfo.FullPath, parseModule, _target, _optBuilder, _debugInfo,
-                _debugColumnInfo);
-
         public override void Initialize()
         {
             _context ??= new Context();
@@ -103,5 +93,15 @@ namespace Driver.ToolChains
             _context?.Dispose();
             _optBuilder?.Dispose();
         }
+
+        public override ITool BuildCodeGenJobTool(Job job, ICodeGenInput input) =>
+            LLVMCodeGenTool.Construct(job, this, input);
+
+        public override ITool BuildBackendJobTool(Job job, IBackendInput input) =>
+            LLVMBackendTool.Construct(job, this, input);
+
+        internal Module CreateModule(FileInfo fileInfo, ParseModule parseModule) =>
+            CodeGenerator.Generate(_context, fileInfo.FullPath, parseModule, _target, _optBuilder, _debugInfo,
+                _debugColumnInfo);
     }
 }

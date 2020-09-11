@@ -6,8 +6,7 @@ namespace Driver
 {
     public abstract class ToolChain : IDisposable
     {
-        public static readonly KeyValuePair<string, Type>[] ToolChains =
-        {
+        public static readonly KeyValuePair<string, Type>[] ToolChains = {
             new KeyValuePair<string, Type>("monc", typeof(ToolChains.MonC)),
             new KeyValuePair<string, Type>("llvm", typeof(ToolChains.LLVM))
         };
@@ -36,6 +35,10 @@ namespace Driver
 
         public virtual PhaseSet FilterPhases(PhaseSet phases) => phases;
 
+        public virtual void Initialize() { }
+
+        public virtual void Dispose() { }
+
         public ITool BuildLexJobTool(Job job, ILexInput input) => LexTool.Construct(job, input);
 
         public ITool BuildParseJobTool(Job job, IParseInput input) => ParseTool.Construct(job, input);
@@ -47,13 +50,5 @@ namespace Driver
         public virtual ITool BuildLinkJobTool(Job job, ILinkInput input) => throw new NotImplementedException();
 
         public virtual ITool BuildVMJobTool(Job job, IVMInput input) => throw new NotImplementedException();
-
-        public virtual void Initialize()
-        {
-        }
-        
-        public virtual void Dispose()
-        {
-        }
     }
 }

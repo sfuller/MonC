@@ -8,7 +8,7 @@ namespace Driver.ToolChains
     {
         private LLVM _toolchain;
         private IBackendInput _input;
-        
+
         private LLVMBackendTool(LLVM toolchain, IBackendInput input)
         {
             _toolchain = toolchain;
@@ -24,6 +24,6 @@ namespace Driver.ToolChains
             writer.WriteLine("  -LLVMBackendTool");
         }
 
-        public ModuleArtifact GetModuleArtifact() => throw new NotImplementedException();
+        public IModuleArtifact GetModuleArtifact() => throw new NotImplementedException();
     }
 }

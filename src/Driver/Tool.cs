@@ -3,20 +3,11 @@ using MonC;
 
 namespace Driver
 {
-    public class Artifact : IDisposable
-    {
-        public void Dispose()
-        {
-        }
-    }
-    
-    public interface ITool : IInput
-    {
-    }
+    public interface ITool : IInput { }
 
     public interface IModuleTool : ITool
     {
-        public ModuleArtifact GetModuleArtifact();
+        public IModuleArtifact GetModuleArtifact();
     }
 
     public interface IExecutableTool : ITool

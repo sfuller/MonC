@@ -6,16 +6,14 @@ namespace MonC.LLVM
 {
     /// <summary>
     /// Exception triggered by LLVM's diagnostic handler.
-    /// 
+    ///
     /// Note: LLVM is typically compiled without exception handling enabled
     /// so it will not undergo stack unwinding if caught.
     /// Therefore, it is not recommended to catch this exception type frequently.
     /// </summary>
     class LLVMException : Exception
     {
-        public LLVMException(string message) : base(message)
-        {
-        }
+        public LLVMException(string message) : base(message) { }
     }
 
     public sealed class Context : IDisposable
@@ -53,7 +51,7 @@ namespace MonC.LLVM
                 if (_childModuleCount != 0) {
                     throw new InvalidOperationException("Live child modules are still present");
                 }
-                
+
                 if (_diagnosticHandlerHandle.IsAllocated)
                     _diagnosticHandlerHandle.Free();
 
@@ -133,8 +131,7 @@ namespace MonC.LLVM
             if (_diagnosticHandlerHandle.IsAllocated)
                 _diagnosticHandlerHandle.Free();
 
-            CAPI.LLVMDiagnosticHandler internalHandler = (diagnosticInfo, diagnosticContext) =>
-            {
+            CAPI.LLVMDiagnosticHandler internalHandler = (diagnosticInfo, diagnosticContext) => {
                 DiagnosticInfo info;
                 info.Severity = CAPI.LLVMGetDiagInfoSeverity(diagnosticInfo);
                 info.DescriptionString = CAPI.LLVMGetDiagInfoDescriptionString(diagnosticInfo);

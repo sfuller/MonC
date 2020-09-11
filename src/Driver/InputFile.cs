@@ -7,10 +7,8 @@ namespace Driver
     {
         public System.IO.FileInfo SystemFileInfo { get; }
 
-        public string FullPath
-        {
-            get
-            {
+        public string FullPath {
+            get {
                 if (IsInteractive)
                     return "<interactive>";
                 if (IsStdIo)
@@ -64,7 +62,7 @@ namespace Driver
                     break;
             }
         }
-        
+
         public static FileInfo Interactive => new FileInfo("<interactive>");
 
         public static FileInfo StdIo => new FileInfo("-");

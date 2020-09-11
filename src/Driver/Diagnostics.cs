@@ -5,11 +5,9 @@ namespace Driver
 {
     public class DiagnosticsException : Exception
     {
-        public DiagnosticsException(string message) : base(message)
-        {
-        }
+        public DiagnosticsException(string message) : base(message) { }
     }
-    
+
     public class Diagnostics
     {
         public enum Severity
@@ -18,7 +16,7 @@ namespace Driver
             Warning,
             Error
         }
-        
+
         private static ConsoleColor GetSeverityColor(Severity severity)
         {
             switch (severity) {
@@ -32,13 +30,12 @@ namespace Driver
 
             return ConsoleColor.White;
         }
-        
+
         public delegate TextWriter ReportHandler(Severity severity, string message);
 
         public delegate void TextWriterDelegate(TextWriter writer);
 
-        private static ReportHandler _reportHandler = (severity, message) =>
-        {
+        private static ReportHandler _reportHandler = (severity, message) => {
             ConsoleColor oldForegroundColor = Console.ForegroundColor;
             Console.ForegroundColor = GetSeverityColor(severity);
             Console.Error.Write($"[{severity}] ");
@@ -48,7 +45,7 @@ namespace Driver
         };
 
         public static void SetReportHandler(ReportHandler reportHandler) => _reportHandler = reportHandler;
-        
+
         public static int ErrorCount { get; private set; }
 
         public static void Report(Severity severity, string message)
