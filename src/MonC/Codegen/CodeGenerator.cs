@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using MonC.Bytecode;
 using MonC.Parsing;
 using MonC.SyntaxTree;
 
@@ -8,7 +9,7 @@ namespace MonC.Codegen
     public class CodeGenerator
     {
         private readonly FunctionManager _manager = new FunctionManager();
-        
+
         public ILModule Generate(ParseModule module)
         {
             foreach (FunctionDefinitionLeaf function in module.Functions) {
@@ -18,13 +19,13 @@ namespace MonC.Codegen
             List<ILFunction> functions = new List<ILFunction>();
             List<string> strings = new List<string>();
             Dictionary<string, int> enumerations = new Dictionary<string, int>();
-            
+
             foreach (FunctionDefinitionLeaf function in module.Functions) {
                 functions.Add(GenerateFunction(module, function, strings));
             }
-            
+
             ProcessEnums(module, enumerations);
-            
+
             return new ILModule {
                 DefinedFunctions = functions.ToArray(),
                 ExportedFunctions = _manager.ExportedFunctions.ToArray(),
@@ -38,13 +39,17 @@ namespace MonC.Codegen
         private ILFunction GenerateFunction(ParseModule module, FunctionDefinitionLeaf leaf, List<string> strings)
         {
             StackLayoutGenerator layoutGenerator = new StackLayoutGenerator();
-            leaf.Accept(layoutGenerator);
+            layoutGenerator.VisitFunctionDefinition(leaf);
             FunctionStackLayout layout = layoutGenerator.GetLayout();
-            
-            CodeGenVisitor codeGenVisitor = new CodeGenVisitor(layout, _manager, module.TokenMap, strings);
-            leaf.Accept(codeGenVisitor);
+            FunctionBuilder builder = new FunctionBuilder(layout, module.TokenMap);
+            FunctionCodeGenVisitor functionCodeGenVisitor = new FunctionCodeGenVisitor(builder, layout, _manager, strings);
+            leaf.Body.AcceptStatements(functionCodeGenVisitor);
 
-            return codeGenVisitor.MakeFunction();
+            if (builder.InstructionCount == 0 || builder.Instructions[builder.InstructionCount - 1].Op != OpCode.RETURN) {
+                builder.AddInstruction(OpCode.RETURN);
+            }
+
+            return builder.Build(leaf);
         }
 
         private static void ProcessEnums(ParseModule module, IDictionary<string, int> exportedEnums)

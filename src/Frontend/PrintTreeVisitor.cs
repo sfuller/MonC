@@ -2,16 +2,20 @@ using System;
 using MonC.Parsing;
 using MonC.Parsing.ParseTreeLeaves;
 using MonC.SyntaxTree;
+using MonC.SyntaxTree.Leaves;
+using MonC.SyntaxTree.Leaves.Expressions;
+using MonC.SyntaxTree.Leaves.Statements;
 
 namespace MonC.Frontend
 {
-    public class PrintTreeVisitor : IASTLeafVisitor, IParseTreeLeafVisitor
+    public class PrintTreeVisitor :
+            ITopLevelStatementVisitor, IStatementVisitor, IExpressionVisitor, IParseTreeVisitor
     {
         private int _currentIndent;
-        
-        public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
+
+        public void VisitBinaryOperation(IBinaryOperationLeaf leaf)
         {
-            Print($"Binary Operation ({leaf.Op})");
+            Print($"{leaf.GetType().Name}");
             VisitSubleaf(leaf.LHS);
             VisitSubleaf(leaf.RHS);
         }
@@ -22,18 +26,20 @@ namespace MonC.Frontend
             VisitSubleaf(leaf.RHS);
         }
 
-        public void VisitBody(BodyLeaf leaf)
+        private void VisitBody(Body leaf)
         {
+            ++_currentIndent;
             Print("Body");
             for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
                 VisitSubleaf(leaf.GetStatement(i));
             }
+            --_currentIndent;
         }
 
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
             Print($"Declaration (Type={leaf.Type}, Name={leaf.Name})");
-            VisitOptionalSubleaf(leaf.Assignment);
+            VisitSubleaf(leaf.Assignment);
         }
 
         public void VisitFor(ForLeaf leaf)
@@ -42,13 +48,13 @@ namespace MonC.Frontend
             VisitSubleaf(leaf.Declaration);
             VisitSubleaf(leaf.Condition);
             VisitSubleaf(leaf.Update);
-            VisitSubleaf(leaf.Body);
+            VisitBody(leaf.Body);
         }
 
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
         {
             Print($"Function Definition ({leaf.ReturnType} {leaf.Name})");
-            VisitSubleaf(leaf.Body);
+            VisitBody(leaf.Body);
         }
 
         public void VisitFunctionCall(FunctionCallLeaf leaf)
@@ -61,7 +67,7 @@ namespace MonC.Frontend
 
         public void VisitVariable(VariableLeaf leaf)
         {
-            Print($"Variable");
+            Print("Variable");
             VisitSubleaf(leaf.Declaration);
         }
 
@@ -69,8 +75,13 @@ namespace MonC.Frontend
         {
             Print("If Else");
             VisitSubleaf(leaf.Condition);
-            VisitSubleaf(leaf.IfBody);
-            VisitOptionalSubleaf(leaf.ElseBody);
+            VisitBody(leaf.IfBody);
+            VisitBody(leaf.ElseBody);
+        }
+
+        public void VisitVoid(VoidExpression leaf)
+        {
+            Print("Void Expression");
         }
 
         public void VisitNumericLiteral(NumericLiteralLeaf leaf)
@@ -87,7 +98,13 @@ namespace MonC.Frontend
         {
             Print("While");
             VisitSubleaf(leaf.Condition);
-            VisitSubleaf(leaf.Body);
+            VisitBody(leaf.Body);
+        }
+
+        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
+        {
+            Print("Expression Statement");
+            VisitSubleaf(leaf.Expression);
         }
 
         public void VisitBreak(BreakLeaf leaf)
@@ -103,7 +120,7 @@ namespace MonC.Frontend
         public void VisitReturn(ReturnLeaf leaf)
         {
             Print("Return");
-            VisitOptionalSubleaf(leaf.RHS);
+            VisitSubleaf(leaf.RHS);
         }
 
         public void VisitAssignment(AssignmentLeaf leaf)
@@ -111,6 +128,11 @@ namespace MonC.Frontend
             Print("Assignment");
             VisitSubleaf(leaf.Declaration);
             VisitSubleaf(leaf.RHS);
+        }
+
+        public void VisitUnknown(IExpressionLeaf leaf)
+        {
+            Print($"{leaf.GetType().Name}");
         }
 
         public void VisitEnum(EnumLeaf leaf)
@@ -123,9 +145,11 @@ namespace MonC.Frontend
             Print($"EnumValue (Name={leaf.Name})");
         }
 
-        public void VisitTypeSpecifier(TypeSpecifierLeaf leaf)
+        public void VisitAssignment(AssignmentParseLeaf leaf)
         {
-            Print($"TypeSpecifier (Name={leaf.Name}, PointerType={leaf.PointerType})");
+            Print("Assignment (Parse Tree Leaf)");
+            VisitSubleaf(leaf.LHS);
+            VisitSubleaf(leaf.RHS);
         }
 
         public void VisitIdentifier(IdentifierParseLeaf leaf)
@@ -135,32 +159,31 @@ namespace MonC.Frontend
 
         public void VisitFunctionCall(FunctionCallParseLeaf leaf)
         {
-            Print($"Function Call (Parse Tree Leaf)");
+            Print("Function Call (Parse Tree Leaf)");
             VisitSubleaf(leaf.LHS);
             for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
                 VisitSubleaf(leaf.GetArgument(i));
             }
         }
 
-        private void VisitSubleaf(IASTLeaf leaf)
+        private void VisitSubleaf(IStatementLeaf leaf)
         {
             ++_currentIndent;
-            leaf.Accept(this);
+            leaf.AcceptStatementVisitor(this);
             --_currentIndent;
         }
 
-        public void VisitOptionalSubleaf(IASTLeaf? leaf)
+        private void VisitSubleaf(IExpressionLeaf leaf)
         {
-            if (leaf == null) {
-                return;
-            }
-            VisitSubleaf(leaf);
+            ++_currentIndent;
+            leaf.AcceptExpressionVisitor(this);
+            --_currentIndent;
         }
-        
+
         private void Print(string text)
         {
-            Console.WriteLine(new string(' ', _currentIndent) + text);
+            Console.WriteLine( new string(' ', _currentIndent * 2) + text);
         }
-        
+
     }
 }

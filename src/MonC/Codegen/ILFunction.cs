@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MonC.Bytecode;
-using MonC.SyntaxTree;
+using MonC.SyntaxTree.Leaves.Statements;
 
 namespace MonC.Codegen
 {
@@ -11,7 +11,7 @@ namespace MonC.Codegen
         /// The size of the argument stack prepared by the caller.
         /// This is needed so the VM knowns how much memory to copy from the previous stack frame to the current one.
         /// Implementation specific and might not be needed for other implementations if they are smart enough to share
-        /// the stack memory.  
+        /// the stack memory.
         /// </summary>
         public int ArgumentMemorySize;
 
@@ -19,11 +19,11 @@ namespace MonC.Codegen
         /// The maximum ammount of stack memory that may possibly be used by this function.
         /// </summary>
         public int MaxStackSize;
-        
+
         public Instruction[] Code;
         public IDictionary<int, Symbol> Symbols;
         public Dictionary<int, DeclarationLeaf> VariableSymbols;
-        
+
         /// <summary>
         /// All indices of instructions that reference a function address. Used for linking.
         /// </summary>
@@ -43,7 +43,7 @@ namespace MonC.Codegen
                 VariableSymbols = new Dictionary<int, DeclarationLeaf>(),
                 InstructionsReferencingFunctionAddresses = Array.Empty<int>()
             };
-        } 
+        }
     }
 
 }

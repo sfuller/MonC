@@ -4,53 +4,92 @@ using System.Linq;
 using MonC.Parsing.ParseTreeLeaves;
 using MonC.Parsing.Scoping;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Util;
+using MonC.SyntaxTree.Leaves;
+using MonC.SyntaxTree.Leaves.Expressions;
+using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Util.ChildrenVisitors;
+using MonC.SyntaxTree.Util.NoOpVisitors;
+using MonC.SyntaxTree.Util.ReplacementVisitors;
 
 namespace MonC.Parsing.Semantics
 {
-    public class TranslateIdentifiersVisitor : NoOpASTVisitor, IParseTreeLeafVisitor, IReplacementVisitor
+    public class TranslateIdentifiersVisitor : NoOpExpressionAndStatementVisitor,
+            IParseTreeVisitor, IExpressionReplacementVisitor, IStatementReplacementVisitor
     {
-        private readonly ScopeCache _scopes;
         private readonly Dictionary<string, FunctionDefinitionLeaf> _functions;
         private readonly EnumManager _enums;
-        
-        private readonly IList<(string name, IASTLeaf leaf)> _errors;
-        private readonly IDictionary<IASTLeaf, Symbol> _symbolMap;
-        
+
+        private readonly IList<(string name, ISyntaxTreeLeaf leaf)> _errors;
+        private readonly IDictionary<ISyntaxTreeLeaf, Symbol> _symbolMap;
+
+        private IStatementLeaf _newStatementLeaf;
+        private IExpressionLeaf _newExpressionLeaf;
+
+        private readonly ScopeManager _scopeManager = new ScopeManager();
+
         public TranslateIdentifiersVisitor(
-            ScopeCache scopes,
             Dictionary<string, FunctionDefinitionLeaf> functions,
-            IList<(string name, IASTLeaf leaf)> errors,
+            IList<(string name, ISyntaxTreeLeaf leaf)> errors,
             EnumManager enums,
-            IDictionary<IASTLeaf, Symbol> symbolMap)
+            IDictionary<ISyntaxTreeLeaf, Symbol> symbolMap)
         {
-            _scopes = scopes;
             _functions = functions;
             _enums = enums;
             _errors = errors;
             _symbolMap = symbolMap;
+
+            _newExpressionLeaf = new VoidExpression();
+            _newStatementLeaf = new ExpressionStatementLeaf(new VoidExpression());
+        }
+
+        public void PrepareToVisit()
+        {
+            ShouldReplace = false;
         }
 
         public bool ShouldReplace { get; private set; }
-        public IASTLeaf? NewLeaf { get; private set; }
-        
+
+        IExpressionLeaf IExpressionReplacementVisitor.NewLeaf => _newExpressionLeaf;
+        IStatementLeaf IStatementReplacementVisitor.NewLeaf => _newStatementLeaf;
+
+        public void Process(FunctionDefinitionLeaf function)
+        {
+            _scopeManager.ProcessFunction(function);
+            IExpressionReplacementVisitor expressionReplacementVisitor = new ScopedExpressionReplacementVisitor(this, _scopeManager);
+            ProcessStatementReplacementsVisitor statementReplacementsVisitor = new ProcessStatementReplacementsVisitor(this, expressionReplacementVisitor);
+            ProcessExpressionReplacementsVisitor expressionReplacementsVisitor = new ProcessExpressionReplacementsVisitor(expressionReplacementVisitor);
+            ExpressionChildrenVisitor expressionChildrenVisitor = new ExpressionChildrenVisitor(expressionReplacementsVisitor);
+            StatementChildrenVisitor statementChildrenVisitor = new StatementChildrenVisitor(statementReplacementsVisitor, expressionChildrenVisitor);
+            function.Body.AcceptStatements(statementChildrenVisitor);
+        }
+
+        public override void VisitUnknown(IExpressionLeaf leaf)
+        {
+            if (leaf is IParseLeaf parseLeaf) {
+                parseLeaf.AcceptParseTreeVisitor(this);
+            }
+        }
+
+        public void VisitAssignment(AssignmentParseLeaf leaf)
+        {
+        }
+
         public void VisitIdentifier(IdentifierParseLeaf leaf)
         {
             ShouldReplace = true;
-            
-            Scope scope = _scopes.GetScope(leaf);
-            DeclarationLeaf decl = scope.Variables.Find(d => d.Name == leaf.Name);
+
+            DeclarationLeaf decl = _scopeManager.GetScope(leaf).Variables.Find(d => d.Name == leaf.Name);
             if (decl != null) {
-                NewLeaf = UpdateSymbolMap(new VariableLeaf(decl), leaf);
+                _newExpressionLeaf = UpdateSymbolMap(new VariableLeaf(decl), leaf);
                 return;
             }
 
-            EnumLeaf enumLeaf = _enums.GetEnumeration(leaf.Name);
+            EnumLeaf? enumLeaf = _enums.GetEnumeration(leaf.Name);
             if (enumLeaf != null) {
-                NewLeaf = UpdateSymbolMap(new EnumValueLeaf(enumLeaf, leaf.Name), leaf);
+                _newExpressionLeaf = UpdateSymbolMap(new EnumValueLeaf(enumLeaf, leaf.Name), leaf);
                 return;
             }
-            
+
             ShouldReplace = false;
             _errors.Add(($"Undeclared identifier {leaf.Name}", leaf));
         }
@@ -58,7 +97,7 @@ namespace MonC.Parsing.Semantics
         public void VisitFunctionCall(FunctionCallParseLeaf leaf)
         {
             IdentifierParseLeaf? identifier = leaf.LHS as IdentifierParseLeaf;
-            
+
             if (identifier == null) {
                 _errors.Add(("LHS of function call operator is not an identifier.", leaf));
                 return;
@@ -67,22 +106,22 @@ namespace MonC.Parsing.Semantics
             ShouldReplace = true;
 
             FunctionCallLeaf? resultLeaf = null;
-            
+
             FunctionDefinitionLeaf function;
             if (!_functions.TryGetValue(identifier.Name, out function)) {
                 _errors.Add(("Undefined function " + identifier.Name, leaf));
             } else if (function.Parameters.Length != leaf.ArgumentCount) {
                 _errors.Add(($"Expected {function.Parameters.Length} argument(s), got {leaf.ArgumentCount}", leaf));
             } else {
-                resultLeaf = new FunctionCallLeaf(function, leaf.GetArguments());    
+                resultLeaf = new FunctionCallLeaf(function, leaf.GetArguments());
             }
 
             if (resultLeaf == null) {
                 resultLeaf = MakeFakeFunctionCall(identifier, leaf);
             }
-            
+
             UpdateSymbolMap(resultLeaf, leaf);
-            NewLeaf = resultLeaf;
+            _newExpressionLeaf = resultLeaf;
         }
 
         private FunctionCallLeaf MakeFakeFunctionCall(IdentifierParseLeaf identifier, FunctionCallParseLeaf call)
@@ -90,22 +129,17 @@ namespace MonC.Parsing.Semantics
             FunctionCallLeaf fakeFunctionCall = new FunctionCallLeaf(
                 lhs: new FunctionDefinitionLeaf(
                     $"(placeholder) {identifier.Name}",
-                    new TypeSpecifierLeaf("int", PointerType.NotAPointer),
+                    new TypeSpecifier("int", PointerType.NotAPointer),
                     Array.Empty<DeclarationLeaf>(),
-                    new BodyLeaf(Array.Empty<IASTLeaf>()),
+                    new Body(Array.Empty<IStatementLeaf>()),
                     isExported: false
                 ),
                 arguments: Enumerable.Range(0, call.ArgumentCount).Select(call.GetArgument));
-            
+
             return fakeFunctionCall;
         }
 
-        public override void VisitDefault(IASTLeaf leaf)
-        {
-            ShouldReplace = false;
-        }
-
-        private IASTLeaf UpdateSymbolMap(IASTLeaf leaf, IASTLeaf original)
+        private IExpressionLeaf UpdateSymbolMap(IExpressionLeaf leaf, IExpressionLeaf original)
         {
             Symbol originalSymbol;
             _symbolMap.TryGetValue(original, out originalSymbol);

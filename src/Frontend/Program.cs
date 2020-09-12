@@ -10,9 +10,9 @@ using MonC.Parsing;
 using MonC.VM;
 
 namespace MonC.Frontend
-{   
+{
     internal class Program
-    { 
+    {
         public static void Main(string[] args)
         {
             bool isInteractive = false;
@@ -21,6 +21,7 @@ namespace MonC.Frontend
             bool showIL = false;
             bool withDebugger = false;
             bool forceCodegen = false;
+            bool run = true;
             List<string> positionals = new List<string>();
             List<int> argsToPass = new List<int>();
             List<string> libraryNames = new List<string>();
@@ -28,7 +29,7 @@ namespace MonC.Frontend
             for (int i = 0, ilen = args.Length; i < ilen; ++i) {
                 string arg = args[i].Trim();
                 bool argFound = true;
-                
+
                 switch (arg) {
                     case "-i":
                         isInteractive = true;
@@ -54,11 +55,14 @@ namespace MonC.Frontend
                         withDebugger = true;
                         break;
                     case "--force-codegen":
-                        // Indicate that the compiler should attempt to code gen IL, even if the parse stage failed. 
-                        // This can be helpful to diagnose generated IL for code that doesn't compile outside of a 
+                        // Indicate that the compiler should attempt to code gen IL, even if the parse stage failed.
+                        // This can be helpful to diagnose generated IL for code that doesn't compile outside of a
                         // specific project due to undefined references. The parser tries its hardest to produce a
                         // usable AST, even if there are semantic errors. Syntax errors? Not so much.
                         forceCodegen = true;
+                        break;
+                    case "--skip-run":
+                        run = false;
                         break;
                     default:
                         argFound = false;
@@ -79,8 +83,8 @@ namespace MonC.Frontend
                 interopResolver.ImportAssembly(lib, BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static);
             }
 
-            ParseModule interopHeaderModule = interopResolver.CreateHeaderModule(); 
-            
+            ParseModule interopHeaderModule = interopResolver.CreateHeaderModule();
+
             string? filename = null;
 
             if (positionals.Count > 0) {
@@ -89,7 +93,7 @@ namespace MonC.Frontend
 
             Lexer lexer = new Lexer();
             List<Token> tokens = new List<Token>();
-            
+
             string input;
 
             if (isInteractive) {
@@ -98,7 +102,7 @@ namespace MonC.Frontend
                     Lex(input, lexer, tokens, verbose: showLex);
                     Lex("\n", lexer, tokens, verbose: showLex);
                     WritePrompt();
-                }    
+                }
             } else {
                 if (filename == null) {
                     string? line;
@@ -106,15 +110,15 @@ namespace MonC.Frontend
                     while ((line = Console.In.ReadLine()) != null) {
                         inputBuilder.AppendLine(line);
                     }
-                    input = inputBuilder.ToString();    
+                    input = inputBuilder.ToString();
                 } else {
                     filename = Path.GetFullPath(filename);
                     input = File.ReadAllText(filename);
                 }
-                
+
                 Lex(input, lexer, tokens, verbose: showLex);
             }
-            
+
             Parser parser = new Parser();
             List<ParseError> errors = new List<ParseError>();
             ParseModule module = parser.Parse(filename, tokens, interopHeaderModule, errors);
@@ -127,19 +131,19 @@ namespace MonC.Frontend
             if (showAST) {
                 PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
                 for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
-                    module.Functions[i].Accept(treeVisitor);
-                }    
+                    module.Functions[i].AcceptTopLevelVisitor(treeVisitor);
+                }
             }
 
             if (errors.Count > 0 && !forceCodegen) {
                 Environment.Exit(1);
             }
-            
+
             CodeGenerator generator = new CodeGenerator();
             ILModule ilmodule = generator.Generate(module);
             if (showIL) {
                 IntermediateLanguageWriter writer = new IntermediateLanguageWriter(Console.Out);
-                writer.Write(ilmodule);    
+                writer.Write(ilmodule);
             }
 
             if (errors.Count > 0) {
@@ -153,7 +157,7 @@ namespace MonC.Frontend
             foreach (Binding binding in interopResolver.Bindings) {
                 linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation, export: false);
             }
-            
+
             VMModule vmModule = linker.Link();
 
             if (linkErrors.Count > 0) {
@@ -162,13 +166,18 @@ namespace MonC.Frontend
                 }
                 Environment.Exit(1);
             }
-            
+
             List<string> loadErrors = new List<string>();
             if (!interopResolver.PrepareForExecution(vmModule, loadErrors)) {
                 foreach (string error in loadErrors) {
                     Console.Error.WriteLine($"Load error: {error}");
                 }
                 Environment.Exit(1);
+            }
+
+            if (!run) {
+                Environment.Exit(0);
+                return;
             }
 
             VirtualMachine vm = new VirtualMachine();
@@ -208,7 +217,7 @@ namespace MonC.Frontend
             if (verbose) {
                 for (int i = 0, ilen = newTokens.Count; i < ilen; ++i) {
                     Console.WriteLine(newTokens[i]);
-                }    
+                }
             }
             tokens.AddRange(newTokens);
         }
@@ -234,9 +243,9 @@ namespace MonC.Frontend
             if (args.Length > 0) {
                 command = args[0];
             }
-            
+
             switch (command) {
-                case "reg": 
+                case "reg":
                     {
                         StackFrameInfo frame = vm.GetStackFrame(0);
                         Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}, A: {vm.ReturnValue}");
@@ -247,7 +256,7 @@ namespace MonC.Frontend
                         }
                     }
                     break;
-                
+
                 case "read":
                     StackFrameMemory memory = vm.GetStackFrameMemory(0);
                     for (int i = 0, ilen = memory.Size; i < ilen; ++i) {
@@ -274,9 +283,9 @@ namespace MonC.Frontend
                         }
                         Console.WriteLine($"Assuming source file is {sourcePath}");
                         debugger.SetBreakpoint(sourcePath!, breakpointLineNumber - 1);
-                    } 
+                    }
                     break;
-                
+
                 case "over":
                     return vmDebugger.StepOver();
 
@@ -295,7 +304,7 @@ namespace MonC.Frontend
 
                 case "":
                     break;
-                
+
                 default:
                     Console.Error.WriteLine($"moncdbg: unknown command {line}");
                     break;

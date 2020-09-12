@@ -1,10 +1,12 @@
 using System.Collections.Generic;
 using MonC.SyntaxTree;
+using MonC.SyntaxTree.Leaves;
+using MonC.SyntaxTree.Leaves.Statements;
 
 namespace MonC.Codegen
 {
-    public class StackLayoutGenerator : IASTLeafVisitor
-    { 
+    public class StackLayoutGenerator : IStatementVisitor
+    {
         public Dictionary<DeclarationLeaf, int> _variables = new Dictionary<DeclarationLeaf, int>();
         private int _currentOffset;
 
@@ -14,19 +16,11 @@ namespace MonC.Codegen
             _variables = new Dictionary<DeclarationLeaf, int>();
             return new FunctionStackLayout(variables);
         }
-        
-        public void VisitBinaryOperation(BinaryOperationExpressionLeaf leaf)
-        {
-        }
 
-        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
-        {
-        }
-
-        public void VisitBody(BodyLeaf leaf)
+        private void VisitBody(Body leaf)
         {
             for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                leaf.GetStatement(i).Accept(this);
+                leaf.GetStatement(i).AcceptStatementVisitor(this);
             }
         }
 
@@ -37,8 +31,8 @@ namespace MonC.Codegen
 
         public void VisitFor(ForLeaf leaf)
         {
-            leaf.Declaration.Accept(this);
-            leaf.Body.Accept(this);
+            leaf.Declaration.AcceptStatementVisitor(this);
+            VisitBody(leaf.Body);
         }
 
         public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
@@ -46,34 +40,18 @@ namespace MonC.Codegen
             foreach (DeclarationLeaf decl in leaf.Parameters) {
                 VisitDeclaration(decl);
             }
-            leaf.Body.Accept(this);
-        }
-
-        public void VisitFunctionCall(FunctionCallLeaf leaf)
-        {
-        }
-
-        public void VisitVariable(VariableLeaf leaf)
-        {
+            VisitBody(leaf.Body);
         }
 
         public void VisitIfElse(IfElseLeaf leaf)
         {
-            leaf.IfBody.Accept(this);
-            leaf.ElseBody?.Accept(this);
-        }
-
-        public void VisitNumericLiteral(NumericLiteralLeaf leaf)
-        {
-        }
-
-        public void VisitStringLiteral(StringLiteralLeaf leaf)
-        {
+            VisitBody(leaf.IfBody);
+            VisitBody(leaf.ElseBody);
         }
 
         public void VisitWhile(WhileLeaf leaf)
         {
-            leaf.Body.Accept(this);
+            VisitBody(leaf.Body);
         }
 
         public void VisitBreak(BreakLeaf leaf)
@@ -88,19 +66,7 @@ namespace MonC.Codegen
         {
         }
 
-        public void VisitAssignment(AssignmentLeaf leaf)
-        {
-        }
-
-        public void VisitEnum(EnumLeaf leaf)
-        {
-        }
-
-        public void VisitEnumValue(EnumValueLeaf leaf)
-        {
-        }
-
-        public void VisitTypeSpecifier(TypeSpecifierLeaf leaf)
+        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
         {
         }
     }

@@ -17,10 +17,9 @@ namespace MonC
 
         public override string ToString()
         {
-            string valueDisplay = Value != null ? $"\"{Value}\"" : "null";
-            return $"MonC.Token(Type={Type}, Value={valueDisplay}, Location={Location})";
+            return $"MonC.Token(Type={Type}, Value=\"{Value}\", Location={Location})";
         }
-        
+
         public readonly FileLocation DeriveEndLocation()
         {
             return new FileLocation {

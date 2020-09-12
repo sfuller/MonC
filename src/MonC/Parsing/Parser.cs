@@ -6,17 +6,21 @@ using MonC.Parsing;
 using MonC.Parsing.ParseTreeLeaves;
 using MonC.Parsing.Semantics;
 using MonC.SyntaxTree;
+using MonC.SyntaxTree.Leaves;
+using MonC.SyntaxTree.Leaves.Expressions;
+using MonC.SyntaxTree.Leaves.Expressions.BinaryOperations;
+using MonC.SyntaxTree.Leaves.Statements;
 
 
 namespace MonC
 {
     public class Parser
-    {   
+    {
         private readonly List<Token> _tokens = new List<Token>();
         private string? _filePath;
 
-        private IDictionary<IASTLeaf, Symbol> _tokenMap = new Dictionary<IASTLeaf, Symbol>();
-        
+        private IDictionary<ISyntaxTreeLeaf, Symbol> _tokenMap = new Dictionary<ISyntaxTreeLeaf, Symbol>();
+
         public ParseModule Parse(string? filePath, IEnumerable<Token> tokens, ParseModule headerModule, IList<ParseError> errors)
         {
             _filePath = filePath;
@@ -27,12 +31,12 @@ namespace MonC
 
             ParseModule outputModule = new ParseModule();
             _tokenMap = outputModule.TokenMap;
-            
+
             while (tokenSource.Peek().Type != TokenType.None) {
                 ParseTopLevelStatement(ref tokenSource, outputModule.Functions, outputModule.Enums);
             }
-            
-            SemanticAnalyzer analyzer = new SemanticAnalyzer(errors,_tokenMap);
+
+            SemanticAnalyzer analyzer = new SemanticAnalyzer(errors, _tokenMap);
             analyzer.Analyze(headerModule, outputModule);
 
             return outputModule;
@@ -50,7 +54,7 @@ namespace MonC
                 _offset = offset;
                 _errors = errors;
             }
-            
+
             public readonly Token Peek(int offset = 0)
             {
                 int i = _offset + offset;
@@ -59,7 +63,7 @@ namespace MonC
                 }
                 return _tokens[i];
             }
-            
+
             public bool Peek(int offset, TokenType type, out Token token)
             {
                 token = Peek(offset);
@@ -73,7 +77,7 @@ namespace MonC
                 }
                 return true;
             }
-            
+
             public bool Peek(int offset, TokenType type, string value, out Token token)
             {
                 token = Peek(offset);
@@ -99,7 +103,7 @@ namespace MonC
                 Consume();
                 return token;
             }
-            
+
             public bool Next(TokenType type, out Token token)
             {
                 bool result = Peek(0, type, out token);
@@ -143,7 +147,7 @@ namespace MonC
                     throw new Exception("Cannot call consume with a token source that uses different tokens.");
                 }
                 #endif
-                
+
                 _offset = other._offset;
                 if (other._errors != null && _errors != null) {
                     foreach (ParseError error in other._errors) {
@@ -181,10 +185,12 @@ namespace MonC
         private EnumLeaf? ParseEnum(ref TokenSource tokens, bool isExported)
         {
             Token startToken = tokens.Peek();
-            
+            Token nameToken;
+
             if (!(
                 tokens.Next(TokenType.Keyword, Keyword.ENUM, out _)
-                && tokens.Next(TokenType.Syntax, "{", out _)
+                && tokens.Next(TokenType.Identifier, out nameToken)
+                && tokens.Next(TokenType.Syntax, Syntax.OPENING_BRACKET, out _)
             )) {
                 return null;
             }
@@ -193,7 +199,7 @@ namespace MonC
 
             bool endIsAllowed = true;
             bool nextEnumerationIsAllowed = true;
-            
+
             while (true) {
                 Token next = tokens.Peek();
 
@@ -201,17 +207,17 @@ namespace MonC
                     tokens.AddError("Unexpected EOF", next);
                     break;
                 }
-                
-                if (next.Type == TokenType.Syntax && next.Value == "}") {
+
+                if (next.Type == TokenType.Syntax && next.Value == Syntax.CLOSING_BRACKET) {
                     if (!endIsAllowed) {
                         tokens.AddError("Expecting next enumeration", next);
                     }
                     tokens.Next();
                     break;
                 }
-                
+
                 if (!nextEnumerationIsAllowed) {
-                    tokens.AddError("Expecting }", next);
+                    tokens.AddError($"Expecting {Syntax.CLOSING_BRACKET}", next);
                     break;
                 }
 
@@ -219,11 +225,11 @@ namespace MonC
                 if (!tokens.Next(TokenType.Identifier, out name)) {
                     break;
                 }
-                
+
                 enumerations.Add(new KeyValuePair<string, int>(name.Value, enumerations.Count));
 
                 next = tokens.Peek();
-                if (next.Type == TokenType.Syntax && next.Value == ",") {
+                if (next.Type == TokenType.Syntax && next.Value == Syntax.COMMA) {
                     endIsAllowed = false;
                     tokens.Next();
                 } else {
@@ -232,31 +238,31 @@ namespace MonC
                 }
             }
 
-            return NewLeaf(new EnumLeaf(enumerations, isExported), startToken, tokens.Peek());
+            return NewLeaf(new EnumLeaf(nameToken.Value, enumerations, isExported), startToken, tokens.Peek());
         }
-        
+
         private FunctionDefinitionLeaf? ParseFunction(ref TokenSource tokens, bool isExported)
         {
             var parameters = new List<DeclarationLeaf>();
 
             Token retunTypeStart = tokens.Peek();
-            TypeSpecifierLeaf? returnType = ParseTypeSpecifier(ref tokens);
+            TypeSpecifier? returnType = ParseTypeSpecifier(ref tokens);
             if (returnType == null) {
-                returnType = NewLeaf(new TypeSpecifierLeaf("", PointerType.NotAPointer), retunTypeStart, tokens.Peek());
+                returnType = new TypeSpecifier("", PointerType.NotAPointer);
             }
 
             Token name;
             if (!(
                 tokens.Next(TokenType.Identifier, out name)
-                && tokens.Next(TokenType.Syntax, "(", out _)
+                && tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _)
             )) {
                 return null;
             }
-            
+
             bool expectingEnd = true;
             bool expectingComma = false;
             bool expectingNext = true;
-            
+
             while (true) {
                 if (expectingNext) {
                     TokenSource declTokens = tokens.Fork();
@@ -273,7 +279,7 @@ namespace MonC
 
                 if (expectingComma) {
                     Token comma = tokens.Peek();
-                    if (comma.Type == TokenType.Syntax && comma.Value == ",") {
+                    if (comma.Type == TokenType.Syntax && comma.Value == Syntax.COMMA) {
                         tokens.Consume();
                         expectingNext = true;
                         expectingComma = false;
@@ -284,60 +290,58 @@ namespace MonC
 
                 if (expectingEnd) {
                     Token rightParen = tokens.Peek();
-                    if (rightParen.Type == TokenType.Syntax && rightParen.Value == ")") {
+                    if (rightParen.Type == TokenType.Syntax && rightParen.Value == Syntax.CLOSING_PAREN) {
                         tokens.Consume();
                         break;
                     }
                 }
-                
+
                 tokens.AddError("Unexpected token", tokens.Peek());
                 return null;
             }
 
-            BodyLeaf? body = ParseBody(ref tokens);
+            Body? body = ParseBody(ref tokens);
             if (body == null) {
                 return null;
             }
 
             return NewLeaf(
                 new FunctionDefinitionLeaf(name.Value, returnType, parameters, body, isExported),
-                returnType, tokens.Peek());
+                retunTypeStart, tokens.Peek());
         }
 
-        private BodyLeaf? ParseBody(ref TokenSource tokens)
+        private Body? ParseBody(ref TokenSource tokens)
         {
-            Token bodyOpening;
-            if (!tokens.Next(TokenType.Syntax, "{", out bodyOpening)) {
+            if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_BRACKET, out _)) {
                 return null;
             }
-            
-            List<IASTLeaf> statements = new List<IASTLeaf>();
-            
+
+            List<IStatementLeaf> statements = new List<IStatementLeaf>();
+
             while (true) {
                 Token next = tokens.Peek();
-                
-                if (next.Type == TokenType.Syntax && next.Value == "}") {
+
+                if (next.Type == TokenType.Syntax && next.Value == Syntax.CLOSING_BRACKET) {
                     tokens.Consume();
                     break;
                 }
 
-                IASTLeaf? statement = ParseStatement(ref tokens);
+                IStatementLeaf? statement = ParseStatement(ref tokens);
                 if (statement == null) {
                     return null;
                 }
                 statements.Add(statement);
             }
-            
-            return NewLeaf(new BodyLeaf(statements), bodyOpening, tokens.Peek());
+
+            return new Body(statements);
         }
 
-        private IASTLeaf? ParseStatement(ref TokenSource tokens)
+        private IStatementLeaf? ParseStatement(ref TokenSource tokens)
         {
-
-            IASTLeaf? TryLeafTypes(in TokenSource tokens, out TokenSource tokensToConsume)
+            IStatementLeaf? TryLeafTypes(in TokenSource tokens, out TokenSource tokensToConsume)
             {
                 tokensToConsume = tokens.Fork();
-                IASTLeaf? statement = ParseDeclaration(ref tokensToConsume);
+                IStatementLeaf? statement = ParseDeclaration(ref tokensToConsume);
                 if (statement != null) {
                     ParseSemiColonForgiving(ref tokensToConsume);
                     return statement;
@@ -350,12 +354,13 @@ namespace MonC
                 }
 
                 tokensToConsume = tokens.Fork();
-                statement = ParseExpression(ref tokensToConsume);
+                IExpressionLeaf expression = ParseExpression(ref tokensToConsume) ?? new VoidExpression();
+                statement = new ExpressionStatementLeaf(expression);
                 ParseSemiColonForgiving(ref tokensToConsume);
                 return statement;
             }
 
-            IASTLeaf? statement = TryLeafTypes(in tokens, out TokenSource tokensToConsume);
+            IStatementLeaf? statement = TryLeafTypes(in tokens, out TokenSource tokensToConsume);
             tokens.Consume(tokensToConsume);
             return statement;
         }
@@ -363,25 +368,29 @@ namespace MonC
         private DeclarationLeaf? ParseDeclaration(ref TokenSource tokens)
         {
             Token startToken = tokens.Peek();
-            TypeSpecifierLeaf? typeSpecifier = ParseTypeSpecifier(ref tokens);
+            TypeSpecifier? typeSpecifier = ParseTypeSpecifier(ref tokens);
             Token nameToken;
             if (typeSpecifier == null || !tokens.Next(TokenType.Identifier, out nameToken)) {
                 return null;
             }
-            
-            IASTLeaf? assignment = null;
+
+            IExpressionLeaf? assignment = null;
 
             Token nextToken = tokens.Peek();
-            
-            if (nextToken.Type == TokenType.Syntax && nextToken.Value == "=") {
+
+            if (nextToken.Type == TokenType.Syntax && nextToken.Value == Syntax.ASSIGN) {
                 tokens.Consume();
                 assignment = ParseExpression(ref tokens);
+            }
+
+            if (assignment == null) {
+                assignment = new VoidExpression();
             }
 
             return NewLeaf(new DeclarationLeaf(typeSpecifier, nameToken.Value, assignment), startToken, nameToken);
         }
 
-        private IASTLeaf? ParseFlow(ref TokenSource tokens)
+        private IStatementLeaf? ParseFlow(ref TokenSource tokens)
         {
             Token token = tokens.Peek();
 
@@ -404,7 +413,7 @@ namespace MonC
                 case Keyword.BREAK:
                     return ParseBreak(ref tokens);
             }
-            
+
             tokens.AddError("Unexpected token", token);
             return null;
         }
@@ -412,52 +421,52 @@ namespace MonC
         private IfElseLeaf? ParseIfElse(ref TokenSource tokens)
         {
             Token ifToken;
-            if (!(tokens.Next(TokenType.Keyword, Keyword.IF, out ifToken) && tokens.Next(TokenType.Syntax, "(", out _))) {
+            if (!(tokens.Next(TokenType.Keyword, Keyword.IF, out ifToken) && tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _))) {
                 return null;
             }
 
-            IASTLeaf? condition = ParseExpression(ref tokens);
+            IExpressionLeaf? condition = ParseExpression(ref tokens);
             if (condition == null) {
                 return null;
             }
 
-            if (!tokens.Next(TokenType.Syntax, ")", out _)) {
+            if (!tokens.Next(TokenType.Syntax, Syntax.CLOSING_PAREN, out _)) {
                 return null;
             }
 
-            BodyLeaf? ifBody = ParseBody(ref tokens);
+            Body? ifBody = ParseBody(ref tokens);
             if (ifBody == null) {
                 return null;
             }
 
-            BodyLeaf? elseBody = null;
+            Body? elseBody = null;
             Token nextToken = tokens.Peek();
 
             if (nextToken.Type == TokenType.Keyword && nextToken.Value == Keyword.ELSE) {
                 tokens.Consume();
                 elseBody = ParseBody(ref tokens);
             }
-            
-            return NewLeaf(new IfElseLeaf(condition, ifBody, elseBody), ifToken, tokens.Peek());
+
+            return NewLeaf(new IfElseLeaf(condition, ifBody, elseBody ?? new Body()), ifToken, tokens.Peek());
         }
 
         private WhileLeaf? ParseWhile(ref TokenSource tokens)
         {
             Token whileToken;
-            if (!(tokens.Next(TokenType.Keyword, Keyword.WHILE, out whileToken) && tokens.Next(TokenType.Syntax, "(", out _))) {
+            if (!(tokens.Next(TokenType.Keyword, Keyword.WHILE, out whileToken) && tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _))) {
                 return null;
             }
 
-            IASTLeaf? condition = ParseExpression(ref tokens);
+            IExpressionLeaf? condition = ParseExpression(ref tokens);
             if (condition == null) {
                 return null;
             }
 
-            if (!tokens.Next(TokenType.Syntax, ")", out _)) {
+            if (!tokens.Next(TokenType.Syntax, Syntax.CLOSING_PAREN, out _)) {
                 return null;
             }
 
-            BodyLeaf? body = ParseBody(ref tokens);
+            Body? body = ParseBody(ref tokens);
             if (body == null) {
                 return null;
             }
@@ -468,7 +477,7 @@ namespace MonC
         private ForLeaf? ParseFor(ref TokenSource tokens)
         {
             Token forToken;
-            if (!(tokens.Next(TokenType.Keyword, Keyword.FOR, out forToken) && tokens.Next(TokenType.Syntax, "(", out _))) {
+            if (!(tokens.Next(TokenType.Keyword, Keyword.FOR, out forToken) && tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _))) {
                 return null;
             }
 
@@ -476,26 +485,26 @@ namespace MonC
             if (declaration == null) {
                 return null;
             }
-            
+
             ParseSemiColonForgiving(ref tokens);
 
-            IASTLeaf? condition = ParseExpression(ref tokens);
+            IExpressionLeaf? condition = ParseExpression(ref tokens);
             if (condition == null) {
                 return null;
             }
-            
+
             ParseSemiColonForgiving(ref tokens);
 
-            IASTLeaf? update = ParseExpression(ref tokens);
+            IExpressionLeaf? update = ParseExpression(ref tokens);
             if (update == null) {
                 return null;
             }
 
-            if (!tokens.Next(TokenType.Syntax, ")", out _)) {
+            if (!tokens.Next(TokenType.Syntax, Syntax.CLOSING_PAREN, out _)) {
                 return null;
             }
 
-            BodyLeaf? body = ParseBody(ref tokens);
+            Body? body = ParseBody(ref tokens);
             if (body == null) {
                 return null;
             }
@@ -503,25 +512,29 @@ namespace MonC
             return NewLeaf(new ForLeaf(declaration, condition, update, body), forToken, tokens.Peek());
         }
 
-        private ReturnLeaf? ParseReturn(ref TokenSource tokens)
+        private ReturnLeaf ParseReturn(ref TokenSource tokens)
         {
             Token returnToken;
             tokens.Next(TokenType.Keyword, Keyword.RETURN, out returnToken);
 
             Token token = tokens.Peek();
 
-            IASTLeaf? expression = null;
-            
-            if (!(token.Type == TokenType.Syntax && token.Value == ";")) {
+            IExpressionLeaf? expression = null;
+
+            if (!(token.Type == TokenType.Syntax && token.Value == Syntax.SEMICOLON)) {
                 expression = ParseExpression(ref tokens);
             }
-            
+
+            if (expression == null) {
+                expression = new VoidExpression();
+            }
+
             ParseSemiColonForgiving(ref tokens);
 
-            return NewLeaf(new ReturnLeaf {RHS = expression}, returnToken, tokens.Peek());
+            return NewLeaf(new ReturnLeaf(expression), returnToken, tokens.Peek());
         }
 
-        private IASTLeaf ParseContinue(ref TokenSource tokens)
+        private ContinueLeaf ParseContinue(ref TokenSource tokens)
         {
             Token token;
             tokens.Next(TokenType.Keyword, Keyword.CONTINUE, out token);
@@ -537,19 +550,19 @@ namespace MonC
             return NewLeaf<BreakLeaf>(breakToken, tokens.Peek());
         }
 
-        private IASTLeaf? ParseExpression(ref TokenSource tokens)
+        private IExpressionLeaf? ParseExpression(ref TokenSource tokens)
         {
-            IASTLeaf? lhs = ParsePrimaryOrUnary(ref tokens);
+            IExpressionLeaf? lhs = ParsePrimaryOrUnary(ref tokens);
             if (lhs == null) {
                 return null;
             }
             return ParseOperator(ref tokens, lhs, -1);
         }
 
-        private IASTLeaf? ParsePrimaryOrUnary(ref TokenSource tokens)
+        private IExpressionLeaf? ParsePrimaryOrUnary(ref TokenSource tokens)
         {
             TokenSource primaryTokens = tokens.Fork();
-            IASTLeaf? primaryLeaf = ParsePrimaryExpression(ref primaryTokens);
+            IExpressionLeaf? primaryLeaf = ParsePrimaryExpression(ref primaryTokens);
             if (primaryLeaf != null) {
                 tokens.Consume(primaryTokens);
                 return primaryLeaf;
@@ -557,15 +570,15 @@ namespace MonC
 
             // Expression is not primary, Must be a unary.
             Token token = tokens.Peek();
-            
-            if (token.Value == "(") {
-                return ParseParenthesisExpression(ref tokens);    
-            } 
-            
+
+            if (token.Value == Syntax.OPENING_PAREN) {
+                return ParseParenthesisExpression(ref tokens);
+            }
+
             return ParseBasicUnaryOperator(ref tokens);
         }
 
-        private IASTLeaf? ParseOperator(ref TokenSource tokens, IASTLeaf lhs, int precedence)
+        private IExpressionLeaf? ParseOperator(ref TokenSource tokens, IExpressionLeaf lhs, int precedence)
         {
             while (true) {
                 Token tok = tokens.Peek();
@@ -574,12 +587,12 @@ namespace MonC
                 if (rhsPrecedence == -1) {
                     return lhs;
                 }
-                
+
                 if (precedence > rhsPrecedence) {
                     return lhs;
                 }
-                
-                if (tok.Value == "(") {
+
+                if (tok.Value == Syntax.OPENING_PAREN) {
                     FunctionCallParseLeaf? functionCall = ParseFunctionCall(ref tokens, lhs);
                     if (functionCall == null) {
                         return null;
@@ -587,15 +600,15 @@ namespace MonC
                     lhs = functionCall;
                     continue;
                 }
-                
+
                 // Eat the operator
                 tokens.Consume();
 
-                IASTLeaf? rhs = ParsePrimaryOrUnary(ref tokens);
+                IExpressionLeaf? rhs = ParsePrimaryOrUnary(ref tokens);
                 if (rhs == null) {
                     return null;
                 }
-                
+
                 Token nextToken = tokens.Peek();
                 int nextPrecedence = GetTokenPrecedence(nextToken);
 
@@ -606,12 +619,43 @@ namespace MonC
                     }
                 }
 
-                lhs = NewLeaf(new BinaryOperationExpressionLeaf(lhs, rhs, tok), lhs, tokens.Peek());
+                lhs = CreateBinOpLeafByOperator(ref tokens, tok, lhs, rhs);
             }
         }
 
+        private IBinaryOperationLeaf CreateBinOpLeafByOperator(ref TokenSource tokens, Token token, IExpressionLeaf lhs, IExpressionLeaf rhs)
+        {
+            IBinaryOperationLeaf? InstantiateRawLeaf()
+            {
+                return token.Value switch {
+                    Syntax.LESS_THAN => new CompareLTBinOpLeaf(lhs, rhs),
+                    Syntax.GREATER_THAN => new CompareGTBinOpLeaf(lhs, rhs),
+                    Syntax.LESS_THAN_OR_EQUAL_TO => new CompareLTEBinOpLeaf(lhs, rhs),
+                    Syntax.GREATER_THAN_OR_EQUAL_TO => new CompareGTEBinOpLeaf(lhs, rhs),
+                    Syntax.EQUALS => new CompareEqualityBinOpLeaf(lhs, rhs),
+                    Syntax.NOT_EQUALS => new CompareInequalityBinOpLeaf(lhs, rhs),
+                    Syntax.LOGICAL_AND => new LogicalAndBinOpLeaf(lhs, rhs),
+                    Syntax.LOGICAL_OR => new LogicalOrBinOpLeaf(lhs, rhs),
+                    Syntax.ASSIGN => new AssignmentParseLeaf(lhs, rhs),
+                    Syntax.ADD => new AddBinOpLeaf(lhs, rhs),
+                    Syntax.SUBTRACT => new SubtractBinOpLeaf(lhs, rhs),
+                    Syntax.MULTIPLY => new MultiplyBinOpLeaf(lhs, rhs),
+                    Syntax.DIVIDE => new DivideBinOpLeaf(lhs, rhs),
+                    Syntax.MODULO => new ModuloBinOpLeaf(lhs, rhs),
+                    _ => null
+                };
+            }
+
+            IBinaryOperationLeaf? rawLeaf = InstantiateRawLeaf();
+            if (rawLeaf == null) {
+                tokens.AddError($"Unrecognized binary operator {token.Value}", token);
+                rawLeaf = new CompareEqualityBinOpLeaf(lhs, rhs); // Return any type of bin op.
+            }
+            return NewLeaf(rawLeaf, lhs, tokens.Peek());
+        }
+
         private const int TOKEN_PRECEDENCE_UNARY = 7;
-        
+
         private int GetTokenPrecedence(Token token)
         {
             if (token.Type != TokenType.Syntax) {
@@ -619,17 +663,17 @@ namespace MonC
             }
 
             switch (token.Value) {
-                case "(":
+                case Syntax.OPENING_PAREN:
                     return 7;
-                case "*":
-                case "/":
-                case "%":
+                case Syntax.MULTIPLY:
+                case Syntax.DIVIDE:
+                case Syntax.MODULO:
                     return 6;
-                case "+":
-                case "-":
+                case Syntax.ADD:
+                case Syntax.SUBTRACT:
                     return 5;
-                case "<":
-                case ">":
+                case Syntax.LESS_THAN:
+                case Syntax.GREATER_THAN:
                 case Syntax.GREATER_THAN_OR_EQUAL_TO:
                 case Syntax.LESS_THAN_OR_EQUAL_TO:
                     return 4;
@@ -640,49 +684,49 @@ namespace MonC
                     return 2;
                 case Syntax.LOGICAL_OR:
                     return 1;
-                case "=":
+                case Syntax.ASSIGN:
                     return 0;
-                default: 
+                default:
                     return -1;
             }
         }
-        
-        private FunctionCallParseLeaf? ParseFunctionCall(ref TokenSource tokens, IASTLeaf lhs)
+
+        private FunctionCallParseLeaf? ParseFunctionCall(ref TokenSource tokens, IExpressionLeaf lhs)
         {
             // Eat left paren
-            if (!tokens.Next(TokenType.Syntax, "(", out _)) {
+            if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _)) {
                 return null;
             }
-            
-            List<IASTLeaf> arguments = new List<IASTLeaf>();
-            
+
+            List<IExpressionLeaf> arguments = new List<IExpressionLeaf>();
+
             bool expectingNextArgument = true;
             bool closingParensAllowed = true;
 
             while (true) {
                 Token token = tokens.Peek();
-                
-                if (token.Type == TokenType.Syntax && token.Value == ")") {
+
+                if (token.Type == TokenType.Syntax && token.Value == Syntax.CLOSING_PAREN) {
                     if (!closingParensAllowed) {
                         tokens.AddError("Unexpected closing parenthesis", token);
                     }
                     tokens.Consume();
                     break;
                 }
-                
+
                 if (!expectingNextArgument) {
                     tokens.AddError("Expecting closing parenthesis", token);
                     return null;
                 }
 
-                IASTLeaf? argument = ParseExpression(ref tokens);
+                IExpressionLeaf? argument = ParseExpression(ref tokens);
                 if (argument == null) {
                     return null;
                 }
                 arguments.Add(argument);
 
                 token = tokens.Peek();
-                if (token.Type == TokenType.Syntax && token.Value == ",") {
+                if (token.Type == TokenType.Syntax && token.Value == Syntax.COMMA) {
                     tokens.Consume();
                     closingParensAllowed = false;
 
@@ -695,10 +739,10 @@ namespace MonC
             return NewLeaf(new FunctionCallParseLeaf(lhs, arguments), lhs, tokens.Peek());
         }
 
-        private IASTLeaf? ParsePrimaryExpression(ref TokenSource tokens)
+        private IExpressionLeaf? ParsePrimaryExpression(ref TokenSource tokens)
         {
             Token token = tokens.Peek();
-            
+
             if (token.Type == TokenType.Identifier) {
                 return ParseIdentifierExpression(ref tokens);
             }
@@ -710,33 +754,33 @@ namespace MonC
             if (token.Type == TokenType.String) {
                 return ParseStringLiteralExpression(ref tokens);
             }
-            
+
             tokens.AddError("Unexpected token while parsing primary expression", token);
             return null;
         }
 
-        private IASTLeaf? ParseParenthesisExpression(ref TokenSource tokens)
+        private IExpressionLeaf? ParseParenthesisExpression(ref TokenSource tokens)
         {
-            if (!tokens.Next(TokenType.Syntax, "(", out _)) {
+            if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _)) {
                 return null;
             }
 
-            IASTLeaf? expression = ParseExpression(ref tokens);
+            IExpressionLeaf? expression = ParseExpression(ref tokens);
             if (expression == null) {
                 return null;
             }
 
-            if (!tokens.Next(TokenType.Syntax, ")", out _)) {
+            if (!tokens.Next(TokenType.Syntax, Syntax.CLOSING_PAREN, out _)) {
                 return null;
             }
 
             return expression;
         }
 
-        private IASTLeaf? ParseBasicUnaryOperator(ref TokenSource tokens)
+        private IExpressionLeaf? ParseBasicUnaryOperator(ref TokenSource tokens)
         {
             Token op = tokens.Next();
-            IASTLeaf? rhs = ParsePrimaryExpression(ref tokens);
+            IExpressionLeaf? rhs = ParsePrimaryExpression(ref tokens);
             if (rhs == null) {
                 return null;
             }
@@ -756,7 +800,7 @@ namespace MonC
 
             return NewLeaf(new IdentifierParseLeaf(token.Value), token, tokens.Peek());
         }
-        
+
         private NumericLiteralLeaf ParseNumericLiteralExpression(ref TokenSource tokens)
         {
             Token token;
@@ -764,8 +808,8 @@ namespace MonC
 
             bool parseSuccess;
             int value;
-            
-            if (token.Value.StartsWith("0x")) {
+
+            if (token.Value.StartsWith(Syntax.HEX_NUMERIC_PREFIX)) {
                 parseSuccess = int.TryParse(token.Value.Substring(2), NumberStyles.AllowHexSpecifier, null, out value);
             } else {
                 parseSuccess = int.TryParse(token.Value, out value);
@@ -774,10 +818,10 @@ namespace MonC
             if (!parseSuccess) {
                 tokens.AddError("Invalid numeric literal", token);
             }
-            
+
             return NewLeaf(new NumericLiteralLeaf(value), token, tokens.Peek());
         }
-        
+
         private StringLiteralLeaf? ParseStringLiteralExpression(ref TokenSource tokens)
         {
             Token token;
@@ -787,15 +831,20 @@ namespace MonC
             return NewLeaf(new StringLiteralLeaf(token.Value), token, tokens.Peek());
         }
 
-        private static readonly string[] PointerTokens = { "&", "^", "*", "?"};
-        
-        private TypeSpecifierLeaf? ParseTypeSpecifier(ref TokenSource tokens)
+        private static readonly string[] PointerTokens = {
+            Syntax.POINTER_BORROWED,
+            Syntax.POINTER_OWNED,
+            Syntax.POINTER_SHARED,
+            Syntax.POINTER_WEAK
+        };
+
+        private TypeSpecifier? ParseTypeSpecifier(ref TokenSource tokens)
         {
             Token typenameToken;
             if (!tokens.Next(TokenType.Identifier, out typenameToken)) {
                 return null;
             }
-            
+
             Token next = tokens.Peek();
 
             PointerType pointerType = PointerType.NotAPointer;
@@ -803,16 +852,16 @@ namespace MonC
             if (next.Type == TokenType.Syntax) {
                 if (PointerTokens.Contains(next.Value)) {
                     switch (next.Value) {
-                        case "&":
+                        case Syntax.POINTER_BORROWED:
                             pointerType = PointerType.Borrowed;
                             break;
-                        case "^":
+                        case Syntax.POINTER_OWNED:
                             pointerType = PointerType.Owned;
                             break;
-                        case "*":
+                        case Syntax.POINTER_SHARED:
                             pointerType = PointerType.Shared;
                             break;
-                        case "?":
+                        case Syntax.POINTER_WEAK:
                             pointerType = PointerType.Weak;
                             break;
                     }
@@ -820,31 +869,31 @@ namespace MonC
                 }
             }
 
-            return NewLeaf(new TypeSpecifierLeaf(typenameToken.Value, pointerType), typenameToken, tokens.Peek());
+            return new TypeSpecifier(typenameToken.Value, pointerType);
         }
 
         private void ParseSemiColonForgiving(ref TokenSource tokens)
         {
             Token t = tokens.Peek();
-            if (!(t.Type == TokenType.Syntax && t.Value == ";")) {
+            if (!(t.Type == TokenType.Syntax && t.Value == Syntax.SEMICOLON)) {
                 tokens.AddError("Expecting semicolon", t);
                 return;
             }
             tokens.Consume();
         }
 
-        private T NewLeaf<T>(Token startToken, Token endToken) where T : IASTLeaf, new()
+        private T NewLeaf<T>(Token startToken, Token endToken) where T : ISyntaxTreeLeaf, new()
         {
             T leaf = new T();
             return NewLeaf(leaf, startToken, endToken);
         }
 
-        private T NewLeaf<T>(T leaf, Token startToken, Token endToken) where T : IASTLeaf
+        private T NewLeaf<T>(T leaf, Token startToken, Token endToken) where T : ISyntaxTreeLeaf
         {
             return NewLeaf(leaf, startToken.Location, endToken.DeriveEndLocation());
         }
 
-        private T NewLeaf<T>(T leaf, FileLocation start, FileLocation end) where T : IASTLeaf
+        private T NewLeaf<T>(T leaf, FileLocation start, FileLocation end) where T : ISyntaxTreeLeaf
         {
             Symbol symbol = new Symbol {
                 Leaf = leaf,
@@ -857,7 +906,7 @@ namespace MonC
             return leaf;
         }
 
-        private T NewLeaf<T>(T leaf, IASTLeaf startLeaf, Token endToken) where T : IASTLeaf
+        private T NewLeaf<T>(T leaf, ISyntaxTreeLeaf startLeaf, Token endToken) where T : ISyntaxTreeLeaf
         {
             Symbol symbol;
             _tokenMap.TryGetValue(startLeaf, out symbol);

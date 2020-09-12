@@ -13,9 +13,9 @@ namespace MonC.Parsing.Semantics
             _errors = errors;
         }
 
-        public EnumLeaf GetEnumeration(string identifier)
+        public EnumLeaf? GetEnumeration(string identifier)
         {
-            EnumLeaf leaf;
+            EnumLeaf? leaf;
             _map.TryGetValue(identifier, out leaf);
             return leaf;
         }
