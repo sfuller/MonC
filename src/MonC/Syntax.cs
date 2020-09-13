@@ -11,20 +11,23 @@ namespace MonC
         public const string SEMICOLON = ";";
         public const string COMMA = ",";
 
-        public const string ADD = "+";
-        public const string SUBTRACT = "-";
-        public const string MULTIPLY = "*";
-        public const string DIVIDE = "/";
-        public const string MODULO = "%";
-        public const string LESS_THAN = "<";
-        public const string GREATER_THAN = ">";
-        public const string GREATER_THAN_OR_EQUAL_TO = ">=";
-        public const string LESS_THAN_OR_EQUAL_TO = "<=";
-        public const string EQUALS = "==";
-        public const string NOT_EQUALS = "!=";
-        public const string LOGICAL_AND = "&&";
-        public const string LOGICAL_OR = "||";
-        public const string ASSIGN = "=";
+        public const string UNOP_NEGATE = "-";
+        public const string UNOP_LOGICAL_NOT = "!";
+
+        public const string BINOP_ADD = "+";
+        public const string BINOP_SUBTRACT = "-";
+        public const string BINOP_MULTIPLY = "*";
+        public const string BINOP_DIVIDE = "/";
+        public const string BINOP_MODULO = "%";
+        public const string BINOP_LESS_THAN = "<";
+        public const string BINOP_GREATER_THAN = ">";
+        public const string BINOP_GREATER_THAN_OR_EQUAL_TO = ">=";
+        public const string BINOP_LESS_THAN_OR_EQUAL_TO = "<=";
+        public const string BINOP_EQUALS = "==";
+        public const string BINOP_NOT_EQUALS = "!=";
+        public const string BINOP_LOGICAL_AND = "&&";
+        public const string BINOP_LOGICAL_OR = "||";
+        public const string BINOP_ASSIGN = "=";
 
         public const string POINTER_SHARED = "*";
         public const string POINTER_WEAK = "?";
@@ -36,12 +39,12 @@ namespace MonC
         // TODO: Needs better name -- 2-character tokens are defined here for use by GetTokensByLength.
         // TODO: It's easy for this to get out of date.. Use reflection, or later on use codegen to generate this.
         private static readonly string[] SYNTAX_VALUES = {
-            GREATER_THAN_OR_EQUAL_TO,
-            LESS_THAN_OR_EQUAL_TO,
-            EQUALS,
-            NOT_EQUALS,
-            LOGICAL_AND,
-            LOGICAL_OR
+            BINOP_GREATER_THAN_OR_EQUAL_TO,
+            BINOP_LESS_THAN_OR_EQUAL_TO,
+            BINOP_EQUALS,
+            BINOP_NOT_EQUALS,
+            BINOP_LOGICAL_AND,
+            BINOP_LOGICAL_OR
         };
 
         public static string[] GetTokensByLength(int length)

@@ -9,6 +9,7 @@ using MonC.SyntaxTree;
 using MonC.SyntaxTree.Leaves;
 using MonC.SyntaxTree.Leaves.Expressions;
 using MonC.SyntaxTree.Leaves.Expressions.BinaryOperations;
+using MonC.SyntaxTree.Leaves.Expressions.UnaryOperations;
 using MonC.SyntaxTree.Leaves.Statements;
 
 
@@ -378,7 +379,7 @@ namespace MonC
 
             Token nextToken = tokens.Peek();
 
-            if (nextToken.Type == TokenType.Syntax && nextToken.Value == Syntax.ASSIGN) {
+            if (nextToken.Type == TokenType.Syntax && nextToken.Value == Syntax.BINOP_ASSIGN) {
                 tokens.Consume();
                 assignment = ParseExpression(ref tokens);
             }
@@ -619,39 +620,39 @@ namespace MonC
                     }
                 }
 
-                lhs = CreateBinOpLeafByOperator(ref tokens, tok, lhs, rhs);
+                IBinaryOperationLeaf? binOpLeaf = CreateBinOpLeafByOperator(ref tokens, tok, lhs, rhs);
+                if (binOpLeaf == null) {
+                    return null;
+                }
+                lhs = binOpLeaf;
             }
         }
 
-        private IBinaryOperationLeaf CreateBinOpLeafByOperator(ref TokenSource tokens, Token token, IExpressionLeaf lhs, IExpressionLeaf rhs)
+        private IBinaryOperationLeaf? CreateBinOpLeafByOperator(ref TokenSource tokens, Token token, IExpressionLeaf lhs, IExpressionLeaf rhs)
         {
-            IBinaryOperationLeaf? InstantiateRawLeaf()
-            {
-                return token.Value switch {
-                    Syntax.LESS_THAN => new CompareLTBinOpLeaf(lhs, rhs),
-                    Syntax.GREATER_THAN => new CompareGTBinOpLeaf(lhs, rhs),
-                    Syntax.LESS_THAN_OR_EQUAL_TO => new CompareLTEBinOpLeaf(lhs, rhs),
-                    Syntax.GREATER_THAN_OR_EQUAL_TO => new CompareGTEBinOpLeaf(lhs, rhs),
-                    Syntax.EQUALS => new CompareEqualityBinOpLeaf(lhs, rhs),
-                    Syntax.NOT_EQUALS => new CompareInequalityBinOpLeaf(lhs, rhs),
-                    Syntax.LOGICAL_AND => new LogicalAndBinOpLeaf(lhs, rhs),
-                    Syntax.LOGICAL_OR => new LogicalOrBinOpLeaf(lhs, rhs),
-                    Syntax.ASSIGN => new AssignmentParseLeaf(lhs, rhs),
-                    Syntax.ADD => new AddBinOpLeaf(lhs, rhs),
-                    Syntax.SUBTRACT => new SubtractBinOpLeaf(lhs, rhs),
-                    Syntax.MULTIPLY => new MultiplyBinOpLeaf(lhs, rhs),
-                    Syntax.DIVIDE => new DivideBinOpLeaf(lhs, rhs),
-                    Syntax.MODULO => new ModuloBinOpLeaf(lhs, rhs),
-                    _ => null
-                };
-            }
+            IBinaryOperationLeaf? rawLeaf = token.Value switch {
+                Syntax.BINOP_LESS_THAN => new CompareLTBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_GREATER_THAN => new CompareGTBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_LESS_THAN_OR_EQUAL_TO => new CompareLTEBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_GREATER_THAN_OR_EQUAL_TO => new CompareGTEBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_EQUALS => new CompareEqualityBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_NOT_EQUALS => new CompareInequalityBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_LOGICAL_AND => new LogicalAndBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_LOGICAL_OR => new LogicalOrBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_ASSIGN => new AssignmentParseLeaf(lhs, rhs),
+                Syntax.BINOP_ADD => new AddBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_SUBTRACT => new SubtractBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_MULTIPLY => new MultiplyBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_DIVIDE => new DivideBinOpLeaf(lhs, rhs),
+                Syntax.BINOP_MODULO => new ModuloBinOpLeaf(lhs, rhs),
+                _ => null
+            };
 
-            IBinaryOperationLeaf? rawLeaf = InstantiateRawLeaf();
             if (rawLeaf == null) {
                 tokens.AddError($"Unrecognized binary operator {token.Value}", token);
-                rawLeaf = new CompareEqualityBinOpLeaf(lhs, rhs); // Return any type of bin op.
+                return null;
             }
-            return NewLeaf(rawLeaf, lhs, tokens.Peek(-1));
+            return NewLeaf(rawLeaf, lhs, rhs);
         }
 
         private const int TOKEN_PRECEDENCE_UNARY = 7;
@@ -665,26 +666,26 @@ namespace MonC
             switch (token.Value) {
                 case Syntax.OPENING_PAREN:
                     return 7;
-                case Syntax.MULTIPLY:
-                case Syntax.DIVIDE:
-                case Syntax.MODULO:
+                case Syntax.BINOP_MULTIPLY:
+                case Syntax.BINOP_DIVIDE:
+                case Syntax.BINOP_MODULO:
                     return 6;
-                case Syntax.ADD:
-                case Syntax.SUBTRACT:
+                case Syntax.BINOP_ADD:
+                case Syntax.BINOP_SUBTRACT:
                     return 5;
-                case Syntax.LESS_THAN:
-                case Syntax.GREATER_THAN:
-                case Syntax.GREATER_THAN_OR_EQUAL_TO:
-                case Syntax.LESS_THAN_OR_EQUAL_TO:
+                case Syntax.BINOP_LESS_THAN:
+                case Syntax.BINOP_GREATER_THAN:
+                case Syntax.BINOP_GREATER_THAN_OR_EQUAL_TO:
+                case Syntax.BINOP_LESS_THAN_OR_EQUAL_TO:
                     return 4;
-                case Syntax.EQUALS:
-                case Syntax.NOT_EQUALS:
+                case Syntax.BINOP_EQUALS:
+                case Syntax.BINOP_NOT_EQUALS:
                     return 3;
-                case Syntax.LOGICAL_AND:
+                case Syntax.BINOP_LOGICAL_AND:
                     return 2;
-                case Syntax.LOGICAL_OR:
+                case Syntax.BINOP_LOGICAL_OR:
                     return 1;
-                case Syntax.ASSIGN:
+                case Syntax.BINOP_ASSIGN:
                     return 0;
                 default:
                     return -1;
@@ -788,7 +789,22 @@ namespace MonC
             if (rhs == null) {
                 return null;
             }
-            return NewLeaf(new UnaryOperationLeaf(op, rhs), op, tokens.Peek(-1));
+            return CreateUnaryOpLeafByOperator(ref tokens, op, rhs);
+        }
+
+        private IUnaryOperationLeaf? CreateUnaryOpLeafByOperator(ref TokenSource tokens, Token token, IExpressionLeaf rhs)
+        {
+            IUnaryOperationLeaf? rawLeaf = token.Value switch {
+                Syntax.UNOP_NEGATE => new NegateUnaryOpLeaf(rhs),
+                Syntax.UNOP_LOGICAL_NOT => new LogicalNotUnaryOpLeaf(rhs),
+                _ => null
+            };
+
+            if (rawLeaf == null) {
+                tokens.AddError($"Unrecognized binary operator {token.Value}", token);
+                return null;
+            }
+            return NewLeaf(rawLeaf, token.Location, GetSymbolForLeaf(rhs).End);
         }
 
         private IdentifierParseLeaf? ParseIdentifierExpression(ref TokenSource tokens)
@@ -932,7 +948,7 @@ namespace MonC
 
         /// <summary>
         /// Generates a symbol based on the starting file location of <see cref="startLeaf"/> and the end token.
-        /// The symbole is associated wit the given leaf instance.
+        /// The symbol is associated wit the given leaf instance.
         /// </summary>
         /// <param name="leaf">The leaf to associate with the new symbol.</param>
         /// <param name="startLeaf">
@@ -949,6 +965,41 @@ namespace MonC
                 throw new InvalidOperationException($"No symbol associated with {nameof(startLeaf)}");
             }
             return NewLeaf(leaf, symbol.Start, endToken.DeriveEndLocation());
+        }
+
+        /// <summary>
+        /// Generates a symbol based on the starting file location of <see cref="startLeaf"/> and the ending file
+        /// location of <see cref="endLeaf"/>.
+        /// The symbol is associated wit the given leaf instance.
+        /// </summary>
+        /// <param name="leaf">The leaf to associate with the new symbol.</param>
+        /// <param name="startLeaf">
+        /// The leaf to get the starting file location from. This leaf must be associated with a symbol.
+        /// </param>
+        /// <param name="endLeaf">
+        /// The leaf to get the end file location from. This leaf must be associated with a symbol.
+        /// </param>
+        /// <returns>The leaf instance that was passed as <see cref="leaf"/>.</returns>
+        /// <exception cref="System.InvalidOperationException">
+        /// No symbol is associated with either <see cref="startLeaf"/> or <see cref="endLeaf"/>.
+        /// </exception>
+        private T NewLeaf<T>(T leaf, ISyntaxTreeLeaf startLeaf, ISyntaxTreeLeaf endLeaf) where T : ISyntaxTreeLeaf
+        {
+            if (!_tokenMap.TryGetValue(startLeaf, out Symbol startSymbol)) {
+                throw new InvalidOperationException($"No symbol associated with {nameof(startLeaf)}");
+            }
+            if (!_tokenMap.TryGetValue(endLeaf, out Symbol endSymbol)) {
+                throw new InvalidOperationException($"No symbol associated with {nameof(endLeaf)}");
+            }
+            return NewLeaf(leaf, startSymbol.Start, endSymbol.End);
+        }
+
+        private Symbol GetSymbolForLeaf(ISyntaxTreeLeaf leaf)
+        {
+            if (!_tokenMap.TryGetValue(leaf, out Symbol symbol)) {
+                throw new InvalidOperationException($"No symbol associated with {nameof(leaf)}");
+            }
+            return symbol;
         }
     }
 }

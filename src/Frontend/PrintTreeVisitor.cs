@@ -20,9 +20,9 @@ namespace MonC.Frontend
             VisitSubleaf(leaf.RHS);
         }
 
-        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
         {
-            Print($"Unary Operation ({leaf.Operator})");
+            Print($"{leaf.GetType().Name}");
             VisitSubleaf(leaf.RHS);
         }
 

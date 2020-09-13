@@ -32,7 +32,7 @@ namespace MonC.SyntaxTree.Util.NoOpVisitors
             VisitDefaultExpression(leaf);
         }
 
-        public virtual void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        public virtual void VisitUnaryOperation(IUnaryOperationLeaf leaf)
         {
             VisitDefaultExpression(leaf);
         }

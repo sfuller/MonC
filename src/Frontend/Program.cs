@@ -5,6 +5,7 @@ using System.Reflection;
 using MonC.Codegen;
 using MonC.Debugging;
 using MonC.DotNetInterop;
+using MonC.IL;
 using MonC.Parsing;
 using MonC.VM;
 

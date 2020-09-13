@@ -106,7 +106,7 @@ namespace MonC.Parsing.Semantics
         {
         }
 
-        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
         {
         }
 

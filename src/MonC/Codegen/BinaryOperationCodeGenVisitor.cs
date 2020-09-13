@@ -1,5 +1,5 @@
 using System;
-using MonC.Bytecode;
+using MonC.IL;
 using MonC.SyntaxTree.Leaves.Expressions;
 using MonC.SyntaxTree.Leaves.Expressions.BinaryOperations;
 

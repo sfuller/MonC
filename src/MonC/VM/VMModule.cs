@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using MonC.Codegen;
+using MonC.IL;
 
 namespace MonC.VM
 {
@@ -13,13 +13,13 @@ namespace MonC.VM
             ILModule = new ILModule();
             VMFunctions = new Dictionary<int, VMFunction>();
         }
-        
+
         public VMModule(ILModule ilModule, Dictionary<int, VMFunction> vmFunctions)
         {
             ILModule = ilModule;
             VMFunctions = vmFunctions;
         }
-        
-        public static readonly VMModule Default = new VMModule(); 
+
+        public static readonly VMModule Default = new VMModule();
     }
 }

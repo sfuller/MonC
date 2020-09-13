@@ -1,37 +1,37 @@
-namespace MonC.Bytecode
+namespace MonC.IL
 {
     public enum OpCode
     {
         NOOP,
         BREAK,
-        
+
         //
         // Accumulation
         //
-        
+
         LOAD,
 
 
         //
         // Stack
         //
-        
+
         READ,
         WRITE,
-        
-        
+
+
         //
         // Calls
         //
-        
+
         CALL,
         RETURN,
-        
-        
+
+
         //
         // Comparison
         //
-        
+
         CMPE,
         CMPLT,
         CMPLTE,
@@ -39,7 +39,7 @@ namespace MonC.Bytecode
         //
         // Flow Control
         //
-        
+
         JUMP,
         JUMPZ,
         JUMPNZ,

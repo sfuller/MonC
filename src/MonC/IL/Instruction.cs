@@ -1,5 +1,5 @@
 
-namespace MonC.Bytecode
+namespace MonC.IL
 {
     public struct Instruction
     {
