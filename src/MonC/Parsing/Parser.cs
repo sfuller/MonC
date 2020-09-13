@@ -58,7 +58,7 @@ namespace MonC
             public readonly Token Peek(int offset = 0)
             {
                 int i = _offset + offset;
-                if (i >= _tokens.Count) {
+                if (i < 0 || i >= _tokens.Count) {
                     return new Token();
                 }
                 return _tokens[i];
@@ -882,17 +882,41 @@ namespace MonC
             tokens.Consume();
         }
 
+        /// <summary>
+        /// Create a new leaf instance, generate a symbol based on start and end tokens, and associate the symbol with
+        /// the new leaf instance.
+        /// </summary>
+        /// <param name="startToken">The first token associated with the leaf.</param>
+        /// <param name="endToken">The last token associated with the leaf.</param>
+        /// <typeparam name="T">The type of leaf to create.</typeparam>
+        /// <returns>The new leaf instance.</returns>
         private T NewLeaf<T>(Token startToken, Token endToken) where T : ISyntaxTreeLeaf, new()
         {
             T leaf = new T();
             return NewLeaf(leaf, startToken, endToken);
         }
 
+        /// <summary>
+        /// Generates a symbol based on start and end tokens, and associates the symbol with the given leaf instance.
+        /// </summary>
+        /// <param name="leaf">The leaf to associate with the new symbol.</param>
+        /// <param name="startToken">The first token associated with the leaf.</param>
+        /// <param name="endToken">The last token associated with the leaf.</param>
+        /// <typeparam name="T">The leaf instance that was passed as <see cref="leaf"/>.</typeparam>
+        /// <returns></returns>
         private T NewLeaf<T>(T leaf, Token startToken, Token endToken) where T : ISyntaxTreeLeaf
         {
             return NewLeaf(leaf, startToken.Location, endToken.DeriveEndLocation());
         }
 
+        /// <summary>
+        /// Generates a symbol based on the start and end file locations, and associates the symbol with the given leaf
+        /// instance.
+        /// </summary>
+        /// <param name="leaf">The leaf to associate with the new symbol.</param>
+        /// <param name="start">The location in the file where the text associated with the given leaf starts.</param>
+        /// <param name="end">The location in the file where the text associated with the given leaf ends.</param>
+        /// <returns>The leaf instance that was passed as <see cref="leaf"/>.</returns>
         private T NewLeaf<T>(T leaf, FileLocation start, FileLocation end) where T : ISyntaxTreeLeaf
         {
             Symbol symbol = new Symbol {
@@ -906,10 +930,24 @@ namespace MonC
             return leaf;
         }
 
+        /// <summary>
+        /// Generates a symbol based on the starting file location of <see cref="startLeaf"/> and the end token.
+        /// The symbole is associated wit the given leaf instance.
+        /// </summary>
+        /// <param name="leaf">The leaf to associate with the new symbol.</param>
+        /// <param name="startLeaf">
+        /// The leaf to get the starting file location. This leaf must be associated with a symbol.
+        /// </param>
+        /// <param name="endToken">The last token associated with the given leaf.</param>
+        /// <returns>The leaf instance that was passed as <see cref="leaf"/>.</returns>
+        /// <exception cref="System.InvalidOperationException">
+        /// No symbol is associated with <see cref="startLeaf"/>
+        /// </exception>
         private T NewLeaf<T>(T leaf, ISyntaxTreeLeaf startLeaf, Token endToken) where T : ISyntaxTreeLeaf
         {
-            Symbol symbol;
-            _tokenMap.TryGetValue(startLeaf, out symbol);
+            if (!_tokenMap.TryGetValue(startLeaf, out Symbol symbol)) {
+                throw new InvalidOperationException($"No symbol associated with {nameof(startLeaf)}");
+            }
             return NewLeaf(leaf, symbol.Start, endToken.DeriveEndLocation());
         }
     }
