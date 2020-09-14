@@ -20,6 +20,14 @@ namespace MonC.LLVM
             _codeGenVisitor._visitedValue = _codeGenVisitor.ConvertToBool(GetUnaryOperand(leaf), true);
         }
 
+        public void VisitCastUnaryOp(CastUnaryOpLeaf leaf)
+        {
+            Value operand = GetUnaryOperand(leaf);
+            Type destTp = _codeGenVisitor._genContext.LookupType(leaf.ToType);
+            CAPI.LLVMOpcode castOp = _codeGenVisitor.GetCastOpcode(operand, destTp);
+            _codeGenVisitor._visitedValue = _codeGenVisitor._builder.BuildCast(castOp, operand, destTp);
+        }
+
         private Value GetUnaryOperand(IUnaryOperationLeaf leaf)
         {
             leaf.RHS.AcceptExpressionVisitor(_codeGenVisitor);
