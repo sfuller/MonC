@@ -47,13 +47,13 @@ namespace MonC.LLVM
             }
         }
 
-        public MemoryBuffer EmitToMemoryBuffer(Module m, string filename, CAPI.LLVMCodeGenFileType codegen)
+        public MemoryBuffer EmitToMemoryBuffer(Module m, CAPI.LLVMCodeGenFileType codegen)
         {
             if (CAPI.LLVMTargetMachineEmitToMemoryBuffer(_targetMachine, m, codegen, out string? errorMessage,
                 out CAPI.LLVMMemoryBufferRef outMemBuf)) {
                 if (errorMessage != null)
                     throw new InvalidOperationException(errorMessage);
-                throw new InvalidOperationException($"unable to emit to {filename}");
+                throw new InvalidOperationException($"unable to emit to memory buffer");
             }
 
             return new MemoryBuffer(outMemBuf);

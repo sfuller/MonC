@@ -215,6 +215,11 @@ namespace MonC.Frontend
                     Environment.Exit(1);
                 }
 
+                if (!run) {
+                    Environment.Exit(0);
+                    return;
+                }
+
                 VirtualMachine vm = new VirtualMachine();
 
                 if (withDebugger) {

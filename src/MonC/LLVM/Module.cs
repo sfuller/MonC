@@ -57,19 +57,40 @@ namespace MonC.LLVM
 
         public string PrintToString() => CAPI.LLVMPrintModuleToStringPublic(_module);
 
+        public int WriteBitcodeToFile(string path) => CAPI.LLVMWriteBitcodeToFile(_module, path);
+
+        public MemoryBuffer WriteBitcodeToMemoryBuffer() =>
+            new MemoryBuffer(CAPI.LLVMWriteBitcodeToMemoryBuffer(_module));
+
         public void WriteListing(TextWriter writer)
         {
             // If the writer is determined to be a file writer, use LLVM's native file I/O
             if (writer is StreamWriter streamWriter) {
                 if (streamWriter.BaseStream is FileStream fileStream) {
-                    writer.Flush();
-                    PrintToFile(fileStream.Name, out string? errorMessage);
+                    string path = fileStream.Name;
+                    writer.Close();
+                    PrintToFile(path, out string? errorMessage);
                     return;
                 }
             }
 
             // Otherwise write a giant string
             writer.Write(PrintToString());
+        }
+
+        public void WriteRelocatable(BinaryWriter writer)
+        {
+            // If the writer is determined to be a file writer, use LLVM's native file I/O
+            if (writer.BaseStream is FileStream fileStream) {
+                string path = fileStream.Name;
+                writer.Close();
+                WriteBitcodeToFile(path);
+                return;
+            }
+
+            // Otherwise write a giant buffer
+            using MemoryBuffer memBuf = WriteBitcodeToMemoryBuffer();
+            writer.Write(memBuf.Bytes);
         }
     }
 }

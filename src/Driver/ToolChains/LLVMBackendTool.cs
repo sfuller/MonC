@@ -1,6 +1,6 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using MonC;
+using MonC.LLVM;
 
 namespace Driver.ToolChains
 {
@@ -24,6 +24,7 @@ namespace Driver.ToolChains
             writer.WriteLine("  -LLVMBackendTool");
         }
 
-        public IModuleArtifact GetModuleArtifact() => throw new NotImplementedException();
+        public IModuleArtifact GetModuleArtifact() =>
+            new LLVMNativeModule(_toolchain, (Module) _input.GetModuleArtifact());
     }
 }

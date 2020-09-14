@@ -30,6 +30,8 @@ namespace MonC.LLVM
 
         public byte[] Bytes => CAPI.LLVMGetBufferStartBytes(_memoryBuffer);
 
+        public string GetAsString() => CAPI.LLVMGetBufferString(_memoryBuffer);
+
         public void Dispose()
         {
             DoDispose();

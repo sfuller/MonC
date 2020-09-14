@@ -92,6 +92,15 @@ namespace Driver
             }
         }
 
+        public BinaryWriter GetBinaryWriter()
+        {
+            try {
+                return new BinaryWriter(IsStdIo ? Console.OpenStandardOutput() : File.Open(FullPath, FileMode.Create));
+            } catch (Exception ex) {
+                throw Diagnostics.ThrowError($"{ex.GetType()} exception while opening BinaryWriter: {ex.Message}");
+            }
+        }
+
         public void WriteInputChain(TextWriter writer)
         {
             if (IsInteractive)

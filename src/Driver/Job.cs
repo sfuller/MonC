@@ -35,8 +35,8 @@ namespace Driver
         [CommandLine("-S", "Output module as instruction listing")]
         private bool _asm = false;
 
-        [CommandLine("-vm", "Execute linked code in a virtual machine rather than outputting to a file")]
-        private bool _vm = false;
+        [CommandLine("-skip-run", "Do not run virtual machine and output files instead")]
+        private bool _skipRun = false;
 
         [CommandLine("-debugger", "Run virtual machine with an interactive debugger")]
         internal bool _debugger = false;
@@ -131,7 +131,7 @@ namespace Driver
         private Phase SelectTargetPhase()
         {
             // Always target VM if requested
-            if (_vm)
+            if (!_skipRun)
                 return Phase.VM;
 
             Phase producingPhase = _outputFile?.ProducingPhase ?? Phase.Null;
@@ -176,22 +176,26 @@ namespace Driver
 
             Diagnostics.ThrowIfErrors();
 
+            // VM is implied for debugger
+            if (_debugger) {
+                _skipRun = false;
+            }
+
             if (_asm) {
                 // Relocatable processing is implied for assembly output
                 _reloc = true;
             }
 
-            if (_reloc && _inputFiles.Count > 1) {
-                throw Diagnostics.ThrowError("-c or -S flag may only be set for one input file");
-            }
-
-            // VM is implied for debugger
-            if (_debugger) {
-                _vm = true;
+            // Relocatable output always skips VM and may only accept one input file
+            if (_reloc) {
+                _skipRun = true;
+                if (_inputFiles.Count > 1) {
+                    throw Diagnostics.ThrowError("-c or -S flag may only be set for one input file");
+                }
             }
 
             // Set output file if provided and not using VM
-            _outputFile = _outputPath != null && !_vm ? new FileInfo(_outputPath) : null;
+            _outputFile = _outputPath != null && _skipRun ? new FileInfo(_outputPath) : null;
 
             // Assembly output defaults to stdout if not specified
             if (_asm && _outputFile == null) {
@@ -287,9 +291,11 @@ namespace Driver
             // Produce per-module artifacts
             _moduleArtifacts = _moduleFileTools.ConvertAll(tool => tool.GetModuleArtifact());
 
-            // Output assembly if requested
+            // Output assembly or relocatable if requested
             if (_asm) {
                 _moduleArtifacts[0].WriteListing(_outputFile.GetTextWriter());
+            } else if (_reloc) {
+                _moduleArtifacts[0].WriteRelocatable(_outputFile.GetBinaryWriter());
             }
 
             // Run link-phase and beyond tools

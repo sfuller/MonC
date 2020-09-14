@@ -17,6 +17,11 @@ namespace MonC.IL
             listingWriter.Write(this);
         }
 
+        public void WriteRelocatable(BinaryWriter writer)
+        {
+            // TODO: Write out binary module
+        }
+
         public void Dispose() { }
     }
 }

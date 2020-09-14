@@ -264,6 +264,12 @@ namespace MonC.LLVM
         }
 
         [DllImport("LLVM-C")]
+        public static extern int LLVMWriteBitcodeToFile(LLVMModuleRef m, string path);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMMemoryBufferRef LLVMWriteBitcodeToMemoryBuffer(LLVMModuleRef m);
+
+        [DllImport("LLVM-C")]
         public static extern LLVMValueRef LLVMAddFunction(LLVMModuleRef module, string name, LLVMTypeRef functionTy);
 
         [DllImport("LLVM-C")]
@@ -879,6 +885,13 @@ namespace MonC.LLVM
             byte[] ret = new byte[(uint) size];
             Marshal.Copy(ptr, ret, 0, (int) size);
             return ret;
+        }
+
+        public static string LLVMGetBufferString(LLVMMemoryBufferRef memBuf)
+        {
+            IntPtr ptr = LLVMGetBufferStart(memBuf);
+            UIntPtr size = LLVMGetBufferSize(memBuf);
+            return Marshal.PtrToStringAnsi(ptr, (int) size);
         }
 
         [DllImport("LLVM-C")]

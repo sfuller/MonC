@@ -3,7 +3,7 @@ using MonC.IL;
 
 namespace MonC.VM
 {
-    public class VMModule
+    public class VMModule : IVMModuleArtifact
     {
         public readonly ILModule ILModule;
         public readonly Dictionary<int, VMFunction> VMFunctions;
@@ -21,5 +21,7 @@ namespace MonC.VM
         }
 
         public static readonly VMModule Default = new VMModule();
+
+        public void Dispose() { }
     }
 }

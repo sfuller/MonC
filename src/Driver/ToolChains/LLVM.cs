@@ -17,7 +17,10 @@ namespace Driver.ToolChains
         private bool _native = false;
 
         [CommandLine("-target", "Specify output target triple", "target")]
-        private string _target = String.Empty;
+        private string _targetTriple = String.Empty;
+
+        private Target _target;
+        internal TargetMachine TargetMachine { get; private set; }
 
         [CommandLine("-O0", "Optimization level 0")]
         private bool _O0 = false;
@@ -59,9 +62,10 @@ namespace Driver.ToolChains
         {
             _context ??= new Context();
 
-            if (_target.Length == 0)
-                _target = Target.DefaultTargetTriple;
-            _target = Target.NormalizeTargetTriple(_target);
+            if (_targetTriple.Length == 0) {
+                _targetTriple = Target.DefaultTargetTriple;
+            }
+            _targetTriple = Target.NormalizeTargetTriple(_targetTriple);
 
             _optBuilder ??= _O0 || _O1 || _O2 || _Os || _Oz || _O3 ? new PassManagerBuilder() : null;
             _optLevel = CAPI.LLVMCodeGenOptLevel.None;
@@ -86,12 +90,21 @@ namespace Driver.ToolChains
                     _optLevel = CAPI.LLVMCodeGenOptLevel.Aggressive;
                 }
             }
+
+            if (_native) {
+                Target.InitializeAllTargets();
+                _target = Target.FromTriple(_targetTriple);
+                TargetMachine = _target.CreateTargetMachine(_targetTriple, "", "", _optLevel,
+                    CAPI.LLVMRelocMode.Default, CAPI.LLVMCodeModel.Default);
+                TargetMachine.SetAsmVerbosity(true);
+            }
         }
 
         public override void Dispose()
         {
             _context?.Dispose();
             _optBuilder?.Dispose();
+            TargetMachine?.Dispose();
         }
 
         public override ITool BuildCodeGenJobTool(Job job, ICodeGenInput input) =>
@@ -101,7 +114,7 @@ namespace Driver.ToolChains
             LLVMBackendTool.Construct(job, this, input);
 
         internal Module CreateModule(FileInfo fileInfo, ParseModule parseModule) =>
-            CodeGenerator.Generate(_context, fileInfo.FullPath, parseModule, _target, _optBuilder, _debugInfo,
+            CodeGenerator.Generate(_context, fileInfo.FullPath, parseModule, _targetTriple, _optBuilder, _debugInfo,
                 _debugColumnInfo);
     }
 }

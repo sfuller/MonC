@@ -6,6 +6,7 @@ import sys
 
 TEST_DIR = os.path.normpath(os.path.join(__file__, '..', 'test'))
 FRONTEND_BINARY = os.path.normpath(os.path.join(__file__, '..', 'src', 'Frontend', 'bin', 'Debug', 'netcoreapp3.1', 'Frontend'))
+DRIVER_BINARY = os.path.normpath(os.path.join(__file__, '..', 'src', 'Driver', 'bin', 'Debug', 'netcoreapp3.1', 'Driver'))
 
 
 TERM_COLOR_RED =   '\033[0;31m'
@@ -25,44 +26,50 @@ def main():
         showall = True
         sys.argv.remove('--showall')
 
-    test_files = []
-    for dirpath, dirnames, filenames in os.walk(TEST_DIR):
-        for filename in filenames:
-            if os.path.splitext(filename)[1] == '.monc':
-                test_files.append(os.path.join(dirpath, filename))
+    status = False
 
-    failed_files = []
+    for toolname, tool in (("Frontend", FRONTEND_BINARY), ("Driver", DRIVER_BINARY)):
+        print(f'Using {toolname} to run tests')
 
-    for path in test_files:
-        if not test(path, showall):
-            failed_files.append(path)
+        test_files = []
+        for dirpath, dirnames, filenames in os.walk(TEST_DIR):
+            for filename in filenames:
+                if os.path.splitext(filename)[1] == '.monc':
+                    test_files.append(os.path.join(dirpath, filename))
 
-    print('=' * 80)
-    
-    status = len(failed_files) == 0
+        failed_files = []
 
-    if status:
-        print(f' ** {TERM_TEXT_PASS} **')
-    else:
-        print(f' ** {TERM_TEXT_FAIL} **')
-        print ('Failed tests:')
-        for path in failed_files:
-            print(path)
-   
-    print('=' * 80)
+        for path in test_files:
+            if not test(path, tool, showall):
+                failed_files.append(path)
+
+        print('=' * 80)
+
+        tool_status = len(failed_files) == 0
+        status |= tool_status
+
+        if tool_status:
+            print(f' ** {TERM_TEXT_PASS} **')
+        else:
+            print(f' ** {TERM_TEXT_FAIL} **')
+            print ('Failed tests:')
+            for path in failed_files:
+                print(path)
+
+        print('=' * 80)
 
     if not status:
         sys.exit(1)
 
 
-def test(path, showall: bool) -> bool:
+def test(path, tool, showall: bool) -> bool:
     sys.stdout.write(f'Testing {path}...')
     sys.stdout.flush()
-    
+
     result = None
 
     with open(path) as f:
-        args = [FRONTEND_BINARY, path]
+        args = [tool, path]
         args.extend(sys.argv[1:])
         try:
             result = subprocess.run(
@@ -73,9 +80,9 @@ def test(path, showall: bool) -> bool:
                     timeout=60)
         except subprocess.TimeoutExpired:
             pass
-    
+
     filename = os.path.basename(path)
-   
+
     status = False
 
     if result:
@@ -99,9 +106,9 @@ def test(path, showall: bool) -> bool:
             print(f'[{TERM_TEXT_PASS}] {path}')
         else:
             print(f'[{TERM_TEXT_FAIL}] {path}')
-        
+
         print('-' * 80)
-        
+
         if result:
             print(f'stdout: \n{result.stdout}')
             print(f'stderr: \n{result.stderr}')
