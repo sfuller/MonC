@@ -37,6 +37,6 @@ namespace MonC.LLVM
 
         public static string HostCPUFeatures => CAPI.LLVMGetHostCPUFeaturesString();
 
-        public static void InitializeAllTargets() => CAPI.LLVMInitializeAllTargets();
+        public static void InitializeAllTargets() => CAPIGEN.LLVMInitializeAllTargets();
     }
 }

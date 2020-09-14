@@ -1652,69 +1652,6 @@ namespace MonC.LLVM
             LLVMRunFunction(ee, f, (uint) args.Length, args);
 
 
-        // TODO: These symbols can be resolved dynamically with string concatenation by leveraging
-        // System.Runtime.InteropServices.NativeLibrary and Marshal.GetDelegateForFunctionPointer().
-        // However, this requires .net core 3
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeX86TargetInfo();
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeX86Target();
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeX86TargetMC();
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeX86AsmPrinter();
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeARMTargetInfo();
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeARMTarget();
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeARMTargetMC();
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeARMAsmPrinter();
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeAArch64TargetInfo();
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeAArch64Target();
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeAArch64TargetMC();
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMInitializeAArch64AsmPrinter();
-
-        public static void LLVMInitializeAllTargets()
-        {
-            try {
-                LLVMInitializeX86TargetInfo();
-                LLVMInitializeX86Target();
-                LLVMInitializeX86TargetMC();
-                LLVMInitializeX86AsmPrinter();
-            } catch (EntryPointNotFoundException) { }
-
-            try {
-                LLVMInitializeARMTargetInfo();
-                LLVMInitializeARMTarget();
-                LLVMInitializeARMTargetMC();
-                LLVMInitializeARMAsmPrinter();
-            } catch (EntryPointNotFoundException) { }
-
-            try {
-                LLVMInitializeAArch64TargetInfo();
-                LLVMInitializeAArch64Target();
-                LLVMInitializeAArch64TargetMC();
-                LLVMInitializeAArch64AsmPrinter();
-            } catch (EntryPointNotFoundException) { }
-        }
-
 
         public static void Main(string[] args)
         {
