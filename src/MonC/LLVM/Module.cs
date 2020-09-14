@@ -44,7 +44,7 @@ namespace MonC.LLVM
         public void AddModuleFlag(CAPI.LLVMModuleFlagBehavior behavior, string key, Metadata val) =>
             CAPI.LLVMAddModuleFlag(_module, behavior, key, val);
 
-        public string Target => CAPI.LLVMGetTarget(_module);
+        public string Target => IsValid ? CAPI.LLVMGetTarget(_module) : string.Empty;
 
         public void SetTarget(string triple) => CAPI.LLVMSetTarget(_module, triple);
 

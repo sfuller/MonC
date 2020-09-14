@@ -4,6 +4,9 @@ using System.Linq;
 using System.Reflection;
 using MonC.Parsing;
 using MonC.SyntaxTree;
+using MonC.SyntaxTree.Leaves;
+using MonC.SyntaxTree.Leaves.Expressions;
+using MonC.SyntaxTree.Leaves.Statements;
 using MonC.VM;
 
 namespace MonC.DotNetInterop
@@ -20,7 +23,7 @@ namespace MonC.DotNetInterop
         {
             _includeImplementations = includeImplementations;
         }
-        
+
         public IEnumerable<Binding> Bindings => _bindings.Values;
         public IEnumerable<EnumLeaf> Enums => _enums;
         public IEnumerable<string> Errors => _errors;
@@ -42,7 +45,7 @@ namespace MonC.DotNetInterop
                 }
             }
         }
-        
+
         /// <summary>
         /// Import bindings from the given type using the given binding flags and the given instance of the type.
         /// Returns true if any bindings were imported, else false.
@@ -50,7 +53,7 @@ namespace MonC.DotNetInterop
         public bool ImportType(Type type, BindingFlags flags, object? target = null)
         {
             bool imported = false;
-            
+
             _linkableModules.Add(type);
 
             if ((flags & BindingFlags.Static) > 0) {
@@ -67,7 +70,7 @@ namespace MonC.DotNetInterop
                     MethodInfo[] instanceMethods = type.GetMethods((flags | BindingFlags.Static) ^ BindingFlags.Static);
                     foreach (MethodInfo method in instanceMethods) {
                         imported |= ImportMethod(method, target);
-                    }    
+                    }
                 }
             }
 
@@ -80,7 +83,7 @@ namespace MonC.DotNetInterop
 
         /// <summary>
         /// Try to import the given method with the given target.
-        /// Returns true if the method was imported, otherwise false. 
+        /// Returns true if the method was imported, otherwise false.
         /// </summary>
         public bool ImportMethod(MethodInfo method, object? target = null)
         {
@@ -99,7 +102,7 @@ namespace MonC.DotNetInterop
             if (ProcessEnumeratorBinding(attribute, method, parameters, target)) {
                 return true;
             }
-            
+
             _errors.Add($"Could not import method {method.Name}, please check that it's signature is compatible.");
             return false;
         }
@@ -108,7 +111,7 @@ namespace MonC.DotNetInterop
         {
             Dictionary<string, int> exporetedFunctions = module.ILModule.ExportedFunctions.ToDictionary(p => p.Key, p => p.Value);
             bool success = true;
-            
+
             foreach (Type type in _linkableModules) {
                 FieldInfo[] fields = type.GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
                 foreach (FieldInfo field in fields) {
@@ -126,11 +129,11 @@ namespace MonC.DotNetInterop
 
             return success;
         }
-        
+
         private bool ProcessSimpleBinding(
             LinkableFunctionAttribute attribute,
-            MethodInfo method, 
-            ParameterInfo[] parameters, 
+            MethodInfo method,
+            ParameterInfo[] parameters,
             object? target)
         {
             if (method.ReturnType != typeof(int)) {
@@ -146,7 +149,7 @@ namespace MonC.DotNetInterop
             } else {
                 impl = NoOpBinding;
             }
-            
+
             AddBinding(method, attribute, impl);
             return true;
         }
@@ -177,7 +180,7 @@ namespace MonC.DotNetInterop
             } else {
                 impl = NoOpBinding;
             }
-            
+
             AddBinding(method, attribute, impl);
             return true;
         }
@@ -186,9 +189,9 @@ namespace MonC.DotNetInterop
         {
             FunctionDefinitionLeaf def = new FunctionDefinitionLeaf(
                 name: method.Name,
-                returnType: new TypeSpecifierLeaf("int", PointerType.NotAPointer),
+                returnType: new TypeSpecifier("int", PointerType.NotAPointer),
                 parameters: FunctionAttributeToDeclarations(attribute),
-                body: new BodyLeaf(new IASTLeaf[0]), 
+                body: new Body(Array.Empty<IStatementLeaf>()),
                 isExported: true
             );
 
@@ -205,7 +208,7 @@ namespace MonC.DotNetInterop
         private static T CreateDelegate<T>(MethodInfo method, object? target) where T : class
         {
             T? del;
-            
+
             if (target != null) {
                 del = Delegate.CreateDelegate(typeof(T), target, method) as T;
                 if (del == null) {
@@ -214,7 +217,7 @@ namespace MonC.DotNetInterop
                 }
                 return del;
             }
-            
+
             del = Delegate.CreateDelegate(typeof(T), method) as T;
             if (del == null) {
                 throw new InvalidCastException($"Cannot create delegate of {typeof(T)} with method {method}.");
@@ -237,7 +240,7 @@ namespace MonC.DotNetInterop
         private static IEnumerable<DeclarationLeaf> FunctionAttributeToDeclarations(LinkableFunctionAttribute attribute)
         {
             for (int i = 0, ilen = attribute.ArgumentCount; i < ilen; ++i) {
-                yield return new DeclarationLeaf(new TypeSpecifierLeaf("int", PointerType.NotAPointer), "", null); 
+                yield return new DeclarationLeaf(new TypeSpecifier("int", PointerType.NotAPointer), "", new VoidExpression());
             }
         }
 
@@ -248,7 +251,7 @@ namespace MonC.DotNetInterop
 
         /// <summary>
         /// Try to import the given type as an enum.
-        /// Returns true if an enum was imported, otherwise false. 
+        /// Returns true if an enum was imported, otherwise false.
         /// </summary>
         private bool ImportEnum(Type type)
         {
@@ -268,12 +271,13 @@ namespace MonC.DotNetInterop
             List<KeyValuePair<string, int>> enumerations = new List<KeyValuePair<string, int>>();
 
             string prefix = attribute.Prefix ?? "";
-            
+
             foreach (string name in names) {
-                enumerations.Add(new KeyValuePair<string, int>(prefix + name, (int)Enum.Parse(type, name)));                
+                enumerations.Add(new KeyValuePair<string, int>(prefix + name, (int)Enum.Parse(type, name)));
             }
-            
-            _enums.Add(new EnumLeaf(enumerations, isExported: true));
+
+            // TODO: New attribute value for enum name, or use type name.
+            _enums.Add(new EnumLeaf(type.Name, enumerations, isExported: true));
         }
 
     }

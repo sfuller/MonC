@@ -368,6 +368,8 @@ namespace MonC.LLVM
             InlineAsm,
 
             Instruction,
+
+            Invalid
         }
 
         [DllImport("LLVM-C")]

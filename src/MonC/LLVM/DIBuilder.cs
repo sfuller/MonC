@@ -70,7 +70,7 @@ namespace MonC.LLVM
             CAPI.LLVMDIBuilderCreatePointerType(_builder, pointeeTy, sizeInBits, alignInBits, addressSpace, name);
 
         public Metadata CreatePointerType(Metadata pointeeTy) =>
-            CreatePointerType(pointeeTy, pointeeTy.TypeSizeInBits, pointeeTy.TypeAlignInBits);
+            CreatePointerType(pointeeTy, pointeeTy.GetTypeSizeInBits(), pointeeTy.GetTypeAlignInBits());
 
         public Metadata CreateFile(string filename, string directory) =>
             CAPI.LLVMDIBuilderCreateFile(_builder, filename, directory);

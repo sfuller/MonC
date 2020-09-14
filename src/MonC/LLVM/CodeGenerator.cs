@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using MonC.Parsing;
 using MonC.SyntaxTree;
+using MonC.SyntaxTree.Leaves.Statements;
 
 namespace MonC.LLVM
 {
@@ -12,7 +13,7 @@ namespace MonC.LLVM
     /// <summary>
     /// Frequently referenced objects within the scope of CodeGenerator.Generate
     /// </summary>
-    internal class CodeGeneratorContext
+    public class CodeGeneratorContext
     {
         public Context Context { get; }
         public ParseModule ParseModule { get; }
@@ -50,41 +51,41 @@ namespace MonC.LLVM
             ColumnInfo = columnInfo && debugInfo;
         }
 
-        public Type LookupType(TypeSpecifierLeaf specifierLeaf)
+        public Type LookupType(TypeSpecifier typeSpecifier)
         {
-            Type? returnType = Context.LookupType(specifierLeaf.Name);
+            Type? returnType = Context.LookupType(typeSpecifier.Name);
             if (returnType == null) {
-                throw new InvalidOperationException($"undefined type '{specifierLeaf.Name}'");
+                throw new InvalidOperationException($"undefined type '{typeSpecifier.Name}'");
             }
 
             Type useType = returnType.Value;
-            if (specifierLeaf.PointerType != PointerType.NotAPointer) {
+            if (typeSpecifier.PointerType != PointerType.NotAPointer) {
                 useType = useType.PointerType();
             }
 
             return useType;
         }
 
-        public Metadata LookupDiType(TypeSpecifierLeaf specifierLeaf)
+        public Metadata LookupDiType(TypeSpecifier typeSpecifier)
         {
             if (DiBuilder == null) {
                 throw new InvalidOperationException("LookupDiType called without a DiBuilder");
             }
 
-            Metadata? returnType = DiBuilder.LookupType(specifierLeaf.Name);
+            Metadata? returnType = DiBuilder.LookupType(typeSpecifier.Name);
             if (returnType == null) {
-                throw new InvalidOperationException($"undefined type '{specifierLeaf.Name}'");
+                throw new InvalidOperationException($"undefined type '{typeSpecifier.Name}'");
             }
 
             Metadata useType = returnType.Value;
-            if (specifierLeaf.PointerType != PointerType.NotAPointer) {
+            if (typeSpecifier.PointerType != PointerType.NotAPointer) {
                 useType = DiBuilder.CreatePointerType(useType);
             }
 
             return useType;
         }
 
-        public bool TryGetTokenSymbol(IASTLeaf leaf, out Symbol symbol) =>
+        public bool TryGetTokenSymbol(ISyntaxTreeLeaf leaf, out Symbol symbol) =>
             ParseModule.TokenMap.TryGetValue(leaf, out symbol);
 
         public class Function
@@ -143,7 +144,7 @@ namespace MonC.LLVM
 
                 // Visit all declaration nodes and create storage (parameters and variables)
                 StackLayoutGenerator layoutGenerator = new StackLayoutGenerator();
-                _leaf.Accept(layoutGenerator);
+                layoutGenerator.VisitFunctionDefinition(_leaf);
                 FunctionStackLayout layout = layoutGenerator.GetLayout();
                 foreach (var v in layout.Variables) {
                     Type varType = genContext.LookupType(v.Key.Type);
@@ -266,8 +267,30 @@ namespace MonC.LLVM
             // Definition pass
             foreach (FunctionDefinitionLeaf function in parseModule.Functions) {
                 CodeGeneratorContext.Function ctxFunction = genContext.GetFunctionDefinition(function);
-                CodeGenVisitor codeGenVisitor = new CodeGenVisitor(genContext, ctxFunction);
-                function.Accept(codeGenVisitor);
+
+                using (Builder builder = genContext.Context.CreateBuilder()) {
+                    FunctionCodeGenVisitor functionCodeGenVisitor = new FunctionCodeGenVisitor(genContext, ctxFunction,
+                        builder, ctxFunction.StartDefinition(genContext, builder));
+                    builder.PositionAtEnd(functionCodeGenVisitor._basicBlock);
+                    function.Body.AcceptStatements(functionCodeGenVisitor);
+                    if (ctxFunction.ReturnBlock != null && ctxFunction.RetvalStorage != null) {
+                        ctxFunction.FunctionValue.AppendExistingBasicBlock(ctxFunction.ReturnBlock.Value);
+                        builder.PositionAtEnd(ctxFunction.ReturnBlock.Value);
+
+                        if (genContext.DiBuilder != null) {
+                            // TODO: Use the body end rather than the function end
+                            genContext.TryGetTokenSymbol(function, out Symbol range);
+                            Metadata location = genContext.Context.CreateDebugLocation(range.End.Line + 1,
+                                genContext.ColumnInfo ? range.End.Column + 1 : 0, ctxFunction.DiFunctionDef,
+                                Metadata.Null);
+                            builder.SetCurrentDebugLocation(location);
+                        }
+
+                        Value retVal = builder.BuildLoad(ctxFunction.FunctionType.ReturnType,
+                            ctxFunction.RetvalStorage.Value);
+                        builder.BuildRet(retVal);
+                    }
+                }
             }
 
             // Enum pass
@@ -284,8 +307,8 @@ namespace MonC.LLVM
                 genContext.TryGetTokenSymbol(enumLeaf, out Symbol range);
                 genContext.Module.DiBuilder.CreateEnumerationType(genContext.DiFile,
                     (enumLeaf.IsExported ? "export." : "") + $"enum.{fileName}.{range.LLVMLine}", genContext.DiFile,
-                    range.LLVMLine, genContext.Module.DiBuilder.Int32Type.TypeSizeInBits,
-                    genContext.Module.DiBuilder.Int32Type.TypeAlignInBits, enumerators,
+                    range.LLVMLine, genContext.Module.DiBuilder.Int32Type.GetTypeSizeInBits(),
+                    genContext.Module.DiBuilder.Int32Type.GetTypeAlignInBits(), enumerators,
                     genContext.Module.DiBuilder.Int32Type);
             }
 

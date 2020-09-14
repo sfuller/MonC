@@ -24,17 +24,27 @@ namespace MonC.LLVM
         public static implicit operator CAPI.LLVMTypeRef(Type type) => type._type;
         public static implicit operator Type(CAPI.LLVMTypeRef type) => new Type(type);
 
-        public CAPI.LLVMTypeKind Kind => CAPI.LLVMGetTypeKind(_type);
+        public CAPI.LLVMTypeKind Kind => IsValid ? CAPI.LLVMGetTypeKind(_type) : CAPI.LLVMTypeKind.Void;
 
         public Type PointerType() => CAPI.LLVMPointerType(_type, 0);
         public Type ArrayType(uint elementCount) => CAPI.LLVMArrayType(_type, elementCount);
 
-        public bool IsFunctionVarArg => CAPI.LLVMIsFunctionVarArg(_type);
-        public Type ReturnType => CAPI.LLVMGetReturnType(_type);
-        public uint NumParamTypes => CAPI.LLVMCountParamTypes(_type);
-        public Type[] ParamTypes => Array.ConvertAll(CAPI.LLVMGetParamTypes(_type), tp => (Type) tp);
+        public bool IsFunctionVarArg =>
+            IsValid && Kind == CAPI.LLVMTypeKind.Function && CAPI.LLVMIsFunctionVarArg(_type);
 
-        public uint IntTypeWidth => CAPI.LLVMGetIntTypeWidth(_type);
+        public Type ReturnType => IsValid && Kind == CAPI.LLVMTypeKind.Function
+            ? CAPI.LLVMGetReturnType(_type)
+            : new CAPI.LLVMTypeRef();
+
+        public uint NumParamTypes =>
+            IsValid && Kind == CAPI.LLVMTypeKind.Function ? CAPI.LLVMCountParamTypes(_type) : 0;
+
+        public Type[] ParamTypes =>
+            IsValid && Kind == CAPI.LLVMTypeKind.Function
+                ? Array.ConvertAll(CAPI.LLVMGetParamTypes(_type), tp => (Type) tp)
+                : new Type[] { };
+
+        public uint IntTypeWidth => IsValid && Kind == CAPI.LLVMTypeKind.Integer ? CAPI.LLVMGetIntTypeWidth(_type) : 0;
 
         public bool IsFirstClassType()
         {
@@ -43,7 +53,7 @@ namespace MonC.LLVM
             return kind != CAPI.LLVMTypeKind.Function && kind != CAPI.LLVMTypeKind.Void;
         }
 
-        public bool IsFloatingPointTy()
+        public bool IsFloatingPointType()
         {
             CAPI.LLVMTypeKind kind = Kind;
             return kind == CAPI.LLVMTypeKind.Half || kind == CAPI.LLVMTypeKind.BFloat ||
@@ -52,11 +62,25 @@ namespace MonC.LLVM
                    kind == CAPI.LLVMTypeKind.PPC_FP128;
         }
 
-        public Type ElementType => CAPI.LLVMGetElementType(_type);
+        public bool IsVectorType()
+        {
+            CAPI.LLVMTypeKind kind = Kind;
+            return kind == CAPI.LLVMTypeKind.Vector || kind == CAPI.LLVMTypeKind.ScalableVector;
+        }
 
-        public uint VectorSize => CAPI.LLVMGetVectorSize(_type);
+        public bool HasElements()
+        {
+            CAPI.LLVMTypeKind kind = Kind;
+            return kind == CAPI.LLVMTypeKind.Pointer || kind == CAPI.LLVMTypeKind.Array ||
+                   kind == CAPI.LLVMTypeKind.Vector || kind == CAPI.LLVMTypeKind.ScalableVector;
+        }
 
-        public uint PointerAddressSpace => CAPI.LLVMGetPointerAddressSpace(_type);
+        public Type ElementType => IsValid && HasElements() ? CAPI.LLVMGetElementType(_type) : new CAPI.LLVMTypeRef();
+
+        public uint VectorSize => IsValid && IsVectorType() ? CAPI.LLVMGetVectorSize(_type) : 0;
+
+        public uint PointerAddressSpace =>
+            IsValid && Kind == CAPI.LLVMTypeKind.Pointer ? CAPI.LLVMGetPointerAddressSpace(_type) : 0;
 
         public uint GetPrimitiveSizeInBits()
         {

@@ -210,7 +210,7 @@ namespace MonC.LLVM
                     } else {
                         return CAPI.LLVMOpcode.BitCast; // Same size, No-op cast
                     }
-                } else if (srcTy.IsFloatingPointTy()) { // Casting from floating pt
+                } else if (srcTy.IsFloatingPointType()) { // Casting from floating pt
                     if (destIsSigned)
                         return CAPI.LLVMOpcode.FPToSI; // FP -> sint
                     else
@@ -224,13 +224,13 @@ namespace MonC.LLVM
                         throw new InvalidCastException("Casting from a value that is not first-class type");
                     return CAPI.LLVMOpcode.PtrToInt; // ptr -> int
                 }
-            } else if (srcTy.IsFloatingPointTy()) { // Casting to floating pt
+            } else if (srcTy.IsFloatingPointType()) { // Casting to floating pt
                 if (srcTy.Kind == CAPI.LLVMTypeKind.Integer) { // Casting from integral
                     if (srcIsSigned)
                         return CAPI.LLVMOpcode.SIToFP; // sint -> FP
                     else
                         return CAPI.LLVMOpcode.UIToFP; // uint -> FP
-                } else if (srcTy.IsFloatingPointTy()) { // Casting from floating pt
+                } else if (srcTy.IsFloatingPointType()) { // Casting from floating pt
                     if (destBits < srcBits) {
                         return CAPI.LLVMOpcode.FPTrunc; // FP -> smaller FP
                     } else if (destBits > srcBits) {

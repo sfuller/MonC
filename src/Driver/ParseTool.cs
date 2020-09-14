@@ -43,7 +43,7 @@ namespace Driver
             if (_showAST) {
                 PrintTreeVisitor treeVisitor = new PrintTreeVisitor(Console.Out);
                 for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
-                    module.Functions[i].Accept(treeVisitor);
+                    module.Functions[i].AcceptTopLevelVisitor(treeVisitor);
                 }
             }
 

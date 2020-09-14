@@ -19,6 +19,7 @@ namespace MonC.Frontend
             bool showIL = false;
             bool withDebugger = false;
             bool forceCodegen = false;
+            bool run = true;
             bool llvm = false;
             string targetTriple = "";
             bool O0 = false;
@@ -67,6 +68,9 @@ namespace MonC.Frontend
                         // specific project due to undefined references. The parser tries its hardest to produce a
                         // usable AST, even if there are semantic errors. Syntax errors? Not so much.
                         forceCodegen = true;
+                        break;
+                    case "--skip-run":
+                        run = false;
                         break;
                     case "--llvm":
                         llvm = true;
@@ -165,7 +169,7 @@ namespace MonC.Frontend
             if (showAST) {
                 PrintTreeVisitor treeVisitor = new PrintTreeVisitor(Console.Out);
                 for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
-                    module.Functions[i].Accept(treeVisitor);
+                    module.Functions[i].AcceptTopLevelVisitor(treeVisitor);
                 }
             }
 
