@@ -90,8 +90,9 @@ namespace MonC.Parsing.Semantics.TypeAnalysis
             Type = lhsTypeCheck.Type;
         }
 
-        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
         {
+            // TOOD: Need to account for unary cast operator.
             leaf.RHS.AcceptExpressionVisitor(this);
             // TODO: Ensure operator is valid based on type.
         }

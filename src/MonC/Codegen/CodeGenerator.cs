@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using MonC.Bytecode;
+using MonC.IL;
 using MonC.Parsing;
 using MonC.SyntaxTree;
 

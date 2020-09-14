@@ -1,13 +1,11 @@
 namespace MonC.SyntaxTree.Leaves.Expressions
 {
-    public class UnaryOperationLeaf : IExpressionLeaf
+    public abstract class UnaryOperationLeaf : IUnaryOperationLeaf
     {
-        public readonly Token Operator;
-        public IExpressionLeaf RHS;
+        public IExpressionLeaf RHS { get; set; }
 
-        public UnaryOperationLeaf(Token @operator, IExpressionLeaf rhs)
+        protected UnaryOperationLeaf(IExpressionLeaf rhs)
         {
-            Operator = @operator;
             RHS = rhs;
         }
 
@@ -15,5 +13,7 @@ namespace MonC.SyntaxTree.Leaves.Expressions
         {
             visitor.VisitUnaryOperation(this);
         }
+
+        public abstract void AcceptUnaryOperationVisitor(IUnaryOperationVisitor visitor);
     }
 }

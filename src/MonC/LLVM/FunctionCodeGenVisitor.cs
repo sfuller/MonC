@@ -91,32 +91,22 @@ namespace MonC.LLVM
             return _builder.BuildCast(castOp, val, tp);
         }
 
-        public void VisitBinaryOperation(IBinaryOperationLeaf leaf) =>
-            leaf.AcceptBinaryOperationVisitor(new BinaryOperationCodeGenVisitor(this));
-
-        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        public void VisitBinaryOperation(IBinaryOperationLeaf leaf)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            leaf.RHS.AcceptExpressionVisitor(this);
-            Value rhs = _visitedValue;
-            if (!rhs.IsValid) {
-                throw new InvalidOperationException("RHS did not produce a usable rvalue");
-            }
+            leaf.AcceptBinaryOperationVisitor(new BinaryOperationCodeGenVisitor(this));
+        }
 
-            SetCurrentDebugLocation(leaf);
-            switch (leaf.Operator.Value) {
-                case "-":
-                    _visitedValue = _builder.BuildNeg(rhs);
-                    break;
-                case "!":
-                    _visitedValue = ConvertToBool(rhs, true);
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
+        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
+        {
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
+
+            leaf.AcceptUnaryOperationVisitor(new UnaryOperationCodeGenVisitor(this));
         }
 
         public void VisitBody(Body leaf)

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
-using MonC.Bytecode;
-using MonC.Codegen;
+using MonC.IL;
 using MonC.VM;
 
 namespace MonC.Debugging
@@ -11,10 +10,10 @@ namespace MonC.Debugging
         {
             public Dictionary<int, Dictionary<int, Instruction>> ReplacedInstructionsByFunction;
         }
-        
+
         private readonly Dictionary<VMModule, ModuleDebugData> _debugDataByModule = new Dictionary<VMModule, ModuleDebugData>();
         private readonly List<Breakpoint> _breakpoints = new List<Breakpoint>();
-        
+
         public void SetBreakpoint(string sourcePath, int lineNumber)
         {
             Breakpoint breakpoint = new Breakpoint {SourcePath = sourcePath, LineNumber = lineNumber};
@@ -28,22 +27,22 @@ namespace MonC.Debugging
             _breakpoints.Remove(breakpoint);
             RestoreInstructionForBreakpoint(breakpoint);
         }
-        
+
         public bool LookupSymbol(VMModule module, string sourcePath, int lineNumber, out int functionIndexResult, out int addressResult)
         {
             for (int functionIndex = 0, funcLen = module.ILModule.DefinedFunctions.Length; functionIndex < funcLen; ++functionIndex) {
                 ILFunction function = module.ILModule.DefinedFunctions[functionIndex];
-                
+
                 for (int i = 0, ilen = function.Code.Length; i < ilen; ++i) {
                     Symbol symbol;
                     if (!function.Symbols.TryGetValue(i, out symbol)) {
                         continue;
                     }
-                    
+
                     if (symbol.SourceFile == null) {
                         continue;
                     }
-                    
+
                     // TODO: More permissive path matching
                     if (symbol.SourceFile != sourcePath) {
                         // Assume that if the first symbol doesn't match the source path, none of them do.
@@ -67,11 +66,11 @@ namespace MonC.Debugging
         {
             sourcePath = "";
             lineNumber = 0;
-            
+
             if (frame.Function < 0 || frame.Function >= frame.Module.ILModule.DefinedFunctions.Length) {
                 return false;
             }
-            
+
             ILFunction function = frame.Module.ILModule.DefinedFunctions[frame.Function];
 
             for (int i = frame.PC; i < function.Code.Length; ++i) {
@@ -87,7 +86,7 @@ namespace MonC.Debugging
 
             return false;
         }
-        
+
         public ILFunction GetILFunction(StackFrameInfo frame)
         {
             if (frame.Function < 0 || frame.Function >= frame.Module.ILModule.DefinedFunctions.Length) {
@@ -147,7 +146,7 @@ namespace MonC.Debugging
             if (!_debugDataByModule.TryGetValue(module, out debugData)) {
                 return;
             }
-            
+
             Dictionary<int, Instruction> replacedInstructions;
             if (!debugData.ReplacedInstructionsByFunction.TryGetValue(functionIndex, out replacedInstructions)) {
                 replacedInstructions = new Dictionary<int, Instruction>();
@@ -158,13 +157,13 @@ namespace MonC.Debugging
                 // Instruction already replaced
                 return;
             }
-            
+
             ILFunction function = module.ILModule.DefinedFunctions[functionIndex];
             Instruction ins = function.Code[address];
             replacedInstructions.Add(address, ins);
             function.Code[address] = new Instruction(OpCode.BREAK);
         }
-        
+
         public bool RestoreInstruction(VMModule module, int functionIndex, int address)
         {
             ModuleDebugData debugData;
@@ -186,7 +185,7 @@ namespace MonC.Debugging
             module.ILModule.DefinedFunctions[functionIndex].Code[address] = originalInstruction;
             return true;
         }
-        
+
         private void RestoreInstructionForBreakpoint(Breakpoint breakpoint)
         {
             foreach (VMModule module in _debugDataByModule.Keys) {
@@ -206,7 +205,7 @@ namespace MonC.Debugging
                 }
 
                 if (functionIndex == info.Function && address == info.PC) {
-                    ReplaceInstructionForBreakpoint(breakpoint);    
+                    ReplaceInstructionForBreakpoint(breakpoint);
                 }
             }
         }

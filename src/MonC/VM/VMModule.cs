@@ -1,9 +1,9 @@
 using System.Collections.Generic;
-using MonC.Codegen;
+using MonC.IL;
 
 namespace MonC.VM
 {
-    public class VMModule : IVMModuleArtifact
+    public class VMModule
     {
         public readonly ILModule ILModule;
         public readonly Dictionary<int, VMFunction> VMFunctions;
@@ -21,7 +21,5 @@ namespace MonC.VM
         }
 
         public static readonly VMModule Default = new VMModule();
-
-        public void Dispose() { }
     }
 }

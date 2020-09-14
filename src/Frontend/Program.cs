@@ -179,7 +179,7 @@ namespace MonC.Frontend
 
             if (!llvm) {
                 Codegen.CodeGenerator generator = new Codegen.CodeGenerator();
-                Codegen.ILModule ilmodule = generator.Generate(module);
+                IL.ILModule ilmodule = generator.Generate(module);
                 if (showIL) {
                     ilmodule.WriteListing(Console.Out);
                 }

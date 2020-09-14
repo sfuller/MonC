@@ -32,7 +32,7 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
         {
         }
 
-        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
         {
             leaf.RHS = ProcessReplacement(leaf.RHS);
         }

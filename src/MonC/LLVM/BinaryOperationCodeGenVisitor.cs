@@ -31,10 +31,6 @@ namespace MonC.LLVM
 
         public void VisitLogicalAndBinOp(LogicalAndBinOpLeaf leaf)
         {
-            if (_codeGenVisitor._builder == null) {
-                throw new InvalidOperationException("NULL BUILDER");
-            }
-
             leaf.LHS.AcceptExpressionVisitor(_codeGenVisitor);
             Value lhs = _codeGenVisitor._visitedValue;
             if (!lhs.IsValid) {
@@ -79,10 +75,6 @@ namespace MonC.LLVM
 
         public void VisitLogicalOrBinOp(LogicalOrBinOpLeaf leaf)
         {
-            if (_codeGenVisitor._builder == null) {
-                throw new InvalidOperationException("NULL BUILDER");
-            }
-
             leaf.LHS.AcceptExpressionVisitor(_codeGenVisitor);
             Value lhs = _codeGenVisitor._visitedValue;
             if (!lhs.IsValid) {
@@ -127,10 +119,6 @@ namespace MonC.LLVM
 
         public void VisitAddBinOp(AddBinOpLeaf leaf)
         {
-            if (_codeGenVisitor._builder == null) {
-                throw new InvalidOperationException("NULL BUILDER");
-            }
-
             GetBinaryArithmeticOperands(leaf, out Value lhs, out Value rhs, out bool isFloat);
             _codeGenVisitor._visitedValue = isFloat
                 ? _codeGenVisitor._builder.BuildFAdd(lhs, rhs)
@@ -139,10 +127,6 @@ namespace MonC.LLVM
 
         public void VisitSubtractBinOp(SubtractBinOpLeaf leaf)
         {
-            if (_codeGenVisitor._builder == null) {
-                throw new InvalidOperationException("NULL BUILDER");
-            }
-
             GetBinaryArithmeticOperands(leaf, out Value lhs, out Value rhs, out bool isFloat);
             _codeGenVisitor._visitedValue = isFloat
                 ? _codeGenVisitor._builder.BuildFSub(lhs, rhs)
@@ -151,10 +135,6 @@ namespace MonC.LLVM
 
         public void VisitMultiplyBinOp(MultiplyBinOpLeaf leaf)
         {
-            if (_codeGenVisitor._builder == null) {
-                throw new InvalidOperationException("NULL BUILDER");
-            }
-
             GetBinaryArithmeticOperands(leaf, out Value lhs, out Value rhs, out bool isFloat);
             _codeGenVisitor._visitedValue = isFloat
                 ? _codeGenVisitor._builder.BuildFMul(lhs, rhs)
@@ -163,10 +143,6 @@ namespace MonC.LLVM
 
         public void VisitDivideBinOp(DivideBinOpLeaf leaf)
         {
-            if (_codeGenVisitor._builder == null) {
-                throw new InvalidOperationException("NULL BUILDER");
-            }
-
             GetBinaryArithmeticOperands(leaf, out Value lhs, out Value rhs, out bool isFloat);
             _codeGenVisitor._visitedValue = isFloat
                 ? _codeGenVisitor._builder.BuildFDiv(lhs, rhs)
@@ -175,10 +151,6 @@ namespace MonC.LLVM
 
         public void VisitModuloBinOp(ModuloBinOpLeaf leaf)
         {
-            if (_codeGenVisitor._builder == null) {
-                throw new InvalidOperationException("NULL BUILDER");
-            }
-
             GetBinaryArithmeticOperands(leaf, out Value lhs, out Value rhs, out bool isFloat);
             _codeGenVisitor._visitedValue = isFloat
                 ? _codeGenVisitor._builder.BuildFRem(lhs, rhs)
@@ -193,10 +165,6 @@ namespace MonC.LLVM
 
         private void TypePromotionForBinaryOperation(ref Value lhs, ref Value rhs, out bool isFloat)
         {
-            if (_codeGenVisitor._builder == null) {
-                throw new InvalidOperationException("NULL BUILDER");
-            }
-
             Type lhsTp = lhs.TypeOf;
             Type rhsTp = rhs.TypeOf;
 
@@ -222,10 +190,6 @@ namespace MonC.LLVM
         private void GenerateRelationalComparison(IBinaryOperationLeaf leaf, CAPI.LLVMIntPredicate intPred,
             CAPI.LLVMRealPredicate realPred)
         {
-            if (_codeGenVisitor._builder == null) {
-                throw new InvalidOperationException("NULL BUILDER");
-            }
-
             leaf.LHS.AcceptExpressionVisitor(_codeGenVisitor);
             Value lhs = _codeGenVisitor._visitedValue;
             if (!lhs.IsValid) {
@@ -252,10 +216,6 @@ namespace MonC.LLVM
         private void GetBinaryArithmeticOperands(IBinaryOperationLeaf leaf, out Value lhs, out Value rhs,
             out bool isFloat)
         {
-            if (_codeGenVisitor._builder == null) {
-                throw new InvalidOperationException("NULL BUILDER");
-            }
-
             leaf.LHS.AcceptExpressionVisitor(_codeGenVisitor);
             lhs = _codeGenVisitor._visitedValue;
             if (!lhs.IsValid) {

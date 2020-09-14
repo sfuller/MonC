@@ -25,7 +25,11 @@ def main():
         showall = True
         sys.argv.remove('--showall')
 
-    test_files = [os.path.join(TEST_DIR, p) for p in os.listdir(TEST_DIR) if os.path.splitext(p)[1] == '.monc']
+    test_files = []
+    for dirpath, dirnames, filenames in os.walk(TEST_DIR):
+        for filename in filenames:
+            if os.path.splitext(filename)[1] == '.monc':
+                test_files.append(os.path.join(dirpath, filename))
 
     failed_files = []
 

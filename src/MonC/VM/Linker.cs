@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using MonC.Bytecode;
-using MonC.Codegen;
+using MonC.IL;
 
 namespace MonC.VM
 {
@@ -19,10 +18,10 @@ namespace MonC.VM
             public VMFunction Binding;
             public bool Exported;
         }
-        
+
         private readonly List<InputModule> _inputModules = new List<InputModule>();
         private readonly List<BoundFunction> _boundFunctions = new List<BoundFunction>();
-        
+
         private readonly Dictionary<string, int> _functionIndicesByName = new Dictionary<string, int>();
         private readonly List<ILFunction> _functionImplementations = new List<ILFunction>();
         private readonly List<int> _moduleOffsets = new List<int>();
@@ -30,7 +29,7 @@ namespace MonC.VM
 
         private readonly List<string> _strings = new List<string>();
         private readonly Dictionary<string, int> _undefinedFunctionsIndicesByName = new Dictionary<string, int>();
-        
+
         private readonly List<LinkError> _errors;
 
         public Linker(List<LinkError> errors)
@@ -55,9 +54,9 @@ namespace MonC.VM
             _moduleOffsets.Clear();
 
             foreach (InputModule module in _inputModules) {
-                ImportModule(module);    
+                ImportModule(module);
             }
-            
+
             ImportBoundFunctions();
 
             for (int i = 0, ilen = _inputModules.Count; i < ilen; ++i) {
@@ -66,10 +65,10 @@ namespace MonC.VM
 
             if (!allowUndefinedReferences) {
                 foreach (string functionName in _undefinedFunctionsIndicesByName.Keys) {
-                    _errors.Add(new LinkError {Message = $"Undefined function {functionName}"});        
-                } 
+                    _errors.Add(new LinkError {Message = $"Undefined function {functionName}"});
+                }
             }
-            
+
             ILModule resultModule = new ILModule {
                 DefinedFunctions = _functionImplementations.ToArray(),
                 ExportedFunctions = _exportedFunctions.ToArray(),
@@ -83,11 +82,11 @@ namespace MonC.VM
                         .Select(k => k.Key).ToArray(),
                 Strings = _strings.ToArray()
             };
-            
+
             int vmFunctionsOffset = _functionImplementations.Count;
             Dictionary<int, VMFunction> vmFunctions = new Dictionary<int, VMFunction>(_boundFunctions.Count);
             for (int i = 0, ilen = _boundFunctions.Count; i < ilen; ++i) {
-                vmFunctions.Add(vmFunctionsOffset + i, _boundFunctions[i].Binding);    
+                vmFunctions.Add(vmFunctionsOffset + i, _boundFunctions[i].Binding);
             }
 
             return new VMModule(resultModule, vmFunctions);
@@ -100,14 +99,14 @@ namespace MonC.VM
 
             // Make copies of implementations for modification and do some modifications while we're currently
             // iterating over all of the functions.
-            
+
             foreach (ILFunction function in inputModule.Module.DefinedFunctions) {
                 ILFunction newFunction = function;
                 newFunction.Code = function.Code.ToArray();
                 _functionImplementations.Add(newFunction);
                 RelocateStrings(function, _strings.Count);
             }
-            
+
             foreach (KeyValuePair<string, int> exportedFunction in inputModule.Module.ExportedFunctions) {
                 if (_functionIndicesByName.ContainsKey(exportedFunction.Key)) {
                     _errors.Add(new LinkError {Message = $"Conflicting exported function {exportedFunction.Key}"});
@@ -119,7 +118,7 @@ namespace MonC.VM
                     _exportedFunctions.Add(exportedFunction);
                 }
             }
-            
+
             // Import all of the strings (instructions referencing string indices were modified above)
             _strings.AddRange(inputModule.Module.Strings);
         }
@@ -136,7 +135,7 @@ namespace MonC.VM
         private void ImportBoundFunctions()
         {
             int baseIndex = _functionImplementations.Count;
-            
+
             for (int i = 0, ilen = _boundFunctions.Count; i < ilen; ++i) {
 
                 BoundFunction function = _boundFunctions[i];
@@ -145,7 +144,7 @@ namespace MonC.VM
                     continue;
                 }
                 int index = baseIndex + i;
-                _functionIndicesByName[function.Name] = index; 
+                _functionIndicesByName[function.Name] = index;
                 if (function.Exported) {
                     _exportedFunctions.Add(new KeyValuePair<string, int>(function.Name, index));
                 }
@@ -169,17 +168,17 @@ namespace MonC.VM
 
             foreach (int instructionIndex in function.InstructionsReferencingFunctionAddresses) {
                 Instruction ins = function.Code[instructionIndex];
-                
+
                 if (ins.ImmediateValue < definedCount) {
                     // This is a call to a module local function that just needs to be offset
                     ins.ImmediateValue += baseIndex;
                 } else {
                     // This is a function to an exported function defined outside of the module.
                     string functionName = module.UndefinedFunctionNames[ins.ImmediateValue - definedCount];
-                    
+
                     if (!_functionIndicesByName.TryGetValue(functionName, out ins.ImmediateValue)) {
                         // Function is currently undefined outside of the module.
-                        
+
                         int newIndex;
                         if (!_undefinedFunctionsIndicesByName.TryGetValue(functionName, out newIndex)) {
                             newIndex = _functionImplementations.Count + _undefinedFunctionsIndicesByName.Count;
@@ -189,7 +188,7 @@ namespace MonC.VM
                         ins.ImmediateValue = newIndex;
                     }
                 }
-                
+
                 function.Code[instructionIndex] = ins;
             }
 

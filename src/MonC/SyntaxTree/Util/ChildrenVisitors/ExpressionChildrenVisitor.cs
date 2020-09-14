@@ -43,7 +43,7 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
             Visitor.VisitVariable(leaf);
         }
 
-        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
         {
             Visitor.VisitUnaryOperation(leaf);
             leaf.RHS.AcceptExpressionVisitor(this);

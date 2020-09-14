@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MonC.Bytecode;
+using MonC.IL;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Leaves;
 using MonC.SyntaxTree.Leaves.Expressions;
@@ -81,28 +81,10 @@ namespace MonC.Codegen
             AddDebugSymbol(comparisonOperationAddress, leaf);
         }
 
-        public void VisitUnaryOperation(UnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
         {
-            switch (leaf.Operator.Value) {
-                case "-": {
-                        int rhsStackAddress = AllocTemporaryStackAddress();
-                        leaf.RHS.AcceptExpressionVisitor(this);
-                        int addr = AddInstruction(OpCode.WRITE, rhsStackAddress);
-                        AddInstruction(OpCode.LOAD, 0);
-                        AddInstruction(OpCode.SUB, rhsStackAddress);
-                        FreeTemporaryStackAddress();
-                        AddDebugSymbol(addr, leaf);
-                    }
-                    break;
-                case "!": {
-                        leaf.RHS.AcceptExpressionVisitor(this);
-                        int addr = AddInstruction(OpCode.LNOT);
-                        AddDebugSymbol(addr, leaf);
-                    }
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
+            UnaryOperationCodeGenVisitor unaryVisitor = new UnaryOperationCodeGenVisitor(_functionBuilder, this);
+            leaf.AcceptUnaryOperationVisitor(unaryVisitor);
         }
 
         public void VisitAssignment(AssignmentLeaf leaf)

@@ -1,4 +1,4 @@
-# MonC [![Build Status](https://travis-ci.org/sfuller/MonC.svg?branch=master)](https://travis-ci.org/sfuller/MonC)
+# MonC [![Build Status](https://travis-ci.com/sfuller/MonC.svg?branch=master)](https://travis-ci.com/github/sfuller/MonC)
 "MonC" is a toy programming language. It's heavily inspired by C, but so far it's closer to the B programming language. 
 
 ## Design Goals

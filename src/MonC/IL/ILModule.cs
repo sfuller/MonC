@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 
-namespace MonC.Codegen
+namespace MonC.IL
 {
     public sealed class ILModule : IModuleArtifact
     {

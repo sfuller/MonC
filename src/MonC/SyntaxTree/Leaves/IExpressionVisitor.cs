@@ -11,7 +11,7 @@ namespace MonC.SyntaxTree.Leaves
         void VisitEnumValue(EnumValueLeaf leaf);
         void VisitVariable(VariableLeaf leaf);
 
-        void VisitUnaryOperation(UnaryOperationLeaf leaf);
+        void VisitUnaryOperation(IUnaryOperationLeaf leaf);
         void VisitBinaryOperation(IBinaryOperationLeaf leaf);
 
         void VisitFunctionCall(FunctionCallLeaf leaf);

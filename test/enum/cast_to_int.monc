@@ -1,10 +1,11 @@
 
-enum {
+enum Foo {
     FOO_A,
     FOO_B
 }
 
 int main() {
-    return 0;
+    return (int)FOO_B == 1;
+
 }
 

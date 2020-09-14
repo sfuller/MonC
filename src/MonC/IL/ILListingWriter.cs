@@ -2,9 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using MonC.Bytecode;
 
-namespace MonC.Codegen
+namespace MonC.IL
 {
     public class ILListingWriter
     {
@@ -15,11 +14,11 @@ namespace MonC.Codegen
         {
             _writer = writer;
         }
-        
+
         public void Write(ILModule module)
         {
             Dictionary<int, string> exportedFunctionNames = module.ExportedFunctions.ToDictionary(x => x.Value, x => x.Key);
-            
+
             for (int i = 0, ilen = module.DefinedFunctions.Length; i < ilen; ++i) {
                 string? name;
                 if (!exportedFunctionNames.TryGetValue(i, out name)) {
@@ -35,17 +34,17 @@ namespace MonC.Codegen
 
             var code = function.Code;
             var symbols = function.Symbols;
-            
+
             for (int i = 0, ilen = code.Length; i < ilen; ++i) {
                 Instruction instruction = code[i];
-                
+
                 _writer.Write($"  {i,8}:  {instruction.Op} \t{instruction.ImmediateValue}");
-                
+
                 Symbol symbol;
                 if (symbols.TryGetValue(i, out symbol)) {
                     _writer.Write($"\t; {GetSnippet(symbol)}");
                 }
-                
+
                 _writer.WriteLine();
             }
             _writer.WriteLine();
@@ -67,7 +66,7 @@ namespace MonC.Codegen
 
             uint colStart = symbol.Start.Column;
             uint colEnd = symbol.End.Column;
-            
+
             if (symbol.End.Line != symbol.Start.Line) {
                 colEnd = (uint)line.Length - 1;
             }
@@ -89,18 +88,18 @@ namespace MonC.Codegen
             if (path == null) {
                 return null;
             }
-            
+
             string[]? file;
             if (_files.TryGetValue(path, out file)) {
                 return file;
             }
-            
+
             try {
                 file = File.ReadAllLines(path);
             } catch (Exception) {
                 return null;
             }
-            
+
             _files[path] = file;
             return file;
         }

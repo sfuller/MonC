@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using MonC.Bytecode;
 using MonC.SyntaxTree.Leaves.Statements;
 
-namespace MonC.Codegen
+namespace MonC.IL
 {
     public struct ILFunction
     {

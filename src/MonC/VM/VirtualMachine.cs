@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-using MonC.Bytecode;
-using MonC.Codegen;
+using MonC.IL;
 
 namespace MonC.VM
 {
@@ -17,22 +16,22 @@ namespace MonC.VM
         private readonly StackFrameMemory _argumentBuffer = new StackFrameMemory();
         private Action<bool> _finishedCallback = success => { };
         private IVMDebugger? _debugger;
-        
+
         private bool _isStepping;
         private int _cycleCount;
-        
+
         public bool IsRunning { get; private set; }
         public bool IsPaused => _isPaused;
         public int ReturnValue => _aRegister;
         public int CallStackFrameCount => _callStack.Count;
-        
+
         public int MaxCycles { get; set; }
 
         public VirtualMachine()
         {
             MaxCycles = -1;
         }
-        
+
         // public void LoadModule(VMModule module)
         // {
         //     if (IsRunning) {
@@ -50,15 +49,15 @@ namespace MonC.VM
             if (IsRunning) {
                 throw new InvalidOperationException("Cannot call function while running");
             }
-            
+
             int functionIndex = LookupFunction(module.ILModule, functionName);
 
             if (functionIndex == -1) {
                 return false;
             }
-            
+
             int argumentsSize;
-            
+
             if (functionIndex < module.ILModule.DefinedFunctions.Length) {
                 argumentsSize = module.ILModule.DefinedFunctions[functionIndex].ArgumentMemorySize;
             } else {
@@ -77,18 +76,18 @@ namespace MonC.VM
 
             _finishedCallback = finished;
             _cycleCount = 0;
-            
+
             PushCall(module, functionIndex, arguments);
 
             if (_isStepping) {
-                Break(); 
+                Break();
             } else {
                 Continue();
             }
 
             return true;
         }
-        
+
         public void SetDebugger(IVMDebugger debugger)
         {
             if (_debugger != null) {
@@ -120,7 +119,7 @@ namespace MonC.VM
             }
             return -1;
         }
-        
+
         void IDebuggableVM.Continue()
         {
             if (!_isPaused) {
@@ -135,9 +134,9 @@ namespace MonC.VM
             if (_isContinuing) {
                 return;
             }
-            
+
             _isContinuing = true;
-            
+
             while (_isContinuing) {
                 InterpretCurrentInstruction();
             }
@@ -160,7 +159,7 @@ namespace MonC.VM
         public StackFrameInfo GetStackFrame(int depth)
         {
             StackFrame frame = GetInternalStackFrame(depth);
-            
+
             return new StackFrameInfo {
                 Module = frame.Module,
                 Function = frame.Function,
@@ -190,7 +189,7 @@ namespace MonC.VM
 
         /// <summary>
         /// Common operation for instructions which load a value from the stack based on the immediate value of the
-        /// instruction. 
+        /// instruction.
         /// </summary>
         private int ReadStackWithImmediateValue(Instruction ins)
         {
@@ -218,18 +217,18 @@ namespace MonC.VM
                 return;
             }
             ++_cycleCount;
-            
+
             StackFrame top = PeekCallStack();
-            
+
             bool canBreak;
             bool breakRequested = _isStepping;
-            
+
             if (top.BindingEnumerator != null) {
                 canBreak = InterpretBoundFunctionCall(top);
             } else {
                 // It is always safe to break between instructions.
                 canBreak = true;
-                
+
                 Instruction ins = top.Module.ILModule.DefinedFunctions[top.Function].Code[top.PC];
                 ++top.PC;
                 breakRequested |= InterpretInstruction(ins);
@@ -239,14 +238,14 @@ namespace MonC.VM
                 Break();
             }
         }
-        
+
         private bool InterpretBoundFunctionCall(StackFrame frame)
         {
             // Returns true if it is safe to trigger a break after this method returns.
 
             // This method should only be called after checking that a binding enumerator exists on the given frame.
             IEnumerator<Continuation> bindingEnumerator = frame.BindingEnumerator!;
-            
+
             if (!bindingEnumerator.MoveNext()) {
                 // Function has finished
                 PopFrame();
@@ -268,7 +267,7 @@ namespace MonC.VM
 
             if (continuation.Action == ContinuationAction.YIELD) {
                 continuation.YieldToken.OnFinished(HandleYieldComplete);
-                
+
                 _isStartingYield = true;
                 _isYielding = true;
                 // Calling start may trigger the OnFinished callback. We check for the callback being completed
@@ -291,14 +290,14 @@ namespace MonC.VM
                 PushCallStack(unwrapFrame);
                 return true;
             }
-            
+
             throw new NotImplementedException();
         }
 
         private bool InterpretInstruction(Instruction ins)
         {
             // Returns true if a break should be triggered. Otherwise false.
-            
+
             switch (ins.Op) {
                 case OpCode.NOOP:
                     InterpretNoOp();
@@ -364,7 +363,7 @@ namespace MonC.VM
                     InterpretDiv(ins);
                     break;
                 case OpCode.MOD:
-                    InterpretMod(ins);    
+                    InterpretMod(ins);
                     break;
                 default:
                     throw new NotImplementedException();
@@ -398,7 +397,7 @@ namespace MonC.VM
         {
             PeekCallStack().Memory.Write(ins.ImmediateValue, _aRegister);
         }
-        
+
         private void InterpretCall(Instruction ins)
         {
             StackFrame currentFrame = PeekCallStack();
@@ -458,7 +457,7 @@ namespace MonC.VM
         {
             _aRegister += ReadStackWithImmediateValue(ins);
         }
-        
+
         private void InterpretSub(Instruction ins)
         {
             _aRegister -= ReadStackWithImmediateValue(ins);
@@ -488,7 +487,7 @@ namespace MonC.VM
         {
             _aRegister %= ReadStackWithImmediateValue(ins);
         }
-        
+
         private void Jump(int offset)
         {
             PeekCallStack().PC += offset;
@@ -498,15 +497,15 @@ namespace MonC.VM
         {
             // First value on the argument stack is the function index
             int functionIndex = argumentStackSource.Read(argumentStackStart);
-            
+
             // The rest of the data on the argument stack is argument values
             int argumentValuesStart = argumentStackStart + 1;
-            
+
             int argumentMemorySize;
             StackFrame frame;
 
             int definedFunctionCount = module.ILModule.DefinedFunctions.Length;
-            
+
             if (functionIndex >= definedFunctionCount) {
                 VMFunction function = module.VMFunctions[functionIndex];
                 argumentMemorySize = function.ArgumentMemorySize;
@@ -522,7 +521,7 @@ namespace MonC.VM
             frame.Function = functionIndex;
             frame.Memory.CopyFrom(argumentStackSource, argumentValuesStart, 0, argumentMemorySize);
             PushCallStack(frame);
-            
+
             // TODO: PERF: Try to optimize out calls to HandleModuleAdded when we can deduce that the module has already
             // been seen.
             // For calls pushed by the CALL instruction, we know that the module will be the same and that we don't need
@@ -536,21 +535,21 @@ namespace MonC.VM
             // the original argumentSource after a Call Continuation, or we need to use unique argument buffers for each
             // bound function call (with pooling of course). I'd opt for the former, it's super easy to just grab your
             // arguments as soon as you enter the bound function, and is the cleanest as well.
-            
+
             int argumentCount = arguments.Count;
             _argumentBuffer.Recreate(argumentCount + 1);
-            
+
             // First value on the argument stack is function index
             _argumentBuffer.Write(0, functionIndex);
-            
+
             // Rest of the argument stack is argument values.
             for (int i = 0; i < argumentCount; ++i) {
                 _argumentBuffer.Write(i + 1, arguments[i]);
             }
-            
+
             PushCall(module, _argumentBuffer, 0);
         }
-        
+
         private StackFrame AcquireFrame(int memorySize)
         {
             StackFrame frame;
@@ -559,7 +558,7 @@ namespace MonC.VM
             } else {
                 frame = new StackFrame();
             }
-            
+
             frame.Memory.Recreate(memorySize);
             return frame;
         }
@@ -569,17 +568,17 @@ namespace MonC.VM
             int top = _callStack.Count - 1;
             StackFrame frame = _callStack[top];
             _callStack.RemoveAt(top);
-            
+
             frame.BindingEnumerator = null;
             frame.PC = 0;
             _framePool.Push(frame);
-            
+
             if (_callStack.Count == 0) {
                 _isContinuing = false;
                 HandleFinished(true);
             }
         }
-        
+
         private readonly Stack<StackFrame> _framePool = new Stack<StackFrame>();
 
         private void Abort()
