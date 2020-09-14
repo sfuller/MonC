@@ -6,7 +6,7 @@ RUN echo 'deb http://deb.debian.org/debian testing main' >> /etc/apt/sources.lis
 RUN echo 'APT::Default-Release "stable";' >> /etc/apt/apt.conf.d/00local
 
 RUN apt-get update
-RUN apt-get -t testing install -y python3
+RUN apt-get -t testing install -y python3 libllvm10
 
 WORKDIR /root
 
@@ -15,5 +15,7 @@ COPY src src
 COPY test test
 COPY testrunner.py testrunner.py
 
-CMD dotnet build && ./testrunner.py --showlex --showast --showil
+CMD dotnet build && \
+	ln -s /usr/lib/x86_64-linux-gnu/libLLVM-10.so src/Driver/bin/Debug/netcoreapp3.1/libLLVM-C.so && \
+	./testrunner.py --showlex --showast --showil
 
