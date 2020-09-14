@@ -2,11 +2,19 @@
 
 namespace MonC.LLVM
 {
-    public class ExecutionEngine
+    public class ExecutionEngine : IVMModuleArtifact
     {
         private CAPI.LLVMExecutionEngineRef _executionEngine;
 
         private ExecutionEngine(CAPI.LLVMExecutionEngineRef executionEngine) => _executionEngine = executionEngine;
+
+        public static ExecutionEngine CreateForModule(Module m)
+        {
+            if (CAPI.LLVMCreateExecutionEngineForModule(out CAPI.LLVMExecutionEngineRef outEE, m,
+                out string? errorMessage))
+                throw new InvalidOperationException(errorMessage);
+            return new ExecutionEngine(outEE);
+        }
 
         public GenericValue RunFunction(Value f, GenericValue[] args) =>
             new GenericValue(CAPI.LLVMRunFunction(_executionEngine, f,
@@ -27,5 +35,14 @@ namespace MonC.LLVM
         }
 
         ~ExecutionEngine() => DoDispose();
+
+        public void AddModule(Module m) => CAPI.LLVMAddModule(_executionEngine, m);
+
+        public Value FindFunction(string name)
+        {
+            if (!CAPI.LLVMFindFunction(_executionEngine, name, out CAPI.LLVMValueRef outFnRef))
+                return outFnRef;
+            return new Value();
+        }
     }
 }

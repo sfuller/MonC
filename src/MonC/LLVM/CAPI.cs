@@ -270,6 +270,19 @@ namespace MonC.LLVM
         public static extern LLVMMemoryBufferRef LLVMWriteBitcodeToMemoryBuffer(LLVMModuleRef m);
 
         [DllImport("LLVM-C")]
+        private static extern bool LLVMParseIRInContext(LLVMContextRef context, LLVMMemoryBufferRef memBuf,
+            out LLVMModuleRef moduleOut, out IntPtr outMessage);
+
+        public static bool LLVMParseIRInContext(LLVMContextRef context, LLVMMemoryBufferRef memBuf,
+            out LLVMModuleRef moduleOut, out string? outMessage)
+        {
+            bool ret = LLVMParseIRInContext(context, memBuf, out moduleOut, out IntPtr msgPtr);
+            outMessage = Marshal.PtrToStringAnsi(msgPtr);
+            LLVMDisposeMessage(msgPtr);
+            return ret;
+        }
+
+        [DllImport("LLVM-C")]
         public static extern LLVMValueRef LLVMAddFunction(LLVMModuleRef module, string name, LLVMTypeRef functionTy);
 
         [DllImport("LLVM-C")]
@@ -1623,6 +1636,12 @@ namespace MonC.LLVM
 
         [DllImport("LLVM-C")]
         public static extern void LLVMDisposeExecutionEngine(LLVMExecutionEngineRef ee);
+
+        [DllImport("LLVM-C")]
+        public static extern void LLVMAddModule(LLVMExecutionEngineRef ee, LLVMModuleRef m);
+
+        [DllImport("LLVM-C")]
+        public static extern bool LLVMFindFunction(LLVMExecutionEngineRef ee, string name, out LLVMValueRef outFn);
 
         [DllImport("LLVM-C")]
         private static extern LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef ee, LLVMValueRef f,

@@ -65,6 +65,19 @@ namespace MonC.LLVM
         public Module CreateModule(string name) => new Module(name, this);
         public Builder CreateBuilder() => new Builder(_context);
 
+        public Module ParseIR(MemoryBuffer memBuf)
+        {
+            bool err = CAPI.LLVMParseIRInContext(_context, memBuf, out CAPI.LLVMModuleRef moduleOut,
+                out string? outMessage);
+            // LLVMParseIRInContext always deletes memory buffer in for some reason
+            memBuf.Reset();
+            if (err) {
+                throw new InvalidOperationException(outMessage);
+            }
+
+            return new Module(moduleOut, this);
+        }
+
         public Metadata DebugMetadataVersion =>
             Metadata.FromValue(Value.ConstInt(Int32Type, CAPI.LLVMDebugMetadataVersion(), false));
 

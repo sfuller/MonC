@@ -6,6 +6,8 @@ namespace MonC.LLVM
     {
         private CAPI.LLVMMemoryBufferRef _memoryBuffer;
 
+        internal void Reset() => _memoryBuffer = new CAPI.LLVMMemoryBufferRef();
+
         public static implicit operator CAPI.LLVMMemoryBufferRef(MemoryBuffer memoryBuffer) =>
             memoryBuffer._memoryBuffer;
 
@@ -13,7 +15,7 @@ namespace MonC.LLVM
 
         public static MemoryBuffer WithContentsOfFile(string path)
         {
-            if (!CAPI.LLVMCreateMemoryBufferWithContentsOfFile(path, out CAPI.LLVMMemoryBufferRef buffer,
+            if (CAPI.LLVMCreateMemoryBufferWithContentsOfFile(path, out CAPI.LLVMMemoryBufferRef buffer,
                 out string? message)) {
                 throw new InvalidOperationException(message != null
                     ? message

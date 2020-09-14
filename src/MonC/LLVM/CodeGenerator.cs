@@ -273,19 +273,28 @@ namespace MonC.LLVM
                         builder, ctxFunction.StartDefinition(genContext, builder));
                     builder.PositionAtEnd(functionCodeGenVisitor._basicBlock);
                     function.Body.AcceptStatements(functionCodeGenVisitor);
+
+                    if (genContext.DiBuilder != null) {
+                        // TODO: Use the body end rather than the function end
+                        genContext.TryGetTokenSymbol(function, out Symbol range);
+                        Metadata location = genContext.Context.CreateDebugLocation(range.End.Line + 1,
+                            genContext.ColumnInfo ? range.End.Column + 1 : 0, ctxFunction.DiFunctionDef,
+                            Metadata.Null);
+                        builder.SetCurrentDebugLocation(location);
+                    }
+
+                    // If we still have a valid insert block, this function did not end with a return; Insert one now
+                    if (builder.InsertBlock.IsValid) {
+                        if (ctxFunction.ReturnBlock != null) {
+                            builder.BuildBr(ctxFunction.ReturnBlock.Value);
+                        } else {
+                            builder.BuildRetVoid();
+                        }
+                    }
+
                     if (ctxFunction.ReturnBlock != null && ctxFunction.RetvalStorage != null) {
                         ctxFunction.FunctionValue.AppendExistingBasicBlock(ctxFunction.ReturnBlock.Value);
                         builder.PositionAtEnd(ctxFunction.ReturnBlock.Value);
-
-                        if (genContext.DiBuilder != null) {
-                            // TODO: Use the body end rather than the function end
-                            genContext.TryGetTokenSymbol(function, out Symbol range);
-                            Metadata location = genContext.Context.CreateDebugLocation(range.End.Line + 1,
-                                genContext.ColumnInfo ? range.End.Column + 1 : 0, ctxFunction.DiFunctionDef,
-                                Metadata.Null);
-                            builder.SetCurrentDebugLocation(location);
-                        }
-
                         Value retVal = builder.BuildLoad(ctxFunction.FunctionType.ReturnType,
                             ctxFunction.RetvalStorage.Value);
                         builder.BuildRet(retVal);

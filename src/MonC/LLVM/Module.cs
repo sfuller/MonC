@@ -20,6 +20,14 @@ namespace MonC.LLVM
             _parent.IncrementModule();
         }
 
+        internal Module(CAPI.LLVMModuleRef module, Context context)
+        {
+            _module = module;
+            _parent = context;
+            DiBuilder = new DIBuilder(_module);
+            _parent.IncrementModule();
+        }
+
         public void Dispose()
         {
             DoDispose(true);

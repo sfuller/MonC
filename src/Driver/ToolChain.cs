@@ -43,12 +43,14 @@ namespace Driver
 
         public ITool BuildParseJobTool(Job job, IParseInput input) => ParseTool.Construct(job, input);
 
-        public virtual ITool BuildCodeGenJobTool(Job job, ICodeGenInput input) => throw new NotImplementedException();
+        public virtual IModuleTool BuildCodeGenJobTool(Job job, ICodeGenInput input) => throw new NotImplementedException();
 
-        public virtual ITool BuildBackendJobTool(Job job, IBackendInput input) => throw new NotImplementedException();
+        public virtual IModuleTool BuildBackendJobTool(Job job, IBackendInput input) => throw new NotImplementedException();
 
-        public virtual ITool BuildLinkJobTool(Job job, ILinkInput input) => throw new NotImplementedException();
+        public virtual IModuleTool BuildLinkerInputFileTool(Job job, FileInfo fileInfo) => throw new NotImplementedException();
 
-        public virtual ITool BuildVMJobTool(Job job, IVMInput input) => throw new NotImplementedException();
+        public virtual IExecutableTool BuildLinkJobTool(Job job, ILinkInput input) => throw new NotImplementedException();
+
+        public virtual IExecutableTool BuildVMJobTool(Job job, IVMInput input) => throw new NotImplementedException();
     }
 }

@@ -28,7 +28,8 @@ def main():
 
     status = True
 
-    for toolname, tool in (("Frontend", FRONTEND_BINARY), ("Driver", DRIVER_BINARY)):
+    for toolname, tool, extra_args in (("Frontend", FRONTEND_BINARY, ()), ("Driver", DRIVER_BINARY, ()),
+                                       ("Driver LLVM", DRIVER_BINARY, ("-toolchain=llvm",))):
         print(f'Using {toolname} to run tests')
 
         test_files = []
@@ -40,7 +41,7 @@ def main():
         failed_files = []
 
         for path in test_files:
-            if not test(path, tool, showall):
+            if not test(path, tool, extra_args, showall):
                 failed_files.append(path)
 
         print('=' * 80)
@@ -62,7 +63,7 @@ def main():
         sys.exit(1)
 
 
-def test(path, tool, showall: bool) -> bool:
+def test(path, tool, extra_args, showall: bool) -> bool:
     sys.stdout.write(f'Testing {path}...')
     sys.stdout.flush()
 
@@ -70,6 +71,7 @@ def test(path, tool, showall: bool) -> bool:
 
     with open(path) as f:
         args = [tool, path]
+        args.extend(extra_args)
         args.extend(sys.argv[1:])
         try:
             result = subprocess.run(

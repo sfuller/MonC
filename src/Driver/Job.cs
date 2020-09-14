@@ -131,18 +131,27 @@ namespace Driver
         private Phase SelectTargetPhase()
         {
             // Always target VM if requested
-            if (!_skipRun)
+            if (!_skipRun) {
                 return Phase.VM;
+            }
 
             Phase producingPhase = _outputFile?.ProducingPhase ?? Phase.Null;
 
+            // Implicitly use reloatable output for relevant output types
+            if (producingPhase != Phase.Null && producingPhase < Phase.Link) {
+                _reloc = true;
+                _asm = _outputFile?.IsAssembly ?? false;
+            }
+
             // Always target toolchain's preferred reloc target phase if requested
-            if (_reloc)
+            if (_reloc) {
                 return _toolChain.SelectRelocTargetPhase(producingPhase);
+            }
 
             // If we can unambiguously determine the final phase based on file extension, do that
-            if (producingPhase != Phase.Null)
+            if (producingPhase != Phase.Null) {
                 return producingPhase;
+            }
 
             // Otherwise assume a linked artifact for output
             return Phase.Link;
@@ -176,6 +185,11 @@ namespace Driver
 
             Diagnostics.ThrowIfErrors();
 
+            // Skip run is implied when output path is provided
+            if (_outputPath != null) {
+                _skipRun = true;
+            }
+
             // VM is implied for debugger
             if (_debugger) {
                 _skipRun = false;
@@ -195,7 +209,7 @@ namespace Driver
             }
 
             // Set output file if provided and not using VM
-            _outputFile = _outputPath != null && _skipRun ? new FileInfo(_outputPath) : null;
+            _outputFile = _outputPath != null ? new FileInfo(_outputPath) : null;
 
             // Assembly output defaults to stdout if not specified
             if (_asm && _outputFile == null) {
@@ -212,6 +226,10 @@ namespace Driver
             // Determine target phase based on output file (if provided) and command line flags
             _targetPhase = SelectTargetPhase();
 
+            if (_reloc && _inputFiles.Count > 1) {
+                throw Diagnostics.ThrowError("relocatable output only works with one input file");
+            }
+
             // Initialize module phase open set with pre-link phases up to target
             PhaseSet modulePhaseOpenSet =
                 _toolChain.FilterPhases(
@@ -220,6 +238,11 @@ namespace Driver
             // Visit JobActions for each file; building a chain of tools
             _moduleFileTools = new List<IModuleTool>(_inputFiles.Count);
             foreach (FileInfo inputFile in _inputFiles) {
+                if (inputFile.IsLinkerInput) {
+                    _moduleFileTools.Add(_toolChain.BuildLinkerInputFileTool(this, inputFile));
+                    continue;
+                }
+
                 ITool tool = null;
                 foreach (Phase phase in inputFile.PossiblePhases & modulePhaseOpenSet) {
                     tool = IJobAction.FromPhase(phase)

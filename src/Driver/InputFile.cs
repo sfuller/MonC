@@ -71,6 +71,10 @@ namespace Driver
 
         public Phase ProducingPhase => FileType.GetProducingPhase(Kind);
 
+        public bool IsAssembly => FileType.IsAssembly(Kind);
+
+        public bool IsLinkerInput => FileType.IsLinkerInput(Kind);
+
         public bool IsCompatibleWithToolchainType(Type toolChainType) =>
             FileType.IsCompatibleWithToolchainType(Kind, toolChainType);
 

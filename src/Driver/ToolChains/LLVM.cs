@@ -107,14 +107,41 @@ namespace Driver.ToolChains
             TargetMachine?.Dispose();
         }
 
-        public override ITool BuildCodeGenJobTool(Job job, ICodeGenInput input) =>
+        private static readonly PhaseSet PossiblePhases = ~new PhaseSet(Phase.Backend);
+
+        public override PhaseSet FilterPhases(PhaseSet phases)
+        {
+            if (!_native)
+                return phases & ~new PhaseSet(Phase.Backend);
+            return phases;
+        }
+
+        public override IModuleTool BuildCodeGenJobTool(Job job, ICodeGenInput input) =>
             LLVMCodeGenTool.Construct(job, this, input);
 
-        public override ITool BuildBackendJobTool(Job job, IBackendInput input) =>
+        public override IModuleTool BuildBackendJobTool(Job job, IBackendInput input) =>
             LLVMBackendTool.Construct(job, this, input);
+
+        public override IModuleTool BuildLinkerInputFileTool(Job job, FileInfo fileInfo) =>
+            LLVMLinkerInputFileTool.Construct(job, this, fileInfo);
+
+        public override IExecutableTool BuildLinkJobTool(Job job, ILinkInput input) =>
+            LLVMLinkTool.Construct(job, this, input);
+
+        public override IExecutableTool BuildVMJobTool(Job job, IVMInput input) =>
+            LLVMVMTool.Construct(job, this, input);
 
         internal Module CreateModule(FileInfo fileInfo, ParseModule parseModule) =>
             CodeGenerator.Generate(_context, fileInfo.FullPath, parseModule, _targetTriple, _optBuilder, _debugInfo,
                 _debugColumnInfo);
+
+        internal Module ParseIR(FileInfo fileInfo)
+        {
+            using MemoryBuffer memBuf = MemoryBuffer.WithContentsOfFile(fileInfo.FullPath);
+            return _context.ParseIR(memBuf);
+        }
+
+        internal GenericValue CreateIntGenericValue(int val) =>
+            GenericValue.FromInt(_context.Int32Type, (ulong) val, true);
     }
 }

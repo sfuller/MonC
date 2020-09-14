@@ -46,6 +46,29 @@ namespace Driver
             }
         }
 
+        public static bool IsAssembly(Kind kind)
+        {
+            switch (kind) {
+                default:
+                    return false;
+                case Kind.LLVM_ASSEMBLY:
+                case Kind.TARGET_ASSEMBLY:
+                    return true;
+            }
+        }
+
+        public static bool IsLinkerInput(Kind kind)
+        {
+            switch (kind) {
+                default:
+                    return false;
+                case Kind.MONC_IL:
+                case Kind.LLVM_ASSEMBLY:
+                case Kind.LLVM_BITCODE:
+                    return true;
+            }
+        }
+
         public static bool IsCompatibleWithToolchainType(Kind kind, Type toolChainType)
         {
             switch (kind) {
