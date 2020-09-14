@@ -551,81 +551,64 @@ namespace MonC
             return NewLeaf<BreakLeaf>(breakToken, tokens.Peek(-1));
         }
 
-        private IExpressionLeaf? ParseExpression(ref TokenSource tokens)
+        private IExpressionLeaf? ParseExpression(ref TokenSource tokens, int previousPrecedence = -1)
         {
-            IExpressionLeaf? lhs = ParsePrimaryOrUnary(ref tokens);
+            IExpressionLeaf? lhs = ParseNonBinaryExpression(ref tokens);
             if (lhs == null) {
                 return null;
             }
-            return ParseOperator(ref tokens, lhs, -1);
+
+            // Process binary operations.
+            while (true) {
+                Token opToken = tokens.Peek();
+                int precedence = GetTokenPrecedence(opToken);
+                if (precedence > previousPrecedence) {
+                    tokens.Next(); // Eat operator
+                    IExpressionLeaf? rhs = ParseExpression(ref tokens, precedence);
+                    if (rhs == null) {
+                        return null;
+                    }
+                    lhs = CreateBinOpLeafByOperator(ref tokens, opToken, lhs, rhs);
+                    if (lhs == null) {
+                        return null;
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            return lhs;
         }
 
-        private IExpressionLeaf? ParsePrimaryOrUnary(ref TokenSource tokens)
+
+        private IExpressionLeaf? ParseNonBinaryExpression(ref TokenSource tokens)
         {
             TokenSource primaryTokens = tokens.Fork();
             IExpressionLeaf? primaryLeaf = ParsePrimaryExpression(ref primaryTokens);
             if (primaryLeaf != null) {
                 tokens.Consume(primaryTokens);
+                TokenSource primaryOperatorTokens = tokens.Fork();
+                IExpressionLeaf? primaryOperator = ParsePrimaryOperator(ref primaryOperatorTokens, primaryLeaf);
+                if (primaryOperator != null) {
+                    tokens.Consume(primaryOperatorTokens);
+                    return primaryOperator;
+                }
                 return primaryLeaf;
             }
 
-            // Expression is not primary, Must be a unary.
-            Token token = tokens.Peek();
+            TokenSource unaryTokens = tokens.Fork();
+            IUnaryOperationLeaf? unaryLeaf = ParseUnaryOperation(ref unaryTokens);
+            if (unaryLeaf != null) {
+                tokens.Consume(unaryTokens);
+                return unaryLeaf;
+            }
 
+            Token token = tokens.Peek();
             if (token.Value == Syntax.OPENING_PAREN) {
                 return ParseParenthesisExpression(ref tokens);
             }
 
-            return ParseBasicUnaryOperator(ref tokens);
-        }
-
-        private IExpressionLeaf? ParseOperator(ref TokenSource tokens, IExpressionLeaf lhs, int precedence)
-        {
-            while (true) {
-                Token tok = tokens.Peek();
-                int rhsPrecedence = GetTokenPrecedence(tok);
-
-                if (rhsPrecedence == -1) {
-                    return lhs;
-                }
-
-                if (precedence > rhsPrecedence) {
-                    return lhs;
-                }
-
-                if (tok.Value == Syntax.OPENING_PAREN) {
-                    FunctionCallParseLeaf? functionCall = ParseFunctionCall(ref tokens, lhs);
-                    if (functionCall == null) {
-                        return null;
-                    }
-                    lhs = functionCall;
-                    continue;
-                }
-
-                // Eat the operator
-                tokens.Consume();
-
-                IExpressionLeaf? rhs = ParsePrimaryOrUnary(ref tokens);
-                if (rhs == null) {
-                    return null;
-                }
-
-                Token nextToken = tokens.Peek();
-                int nextPrecedence = GetTokenPrecedence(nextToken);
-
-                if (nextPrecedence > rhsPrecedence) {
-                    rhs = ParseOperator(ref tokens, rhs, rhsPrecedence + 1);
-                    if (rhs == null) {
-                        return null;
-                    }
-                }
-
-                IBinaryOperationLeaf? binOpLeaf = CreateBinOpLeafByOperator(ref tokens, tok, lhs, rhs);
-                if (binOpLeaf == null) {
-                    return null;
-                }
-                lhs = binOpLeaf;
-            }
+            return ParseUnaryOperation(ref tokens);
         }
 
         private IBinaryOperationLeaf? CreateBinOpLeafByOperator(ref TokenSource tokens, Token token, IExpressionLeaf lhs, IExpressionLeaf rhs)
@@ -760,6 +743,19 @@ namespace MonC
             return null;
         }
 
+        private IExpressionLeaf? ParsePrimaryOperator(ref TokenSource tokens, IExpressionLeaf primary)
+        {
+            TokenSource functionCallTokens = tokens.Fork();
+            IExpressionLeaf? functionCall = ParseFunctionCall(ref functionCallTokens, primary);
+            if (functionCall != null) {
+                tokens.Consume(functionCallTokens);
+                return functionCall;
+            }
+
+            // Note: More primary operators will go here in the future if FunctionCall isn't parsed.
+            return null;
+        }
+
         private IExpressionLeaf? ParseParenthesisExpression(ref TokenSource tokens)
         {
             if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _)) {
@@ -778,14 +774,10 @@ namespace MonC
             return expression;
         }
 
-        private IExpressionLeaf? ParseBasicUnaryOperator(ref TokenSource tokens)
+        private IUnaryOperationLeaf? ParseUnaryOperation(ref TokenSource tokens)
         {
             Token op = tokens.Next();
-            IExpressionLeaf? rhs = ParsePrimaryExpression(ref tokens);
-            if (rhs == null) {
-                return null;
-            }
-            rhs = ParseOperator(ref tokens, rhs, TOKEN_PRECEDENCE_UNARY);
+            IExpressionLeaf? rhs = ParseExpression(ref tokens, TOKEN_PRECEDENCE_UNARY);
             if (rhs == null) {
                 return null;
             }

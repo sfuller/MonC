@@ -6,5 +6,6 @@ namespace MonC.SyntaxTree.Leaves.Expressions
     {
         void VisitNegateUnaryOp(NegateUnaryOpLeaf leaf);
         void VisitLogicalNotUnaryOp(LogicalNotUnaryOpLeaf leaf);
+        void VisitCastUnaryOp(CastUnaryOpLeaf leaf);
     }
 }

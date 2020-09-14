@@ -33,5 +33,11 @@ namespace MonC.Codegen
             int addr = _builder.AddInstruction(OpCode.LNOT);
             _builder.AddDebugSymbol(addr, leaf);
         }
+
+        public void VisitCastUnaryOp(CastUnaryOpLeaf leaf)
+        {
+            // TODO: Conversions?
+            leaf.RHS.AcceptExpressionVisitor(_expressionVisitor);
+        }
     }
 }
