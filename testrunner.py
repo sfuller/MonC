@@ -26,7 +26,7 @@ def main():
         showall = True
         sys.argv.remove('--showall')
 
-    status = False
+    status = True
 
     for toolname, tool in (("Frontend", FRONTEND_BINARY), ("Driver", DRIVER_BINARY)):
         print(f'Using {toolname} to run tests')
@@ -46,7 +46,7 @@ def main():
         print('=' * 80)
 
         tool_status = len(failed_files) == 0
-        status |= tool_status
+        status &= tool_status
 
         if tool_status:
             print(f' ** {TERM_TEXT_PASS} **')
