@@ -1,5 +1,5 @@
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.SyntaxTree.Util.ChildrenVisitors
 {
@@ -14,62 +14,62 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
             _expressionVisitor = expressionVisitor;
         }
 
-        public void VisitBody(BodyLeaf leaf)
+        public void VisitBody(BodyNode node)
         {
-            _statementVisitor.VisitBody(leaf);
-            leaf.VisitStatements(this);
+            _statementVisitor.VisitBody(node);
+            node.VisitStatements(this);
         }
 
-        public void VisitDeclaration(DeclarationLeaf leaf)
+        public void VisitDeclaration(DeclarationNode node)
         {
-            _statementVisitor.VisitDeclaration(leaf);
-            leaf.Assignment.AcceptExpressionVisitor(_expressionVisitor);
+            _statementVisitor.VisitDeclaration(node);
+            node.Assignment.AcceptExpressionVisitor(_expressionVisitor);
         }
 
-        public void VisitBreak(BreakLeaf leaf)
+        public void VisitBreak(BreakNode node)
         {
-            _statementVisitor.VisitBreak(leaf);
+            _statementVisitor.VisitBreak(node);
         }
 
-        public void VisitContinue(ContinueLeaf leaf)
+        public void VisitContinue(ContinueNode node)
         {
-            _statementVisitor.VisitContinue(leaf);
+            _statementVisitor.VisitContinue(node);
         }
 
-        public void VisitReturn(ReturnLeaf leaf)
+        public void VisitReturn(ReturnNode node)
         {
-            _statementVisitor.VisitReturn(leaf);
-            leaf.RHS.AcceptExpressionVisitor(_expressionVisitor);
+            _statementVisitor.VisitReturn(node);
+            node.RHS.AcceptExpressionVisitor(_expressionVisitor);
         }
 
-        public void VisitIfElse(IfElseLeaf leaf)
+        public void VisitIfElse(IfElseNode node)
         {
-            _statementVisitor.VisitIfElse(leaf);
-            leaf.Condition.AcceptExpressionVisitor(_expressionVisitor);
-            VisitBody(leaf.IfBody);
-            VisitBody(leaf.ElseBody);
+            _statementVisitor.VisitIfElse(node);
+            node.Condition.AcceptExpressionVisitor(_expressionVisitor);
+            VisitBody(node.IfBody);
+            VisitBody(node.ElseBody);
         }
 
-        public void VisitFor(ForLeaf leaf)
+        public void VisitFor(ForNode node)
         {
-            _statementVisitor.VisitFor(leaf);
-            leaf.Declaration.AcceptStatementVisitor(this);
-            leaf.Condition.AcceptExpressionVisitor(_expressionVisitor);
-            leaf.Update.AcceptExpressionVisitor(_expressionVisitor);
-            VisitBody(leaf.Body);
+            _statementVisitor.VisitFor(node);
+            node.Declaration.AcceptStatementVisitor(this);
+            node.Condition.AcceptExpressionVisitor(_expressionVisitor);
+            node.Update.AcceptExpressionVisitor(_expressionVisitor);
+            VisitBody(node.Body);
         }
 
-        public void VisitWhile(WhileLeaf leaf)
+        public void VisitWhile(WhileNode node)
         {
-            _statementVisitor.VisitWhile(leaf);
-            leaf.Condition.AcceptExpressionVisitor(_expressionVisitor);
-            VisitBody(leaf.Body);
+            _statementVisitor.VisitWhile(node);
+            node.Condition.AcceptExpressionVisitor(_expressionVisitor);
+            VisitBody(node.Body);
         }
 
-        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
+        public void VisitExpressionStatement(ExpressionStatementNode node)
         {
-            _statementVisitor.VisitExpressionStatement(leaf);
-            leaf.Expression.AcceptExpressionVisitor(_expressionVisitor);
+            _statementVisitor.VisitExpressionStatement(node);
+            node.Expression.AcceptExpressionVisitor(_expressionVisitor);
         }
 
     }

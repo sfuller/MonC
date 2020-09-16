@@ -1,124 +1,124 @@
 using System;
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Expressions.BinaryOperations;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
 
 namespace MonC.SyntaxTree.Util.NoOpVisitors
 {
     public class NoOpExpressionVisitor : IExpressionVisitor, IBinaryOperationVisitor
     {
-        public void VisitVoid(VoidExpression leaf)
+        public void VisitVoid(VoidExpressionNode node)
         {
-            VisitDefaultExpression(leaf);
+            VisitDefaultExpression(node);
         }
 
-        public virtual void VisitNumericLiteral(NumericLiteralLeaf leaf)
+        public virtual void VisitNumericLiteral(NumericLiteralNode node)
         {
-            VisitDefaultExpression(leaf);
+            VisitDefaultExpression(node);
         }
 
-        public virtual void VisitStringLiteral(StringLiteralLeaf leaf)
+        public virtual void VisitStringLiteral(StringLiteralNode node)
         {
-            VisitDefaultExpression(leaf);
+            VisitDefaultExpression(node);
         }
 
-        public virtual void VisitEnumValue(EnumValueLeaf leaf)
+        public virtual void VisitEnumValue(EnumValueNode node)
         {
-            VisitDefaultExpression(leaf);
+            VisitDefaultExpression(node);
         }
 
-        public virtual void VisitVariable(VariableLeaf leaf)
+        public virtual void VisitVariable(VariableNode node)
         {
-            VisitDefaultExpression(leaf);
+            VisitDefaultExpression(node);
         }
 
-        public virtual void VisitUnaryOperation(IUnaryOperationLeaf leaf)
+        public virtual void VisitUnaryOperation(IUnaryOperationNode node)
         {
-            VisitDefaultExpression(leaf);
+            VisitDefaultExpression(node);
         }
 
-        public virtual void VisitBinaryOperation(IBinaryOperationLeaf leaf)
+        public virtual void VisitBinaryOperation(IBinaryOperationNode node)
         {
-            VisitDefaultExpression(leaf);
+            VisitDefaultExpression(node);
         }
 
-        public virtual void VisitFunctionCall(FunctionCallLeaf leaf)
+        public virtual void VisitFunctionCall(FunctionCallNode node)
         {
-            VisitDefaultExpression(leaf);
+            VisitDefaultExpression(node);
         }
 
-        public virtual void VisitAssignment(AssignmentLeaf leaf)
+        public virtual void VisitAssignment(AssignmentNode node)
         {
-            VisitDefaultExpression(leaf);
+            VisitDefaultExpression(node);
         }
 
-        public virtual void VisitUnknown(IExpressionLeaf leaf)
+        public virtual void VisitUnknown(IExpressionNode node)
         {
             ThrowForUnknown();
         }
 
         protected void ThrowForUnknown()
         {
-            throw new InvalidOperationException("Don't know how to handle this kind of leaf");
+            throw new InvalidOperationException("Don't know how to handle this kind of node");
         }
 
-        protected virtual void VisitDefaultExpression(IExpressionLeaf leaf)
+        protected virtual void VisitDefaultExpression(IExpressionNode node)
         {
         }
 
-        public virtual void VisitCompareLTBinOp(CompareLTBinOpLeaf leaf)
+        public virtual void VisitCompareLTBinOp(CompareLtBinOpNode node)
         {
         }
 
-        public virtual void VisitCompareLTEBinOp(CompareLTEBinOpLeaf leaf)
+        public virtual void VisitCompareLTEBinOp(CompareLteBinOpNode node)
         {
         }
 
-        public virtual void VisitCompareGTBinOp(CompareGTBinOpLeaf leaf)
+        public virtual void VisitCompareGTBinOp(CompareGtBinOpNode node)
         {
         }
 
-        public virtual void VisitCompareGTEBinOp(CompareGTEBinOpLeaf leaf)
+        public virtual void VisitCompareGTEBinOp(CompareGteBinOpNode node)
         {
         }
 
-        public virtual void VisitCompareEqualityBinOp(CompareEqualityBinOpLeaf leaf)
+        public virtual void VisitCompareEqualityBinOp(CompareEqualityBinOpNode node)
         {
         }
 
-        public virtual void VisitCompareInequalityBinOp(CompareInequalityBinOpLeaf leaf)
+        public virtual void VisitCompareInequalityBinOp(CompareInequalityBinOpNode node)
         {
         }
 
-        public virtual void VisitLogicalAndBinOp(LogicalAndBinOpLeaf leaf)
+        public virtual void VisitLogicalAndBinOp(LogicalAndBinOpNode node)
         {
         }
 
-        public virtual void VisitLogicalOrBinOp(LogicalOrBinOpLeaf leaf)
+        public virtual void VisitLogicalOrBinOp(LogicalOrBinOpNode node)
         {
         }
 
-        public virtual void VisitAddBinOp(AddBinOpLeaf leaf)
+        public virtual void VisitAddBinOp(AddBinOpNode node)
         {
         }
 
-        public virtual void VisitSubtractBinOp(SubtractBinOpLeaf leaf)
+        public virtual void VisitSubtractBinOp(SubtractBinOpNode node)
         {
         }
 
-        public virtual void VisitMultiplyBinOp(MultiplyBinOpLeaf leaf)
+        public virtual void VisitMultiplyBinOp(MultiplyBinOpNode node)
         {
         }
 
-        public virtual void VisitDivideBinOp(DivideBinOpLeaf leaf)
+        public virtual void VisitDivideBinOp(DivideBinOpNode node)
         {
         }
 
-        public virtual void VisitModuloBinOp(ModuloBinOpLeaf leaf)
+        public virtual void VisitModuloBinOp(ModuloBinOpNode node)
         {
         }
 
-        public virtual void VisitUnknown(IBinaryOperationLeaf leaf)
+        public virtual void VisitUnknown(IBinaryOperationNode node)
         {
             ThrowForUnknown();
         }

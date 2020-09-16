@@ -1,7 +1,7 @@
 using MonC.IL;
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Expressions.UnaryOperations;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Expressions.UnaryOperations;
 
 namespace MonC.Codegen
 {
@@ -16,28 +16,28 @@ namespace MonC.Codegen
             _expressionVisitor = expressionVisitor;
         }
 
-        public void VisitNegateUnaryOp(NegateUnaryOpLeaf leaf)
+        public void VisitNegateUnaryOp(NegateUnaryOpNode node)
         {
             int rhsStackAddress = _builder.AllocTemporaryStackAddress();
-            leaf.RHS.AcceptExpressionVisitor(_expressionVisitor);
+            node.RHS.AcceptExpressionVisitor(_expressionVisitor);
             int addr = _builder.AddInstruction(OpCode.WRITE, rhsStackAddress);
             _builder.AddInstruction(OpCode.LOAD, 0);
             _builder.AddInstruction(OpCode.SUB, rhsStackAddress);
             _builder.FreeTemporaryStackAddress();
-            _builder.AddDebugSymbol(addr, leaf);
+            _builder.AddDebugSymbol(addr, node);
         }
 
-        public void VisitLogicalNotUnaryOp(LogicalNotUnaryOpLeaf leaf)
+        public void VisitLogicalNotUnaryOp(LogicalNotUnaryOpNode node)
         {
-            leaf.RHS.AcceptExpressionVisitor(_expressionVisitor);
+            node.RHS.AcceptExpressionVisitor(_expressionVisitor);
             int addr = _builder.AddInstruction(OpCode.LNOT);
-            _builder.AddDebugSymbol(addr, leaf);
+            _builder.AddDebugSymbol(addr, node);
         }
 
-        public void VisitCastUnaryOp(CastUnaryOpLeaf leaf)
+        public void VisitCastUnaryOp(CastUnaryOpNode node)
         {
             // TODO: Conversions?
-            leaf.RHS.AcceptExpressionVisitor(_expressionVisitor);
+            node.RHS.AcceptExpressionVisitor(_expressionVisitor);
         }
     }
 }

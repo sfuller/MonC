@@ -1,17 +1,18 @@
 using System.Collections.Generic;
-using MonC.Parsing.ParseTreeLeaves;
+using MonC.Parsing.ParseTree;
+using MonC.Parsing.ParseTree.Nodes;
 using MonC.Parsing.Semantics;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves;
+using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Util.NoOpVisitors;
 
 namespace MonC.Parsing.Scoping
 {
     public class ScopeManager : NoOpExpressionAndStatementVisitor, IScopeHandler, IParseTreeVisitor
     {
-        private readonly Dictionary<ISyntaxTreeLeaf, Scope> _scopes = new Dictionary<ISyntaxTreeLeaf, Scope>();
+        private readonly Dictionary<ISyntaxTreeNode, Scope> _scopes = new Dictionary<ISyntaxTreeNode, Scope>();
 
-        public void ProcessFunction(FunctionDefinitionLeaf function)
+        public void ProcessFunction(FunctionDefinitionNode function)
         {
             WalkScopeVisitor walkScopeVisitor = new WalkScopeVisitor(this, this, this, Scope.New(function));
             walkScopeVisitor.VisitBody(function.Body);
@@ -19,61 +20,61 @@ namespace MonC.Parsing.Scoping
 
         public Scope CurrentScope { get; set; }
 
-        public void ReplaceLeaf(ISyntaxTreeLeaf oldLeaf, ISyntaxTreeLeaf newLeaf)
+        public void ReplaceNode(ISyntaxTreeNode oldNode, ISyntaxTreeNode newNode)
         {
-            Scope scope = GetScope(oldLeaf);
-            _scopes[newLeaf] = scope;
+            Scope scope = GetScope(oldNode);
+            _scopes[newNode] = scope;
         }
 
-        public Scope GetScope(ISyntaxTreeLeaf leaf)
+        public Scope GetScope(ISyntaxTreeNode node)
         {
-            if (!_scopes.TryGetValue(leaf, out Scope scope)) {
+            if (!_scopes.TryGetValue(node, out Scope scope)) {
                 return Scope.New();
             }
             return scope;
         }
 
-        public override void VisitUnknown(IExpressionLeaf leaf)
+        public override void VisitUnknown(IExpressionNode node)
         {
-            if (leaf is IParseLeaf parseLeaf) {
-                parseLeaf.AcceptParseTreeVisitor(this);
+            if (node is IParseTreeNode parseNode) {
+                parseNode.AcceptParseTreeVisitor(this);
             }
         }
 
-        protected override void VisitDefaultStatement(IStatementLeaf leaf)
+        protected override void VisitDefaultStatement(IStatementNode node)
         {
-            ApplyScope(leaf);
+            ApplyScope(node);
         }
 
-        protected override void VisitDefaultExpression(IExpressionLeaf leaf)
+        protected override void VisitDefaultExpression(IExpressionNode node)
         {
-            ApplyScope(leaf);
+            ApplyScope(node);
         }
 
-        public void VisitAssignment(AssignmentParseLeaf leaf)
+        public void VisitAssignment(AssignmentParseNode node)
         {
-            ApplyScope(leaf);
-            ApplyScope(leaf.LHS);
-            ApplyScope(leaf.RHS);
+            ApplyScope(node);
+            ApplyScope(node.LHS);
+            ApplyScope(node.RHS);
         }
 
-        public void VisitIdentifier(IdentifierParseLeaf leaf)
+        public void VisitIdentifier(IdentifierParseNode node)
         {
-            ApplyScope(leaf);
+            ApplyScope(node);
         }
 
-        public void VisitFunctionCall(FunctionCallParseLeaf leaf)
+        public void VisitFunctionCall(FunctionCallParseNode node)
         {
-            ApplyScope(leaf);
-            for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                IExpressionLeaf argument = leaf.GetArgument(i);
+            ApplyScope(node);
+            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
+                IExpressionNode argument = node.GetArgument(i);
                 argument.AcceptExpressionVisitor(this);
             }
         }
 
-        private void ApplyScope(ISyntaxTreeLeaf leaf)
+        private void ApplyScope(ISyntaxTreeNode node)
         {
-            _scopes[leaf] = CurrentScope.Copy();
+            _scopes[node] = CurrentScope.Copy();
         }
     }
 }

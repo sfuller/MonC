@@ -1,11 +1,11 @@
-using MonC.Parsing.ParseTreeLeaves;
+using MonC.Parsing.ParseTree.Nodes;
 
-namespace MonC.Parsing
+namespace MonC.Parsing.ParseTree
 {
     public interface IParseTreeVisitor
     {
-        void VisitAssignment(AssignmentParseLeaf leaf);
-        void VisitIdentifier(IdentifierParseLeaf leaf);
-        void VisitFunctionCall(FunctionCallParseLeaf leaf);
+        void VisitAssignment(AssignmentParseNode node);
+        void VisitIdentifier(IdentifierParseNode node);
+        void VisitFunctionCall(FunctionCallParseNode node);
     }
 }

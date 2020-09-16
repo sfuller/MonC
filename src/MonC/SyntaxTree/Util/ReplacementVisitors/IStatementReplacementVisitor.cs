@@ -1,8 +1,8 @@
-using MonC.SyntaxTree.Leaves;
+using MonC.SyntaxTree.Nodes;
 
 namespace MonC.SyntaxTree.Util.ReplacementVisitors
 {
-    public interface IStatementReplacementVisitor : IReplacementVisitor<IStatementLeaf>, IStatementVisitor
+    public interface IStatementReplacementVisitor : IReplacementVisitor<IStatementNode>, IStatementVisitor
     {
     }
 }

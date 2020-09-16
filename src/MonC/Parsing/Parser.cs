@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using MonC.Parsing;
-using MonC.Parsing.ParseTreeLeaves;
+using MonC.Parsing.ParseTree.Nodes;
 using MonC.Parsing.Semantics;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Expressions.BinaryOperations;
-using MonC.SyntaxTree.Leaves.Expressions.UnaryOperations;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
+using MonC.SyntaxTree.Nodes.Expressions.UnaryOperations;
+using MonC.SyntaxTree.Nodes.Statements;
 
 
 namespace MonC
@@ -20,7 +20,7 @@ namespace MonC
         private readonly List<Token> _tokens = new List<Token>();
         private string? _filePath;
 
-        private IDictionary<ISyntaxTreeLeaf, Symbol> _tokenMap = new Dictionary<ISyntaxTreeLeaf, Symbol>();
+        private IDictionary<ISyntaxTreeNode, Symbol> _tokenMap = new Dictionary<ISyntaxTreeNode, Symbol>();
 
         public ParseModule Parse(string? filePath, IEnumerable<Token> tokens, ParseModule headerModule, IList<ParseError> errors)
         {
@@ -158,7 +158,7 @@ namespace MonC
             }
         }
 
-        private void ParseTopLevelStatement(ref TokenSource tokens, IList<FunctionDefinitionLeaf> functions, IList<EnumLeaf> enums)
+        private void ParseTopLevelStatement(ref TokenSource tokens, IList<FunctionDefinitionNode> functions, IList<EnumNode> enums)
         {
             bool isExported = true;
 
@@ -170,20 +170,20 @@ namespace MonC
             }
 
             if (token.Type == TokenType.Keyword && token.Value == Keyword.ENUM) {
-                EnumLeaf? enumLeaf = ParseEnum(ref tokens, isExported);
-                if (enumLeaf != null) {
-                    enums.Add(enumLeaf);
+                EnumNode? enumNode = ParseEnum(ref tokens, isExported);
+                if (enumNode != null) {
+                    enums.Add(enumNode);
                 }
                 return;
             }
 
-            FunctionDefinitionLeaf? def = ParseFunction(ref tokens, isExported);
+            FunctionDefinitionNode? def = ParseFunction(ref tokens, isExported);
             if (def != null) {
                 functions.Add(def);
             }
         }
 
-        private EnumLeaf? ParseEnum(ref TokenSource tokens, bool isExported)
+        private EnumNode? ParseEnum(ref TokenSource tokens, bool isExported)
         {
             Token startToken = tokens.Peek();
             Token nameToken;
@@ -239,12 +239,12 @@ namespace MonC
                 }
             }
 
-            return NewLeaf(new EnumLeaf(nameToken.Value, enumerations, isExported), startToken, tokens.Peek(-1));
+            return NewNode(new EnumNode(nameToken.Value, enumerations, isExported), startToken, tokens.Peek(-1));
         }
 
-        private FunctionDefinitionLeaf? ParseFunction(ref TokenSource tokens, bool isExported)
+        private FunctionDefinitionNode? ParseFunction(ref TokenSource tokens, bool isExported)
         {
-            var parameters = new List<DeclarationLeaf>();
+            var parameters = new List<DeclarationNode>();
 
             Token retunTypeStart = tokens.Peek();
             TypeSpecifier? returnType = ParseTypeSpecifier(ref tokens);
@@ -267,7 +267,7 @@ namespace MonC
             while (true) {
                 if (expectingNext) {
                     TokenSource declTokens = tokens.Fork();
-                    DeclarationLeaf? decl = ParseDeclaration(ref declTokens);
+                    DeclarationNode? decl = ParseDeclaration(ref declTokens);
                     if (decl != null) {
                         tokens.Consume(declTokens);
                         parameters.Add(decl);
@@ -301,23 +301,23 @@ namespace MonC
                 return null;
             }
 
-            BodyLeaf? body = ParseBody(ref tokens);
+            BodyNode? body = ParseBody(ref tokens);
             if (body == null) {
                 return null;
             }
 
-            return NewLeaf(
-                new FunctionDefinitionLeaf(name.Value, returnType, parameters, body, isExported),
+            return NewNode(
+                new FunctionDefinitionNode(name.Value, returnType, parameters, body, isExported),
                 retunTypeStart, tokens.Peek(-1));
         }
 
-        private BodyLeaf? ParseBody(ref TokenSource tokens)
+        private BodyNode? ParseBody(ref TokenSource tokens)
         {
             if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_BRACKET, out _)) {
                 return null;
             }
 
-            List<IStatementLeaf> statements = new List<IStatementLeaf>();
+            List<IStatementNode> statements = new List<IStatementNode>();
 
             while (true) {
                 Token next = tokens.Peek();
@@ -327,22 +327,22 @@ namespace MonC
                     break;
                 }
 
-                IStatementLeaf? statement = ParseStatement(ref tokens);
+                IStatementNode? statement = ParseStatement(ref tokens);
                 if (statement == null) {
                     return null;
                 }
                 statements.Add(statement);
             }
 
-            return new BodyLeaf(statements);
+            return new BodyNode(statements);
         }
 
-        private IStatementLeaf? ParseStatement(ref TokenSource tokens)
+        private IStatementNode? ParseStatement(ref TokenSource tokens)
         {
-            IStatementLeaf? TryLeafTypes(in TokenSource tokens, out TokenSource tokensToConsume)
+            IStatementNode? TryNodeTypes(in TokenSource tokens, out TokenSource tokensToConsume)
             {
                 tokensToConsume = tokens.Fork();
-                IStatementLeaf? statement = ParseDeclaration(ref tokensToConsume);
+                IStatementNode? statement = ParseDeclaration(ref tokensToConsume);
                 if (statement != null) {
                     ParseSemiColonForgiving(ref tokensToConsume);
                     return statement;
@@ -355,18 +355,18 @@ namespace MonC
                 }
 
                 tokensToConsume = tokens.Fork();
-                IExpressionLeaf expression = ParseExpression(ref tokensToConsume) ?? new VoidExpression();
-                statement = new ExpressionStatementLeaf(expression);
+                IExpressionNode expression = ParseExpression(ref tokensToConsume) ?? new VoidExpressionNode();
+                statement = new ExpressionStatementNode(expression);
                 ParseSemiColonForgiving(ref tokensToConsume);
                 return statement;
             }
 
-            IStatementLeaf? statement = TryLeafTypes(in tokens, out TokenSource tokensToConsume);
+            IStatementNode? statement = TryNodeTypes(in tokens, out TokenSource tokensToConsume);
             tokens.Consume(tokensToConsume);
             return statement;
         }
 
-        private DeclarationLeaf? ParseDeclaration(ref TokenSource tokens)
+        private DeclarationNode? ParseDeclaration(ref TokenSource tokens)
         {
             Token startToken = tokens.Peek();
             TypeSpecifier? typeSpecifier = ParseTypeSpecifier(ref tokens);
@@ -375,7 +375,7 @@ namespace MonC
                 return null;
             }
 
-            IExpressionLeaf? assignment = null;
+            IExpressionNode? assignment = null;
 
             Token nextToken = tokens.Peek();
 
@@ -385,13 +385,13 @@ namespace MonC
             }
 
             if (assignment == null) {
-                assignment = new VoidExpression();
+                assignment = new VoidExpressionNode();
             }
 
-            return NewLeaf(new DeclarationLeaf(typeSpecifier, nameToken.Value, assignment), startToken, tokens.Peek(-1));
+            return NewNode(new DeclarationNode(typeSpecifier, nameToken.Value, assignment), startToken, tokens.Peek(-1));
         }
 
-        private IStatementLeaf? ParseFlow(ref TokenSource tokens)
+        private IStatementNode? ParseFlow(ref TokenSource tokens)
         {
             Token token = tokens.Peek();
 
@@ -419,14 +419,14 @@ namespace MonC
             return null;
         }
 
-        private IfElseLeaf? ParseIfElse(ref TokenSource tokens)
+        private IfElseNode? ParseIfElse(ref TokenSource tokens)
         {
             Token ifToken;
             if (!(tokens.Next(TokenType.Keyword, Keyword.IF, out ifToken) && tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _))) {
                 return null;
             }
 
-            IExpressionLeaf? condition = ParseExpression(ref tokens);
+            IExpressionNode? condition = ParseExpression(ref tokens);
             if (condition == null) {
                 return null;
             }
@@ -435,12 +435,12 @@ namespace MonC
                 return null;
             }
 
-            BodyLeaf? ifBody = ParseBody(ref tokens);
+            BodyNode? ifBody = ParseBody(ref tokens);
             if (ifBody == null) {
                 return null;
             }
 
-            BodyLeaf? elseBody = null;
+            BodyNode? elseBody = null;
             Token nextToken = tokens.Peek();
 
             if (nextToken.Type == TokenType.Keyword && nextToken.Value == Keyword.ELSE) {
@@ -448,17 +448,17 @@ namespace MonC
                 elseBody = ParseBody(ref tokens);
             }
 
-            return NewLeaf(new IfElseLeaf(condition, ifBody, elseBody ?? new BodyLeaf()), ifToken, tokens.Peek(-1));
+            return NewNode(new IfElseNode(condition, ifBody, elseBody ?? new BodyNode()), ifToken, tokens.Peek(-1));
         }
 
-        private WhileLeaf? ParseWhile(ref TokenSource tokens)
+        private WhileNode? ParseWhile(ref TokenSource tokens)
         {
             Token whileToken;
             if (!(tokens.Next(TokenType.Keyword, Keyword.WHILE, out whileToken) && tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _))) {
                 return null;
             }
 
-            IExpressionLeaf? condition = ParseExpression(ref tokens);
+            IExpressionNode? condition = ParseExpression(ref tokens);
             if (condition == null) {
                 return null;
             }
@@ -467,36 +467,36 @@ namespace MonC
                 return null;
             }
 
-            BodyLeaf? body = ParseBody(ref tokens);
+            BodyNode? body = ParseBody(ref tokens);
             if (body == null) {
                 return null;
             }
 
-            return NewLeaf(new WhileLeaf(condition, body), whileToken, tokens.Peek(-1));
+            return NewNode(new WhileNode(condition, body), whileToken, tokens.Peek(-1));
         }
 
-        private ForLeaf? ParseFor(ref TokenSource tokens)
+        private ForNode? ParseFor(ref TokenSource tokens)
         {
             Token forToken;
             if (!(tokens.Next(TokenType.Keyword, Keyword.FOR, out forToken) && tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _))) {
                 return null;
             }
 
-            DeclarationLeaf? declaration = ParseDeclaration(ref tokens);
+            DeclarationNode? declaration = ParseDeclaration(ref tokens);
             if (declaration == null) {
                 return null;
             }
 
             ParseSemiColonForgiving(ref tokens);
 
-            IExpressionLeaf? condition = ParseExpression(ref tokens);
+            IExpressionNode? condition = ParseExpression(ref tokens);
             if (condition == null) {
                 return null;
             }
 
             ParseSemiColonForgiving(ref tokens);
 
-            IExpressionLeaf? update = ParseExpression(ref tokens);
+            IExpressionNode? update = ParseExpression(ref tokens);
             if (update == null) {
                 return null;
             }
@@ -505,55 +505,55 @@ namespace MonC
                 return null;
             }
 
-            BodyLeaf? body = ParseBody(ref tokens);
+            BodyNode? body = ParseBody(ref tokens);
             if (body == null) {
                 return null;
             }
 
-            return NewLeaf(new ForLeaf(declaration, condition, update, body), forToken, tokens.Peek(-1));
+            return NewNode(new ForNode(declaration, condition, update, body), forToken, tokens.Peek(-1));
         }
 
-        private ReturnLeaf ParseReturn(ref TokenSource tokens)
+        private ReturnNode ParseReturn(ref TokenSource tokens)
         {
             Token returnToken;
             tokens.Next(TokenType.Keyword, Keyword.RETURN, out returnToken);
 
             Token token = tokens.Peek();
 
-            IExpressionLeaf? expression = null;
+            IExpressionNode? expression = null;
 
             if (!(token.Type == TokenType.Syntax && token.Value == Syntax.SEMICOLON)) {
                 expression = ParseExpression(ref tokens);
             }
 
             if (expression == null) {
-                expression = new VoidExpression();
+                expression = new VoidExpressionNode();
             }
 
             ParseSemiColonForgiving(ref tokens);
 
-            return NewLeaf(new ReturnLeaf(expression), returnToken, tokens.Peek(-1));
+            return NewNode(new ReturnNode(expression), returnToken, tokens.Peek(-1));
         }
 
-        private ContinueLeaf ParseContinue(ref TokenSource tokens)
+        private ContinueNode ParseContinue(ref TokenSource tokens)
         {
             Token token;
             tokens.Next(TokenType.Keyword, Keyword.CONTINUE, out token);
             ParseSemiColonForgiving(ref tokens);
-            return NewLeaf<ContinueLeaf>(token, tokens.Peek(-1));
+            return NewNode<ContinueNode>(token, tokens.Peek(-1));
         }
 
-        private BreakLeaf ParseBreak(ref TokenSource tokens)
+        private BreakNode ParseBreak(ref TokenSource tokens)
         {
             Token breakToken;
             tokens.Next(TokenType.Keyword, Keyword.BREAK, out breakToken);
             ParseSemiColonForgiving(ref tokens);
-            return NewLeaf<BreakLeaf>(breakToken, tokens.Peek(-1));
+            return NewNode<BreakNode>(breakToken, tokens.Peek(-1));
         }
 
-        private IExpressionLeaf? ParseExpression(ref TokenSource tokens, int previousPrecedence = -1)
+        private IExpressionNode? ParseExpression(ref TokenSource tokens, int previousPrecedence = -1)
         {
-            IExpressionLeaf? lhs = ParseNonBinaryExpression(ref tokens);
+            IExpressionNode? lhs = ParseNonBinaryExpression(ref tokens);
             if (lhs == null) {
                 return null;
             }
@@ -564,11 +564,11 @@ namespace MonC
                 int precedence = GetTokenPrecedence(opToken);
                 if (precedence > previousPrecedence) {
                     tokens.Next(); // Eat operator
-                    IExpressionLeaf? rhs = ParseExpression(ref tokens, precedence);
+                    IExpressionNode? rhs = ParseExpression(ref tokens, precedence);
                     if (rhs == null) {
                         return null;
                     }
-                    lhs = CreateBinOpLeafByOperator(ref tokens, opToken, lhs, rhs);
+                    lhs = CreateBinOpNodeByOperator(ref tokens, opToken, lhs, rhs);
                     if (lhs == null) {
                         return null;
                     }
@@ -581,26 +581,26 @@ namespace MonC
         }
 
 
-        private IExpressionLeaf? ParseNonBinaryExpression(ref TokenSource tokens)
+        private IExpressionNode? ParseNonBinaryExpression(ref TokenSource tokens)
         {
             TokenSource primaryTokens = tokens.Fork();
-            IExpressionLeaf? primaryLeaf = ParsePrimaryExpression(ref primaryTokens);
-            if (primaryLeaf != null) {
+            IExpressionNode? primaryNode = ParsePrimaryExpression(ref primaryTokens);
+            if (primaryNode != null) {
                 tokens.Consume(primaryTokens);
                 TokenSource primaryOperatorTokens = tokens.Fork();
-                IExpressionLeaf? primaryOperator = ParsePrimaryOperator(ref primaryOperatorTokens, primaryLeaf);
+                IExpressionNode? primaryOperator = ParsePrimaryOperator(ref primaryOperatorTokens, primaryNode);
                 if (primaryOperator != null) {
                     tokens.Consume(primaryOperatorTokens);
                     return primaryOperator;
                 }
-                return primaryLeaf;
+                return primaryNode;
             }
 
             TokenSource unaryTokens = tokens.Fork();
-            IUnaryOperationLeaf? unaryLeaf = ParseUnaryOperation(ref unaryTokens);
-            if (unaryLeaf != null) {
+            IUnaryOperationNode? unaryNode = ParseUnaryOperation(ref unaryTokens);
+            if (unaryNode != null) {
                 tokens.Consume(unaryTokens);
-                return unaryLeaf;
+                return unaryNode;
             }
 
             Token token = tokens.Peek();
@@ -611,31 +611,31 @@ namespace MonC
             return ParseUnaryOperation(ref tokens);
         }
 
-        private IBinaryOperationLeaf? CreateBinOpLeafByOperator(ref TokenSource tokens, Token token, IExpressionLeaf lhs, IExpressionLeaf rhs)
+        private IBinaryOperationNode? CreateBinOpNodeByOperator(ref TokenSource tokens, Token token, IExpressionNode lhs, IExpressionNode rhs)
         {
-            IBinaryOperationLeaf? rawLeaf = token.Value switch {
-                Syntax.BINOP_LESS_THAN => new CompareLTBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_GREATER_THAN => new CompareGTBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_LESS_THAN_OR_EQUAL_TO => new CompareLTEBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_GREATER_THAN_OR_EQUAL_TO => new CompareGTEBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_EQUALS => new CompareEqualityBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_NOT_EQUALS => new CompareInequalityBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_LOGICAL_AND => new LogicalAndBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_LOGICAL_OR => new LogicalOrBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_ASSIGN => new AssignmentParseLeaf(lhs, rhs),
-                Syntax.BINOP_ADD => new AddBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_SUBTRACT => new SubtractBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_MULTIPLY => new MultiplyBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_DIVIDE => new DivideBinOpLeaf(lhs, rhs),
-                Syntax.BINOP_MODULO => new ModuloBinOpLeaf(lhs, rhs),
+            IBinaryOperationNode? rawNode = token.Value switch {
+                Syntax.BINOP_LESS_THAN => new CompareLtBinOpNode(lhs, rhs),
+                Syntax.BINOP_GREATER_THAN => new CompareGtBinOpNode(lhs, rhs),
+                Syntax.BINOP_LESS_THAN_OR_EQUAL_TO => new CompareLteBinOpNode(lhs, rhs),
+                Syntax.BINOP_GREATER_THAN_OR_EQUAL_TO => new CompareGteBinOpNode(lhs, rhs),
+                Syntax.BINOP_EQUALS => new CompareEqualityBinOpNode(lhs, rhs),
+                Syntax.BINOP_NOT_EQUALS => new CompareInequalityBinOpNode(lhs, rhs),
+                Syntax.BINOP_LOGICAL_AND => new LogicalAndBinOpNode(lhs, rhs),
+                Syntax.BINOP_LOGICAL_OR => new LogicalOrBinOpNode(lhs, rhs),
+                Syntax.BINOP_ASSIGN => new AssignmentParseNode(lhs, rhs),
+                Syntax.BINOP_ADD => new AddBinOpNode(lhs, rhs),
+                Syntax.BINOP_SUBTRACT => new SubtractBinOpNode(lhs, rhs),
+                Syntax.BINOP_MULTIPLY => new MultiplyBinOpNode(lhs, rhs),
+                Syntax.BINOP_DIVIDE => new DivideBinOpNode(lhs, rhs),
+                Syntax.BINOP_MODULO => new ModuloBinOpNode(lhs, rhs),
                 _ => null
             };
 
-            if (rawLeaf == null) {
+            if (rawNode == null) {
                 tokens.AddError($"Unrecognized binary operator {token.Value}", token);
                 return null;
             }
-            return NewLeaf(rawLeaf, lhs, rhs);
+            return NewNode(rawNode, lhs, rhs);
         }
 
         private const int TOKEN_PRECEDENCE_UNARY = 7;
@@ -675,14 +675,14 @@ namespace MonC
             }
         }
 
-        private FunctionCallParseLeaf? ParseFunctionCall(ref TokenSource tokens, IExpressionLeaf lhs)
+        private FunctionCallParseNode? ParseFunctionCall(ref TokenSource tokens, IExpressionNode lhs)
         {
             // Eat left paren
             if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _)) {
                 return null;
             }
 
-            List<IExpressionLeaf> arguments = new List<IExpressionLeaf>();
+            List<IExpressionNode> arguments = new List<IExpressionNode>();
 
             bool expectingNextArgument = true;
             bool closingParensAllowed = true;
@@ -703,7 +703,7 @@ namespace MonC
                     return null;
                 }
 
-                IExpressionLeaf? argument = ParseExpression(ref tokens);
+                IExpressionNode? argument = ParseExpression(ref tokens);
                 if (argument == null) {
                     return null;
                 }
@@ -720,10 +720,10 @@ namespace MonC
                 }
             }
 
-            return NewLeaf(new FunctionCallParseLeaf(lhs, arguments), lhs, tokens.Peek(-1));
+            return NewNode(new FunctionCallParseNode(lhs, arguments), lhs, tokens.Peek(-1));
         }
 
-        private IExpressionLeaf? ParsePrimaryExpression(ref TokenSource tokens)
+        private IExpressionNode? ParsePrimaryExpression(ref TokenSource tokens)
         {
             Token token = tokens.Peek();
 
@@ -743,10 +743,10 @@ namespace MonC
             return null;
         }
 
-        private IExpressionLeaf? ParsePrimaryOperator(ref TokenSource tokens, IExpressionLeaf primary)
+        private IExpressionNode? ParsePrimaryOperator(ref TokenSource tokens, IExpressionNode primary)
         {
             TokenSource functionCallTokens = tokens.Fork();
-            IExpressionLeaf? functionCall = ParseFunctionCall(ref functionCallTokens, primary);
+            IExpressionNode? functionCall = ParseFunctionCall(ref functionCallTokens, primary);
             if (functionCall != null) {
                 tokens.Consume(functionCallTokens);
                 return functionCall;
@@ -756,13 +756,13 @@ namespace MonC
             return null;
         }
 
-        private IExpressionLeaf? ParseParenthesisExpression(ref TokenSource tokens)
+        private IExpressionNode? ParseParenthesisExpression(ref TokenSource tokens)
         {
             if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out _)) {
                 return null;
             }
 
-            IExpressionLeaf? expression = ParseExpression(ref tokens);
+            IExpressionNode? expression = ParseExpression(ref tokens);
             if (expression == null) {
                 return null;
             }
@@ -774,42 +774,42 @@ namespace MonC
             return expression;
         }
 
-        private IUnaryOperationLeaf? ParseUnaryOperation(ref TokenSource tokens)
+        private IUnaryOperationNode? ParseUnaryOperation(ref TokenSource tokens)
         {
             Token op = tokens.Next();
-            IExpressionLeaf? rhs = ParseExpression(ref tokens, TOKEN_PRECEDENCE_UNARY);
+            IExpressionNode? rhs = ParseExpression(ref tokens, TOKEN_PRECEDENCE_UNARY);
             if (rhs == null) {
                 return null;
             }
-            return CreateUnaryOpLeafByOperator(ref tokens, op, rhs);
+            return CreateUnaryOpNodeByOperator(ref tokens, op, rhs);
         }
 
-        private IUnaryOperationLeaf? CreateUnaryOpLeafByOperator(ref TokenSource tokens, Token token, IExpressionLeaf rhs)
+        private IUnaryOperationNode? CreateUnaryOpNodeByOperator(ref TokenSource tokens, Token token, IExpressionNode rhs)
         {
-            IUnaryOperationLeaf? rawLeaf = token.Value switch {
-                Syntax.UNOP_NEGATE => new NegateUnaryOpLeaf(rhs),
-                Syntax.UNOP_LOGICAL_NOT => new LogicalNotUnaryOpLeaf(rhs),
+            IUnaryOperationNode? rawNode = token.Value switch {
+                Syntax.UNOP_NEGATE => new NegateUnaryOpNode(rhs),
+                Syntax.UNOP_LOGICAL_NOT => new LogicalNotUnaryOpNode(rhs),
                 _ => null
             };
 
-            if (rawLeaf == null) {
+            if (rawNode == null) {
                 tokens.AddError($"Unrecognized binary operator {token.Value}", token);
                 return null;
             }
-            return NewLeaf(rawLeaf, token.Location, GetSymbolForLeaf(rhs).End);
+            return NewNode(rawNode, token.Location, GetSymbolForNode(rhs).End);
         }
 
-        private IdentifierParseLeaf? ParseIdentifierExpression(ref TokenSource tokens)
+        private IdentifierParseNode? ParseIdentifierExpression(ref TokenSource tokens)
         {
             Token token;
             if (!tokens.Next(TokenType.Identifier, out token)) {
                 return null;
             }
 
-            return NewLeaf(new IdentifierParseLeaf(token.Value), token, tokens.Peek(-1));
+            return NewNode(new IdentifierParseNode(token.Value), token, tokens.Peek(-1));
         }
 
-        private NumericLiteralLeaf ParseNumericLiteralExpression(ref TokenSource tokens)
+        private NumericLiteralNode ParseNumericLiteralExpression(ref TokenSource tokens)
         {
             Token token;
             tokens.Next(TokenType.Number, out token);
@@ -827,16 +827,16 @@ namespace MonC
                 tokens.AddError("Invalid numeric literal", token);
             }
 
-            return NewLeaf(new NumericLiteralLeaf(value), token, tokens.Peek(-1));
+            return NewNode(new NumericLiteralNode(value), token, tokens.Peek(-1));
         }
 
-        private StringLiteralLeaf? ParseStringLiteralExpression(ref TokenSource tokens)
+        private StringLiteralNode? ParseStringLiteralExpression(ref TokenSource tokens)
         {
             Token token;
             if (!tokens.Next(TokenType.String, out token)) {
                 return null;
             }
-            return NewLeaf(new StringLiteralLeaf(token.Value), token, tokens.Peek(-1));
+            return NewNode(new StringLiteralNode(token.Value), token, tokens.Peek(-1));
         }
 
         private static readonly string[] PointerTokens = {
@@ -891,105 +891,105 @@ namespace MonC
         }
 
         /// <summary>
-        /// Create a new leaf instance, generate a symbol based on start and end tokens, and associate the symbol with
-        /// the new leaf instance.
+        /// Create a new node instance, generate a symbol based on start and end tokens, and associate the symbol with
+        /// the new node instance.
         /// </summary>
-        /// <param name="startToken">The first token associated with the leaf.</param>
-        /// <param name="endToken">The last token associated with the leaf.</param>
-        /// <typeparam name="T">The type of leaf to create.</typeparam>
-        /// <returns>The new leaf instance.</returns>
-        private T NewLeaf<T>(Token startToken, Token endToken) where T : ISyntaxTreeLeaf, new()
+        /// <param name="startToken">The first token associated with the node.</param>
+        /// <param name="endToken">The last token associated with the node.</param>
+        /// <typeparam name="T">The type of node to create.</typeparam>
+        /// <returns>The new node instance.</returns>
+        private T NewNode<T>(Token startToken, Token endToken) where T : ISyntaxTreeNode, new()
         {
-            T leaf = new T();
-            return NewLeaf(leaf, startToken, endToken);
+            T node = new T();
+            return NewNode(node, startToken, endToken);
         }
 
         /// <summary>
-        /// Generates a symbol based on start and end tokens, and associates the symbol with the given leaf instance.
+        /// Generates a symbol based on start and end tokens, and associates the symbol with the given node instance.
         /// </summary>
-        /// <param name="leaf">The leaf to associate with the new symbol.</param>
-        /// <param name="startToken">The first token associated with the leaf.</param>
-        /// <param name="endToken">The last token associated with the leaf.</param>
-        /// <typeparam name="T">The leaf instance that was passed as <see cref="leaf"/>.</typeparam>
-        /// <returns></returns>
-        private T NewLeaf<T>(T leaf, Token startToken, Token endToken) where T : ISyntaxTreeLeaf
+        /// <param name="node">The node to associate with the new symbol.</param>
+        /// <param name="startToken">The first token associated with the node.</param>
+        /// <param name="endToken">The last token associated with the node.</param>
+        /// <typeparam name="T">The node instance that was passed as <see cref="node"/>.</typeparam>
+        /// <returns>The node instance that was passed as <see cref="node"/>.</returns>
+        private T NewNode<T>(T node, Token startToken, Token endToken) where T : ISyntaxTreeNode
         {
-            return NewLeaf(leaf, startToken.Location, endToken.DeriveEndLocation());
+            return NewNode(node, startToken.Location, endToken.DeriveEndLocation());
         }
 
         /// <summary>
-        /// Generates a symbol based on the start and end file locations, and associates the symbol with the given leaf
+        /// Generates a symbol based on the start and end file locations, and associates the symbol with the given node
         /// instance.
         /// </summary>
-        /// <param name="leaf">The leaf to associate with the new symbol.</param>
-        /// <param name="start">The location in the file where the text associated with the given leaf starts.</param>
-        /// <param name="end">The location in the file where the text associated with the given leaf ends.</param>
-        /// <returns>The leaf instance that was passed as <see cref="leaf"/>.</returns>
-        private T NewLeaf<T>(T leaf, FileLocation start, FileLocation end) where T : ISyntaxTreeLeaf
+        /// <param name="node">The node to associate with the new symbol.</param>
+        /// <param name="start">The location in the file where the text associated with the given node starts.</param>
+        /// <param name="end">The location in the file where the text associated with the given node ends.</param>
+        /// <returns>The node instance that was passed as <see cref="node"/>.</returns>
+        private T NewNode<T>(T node, FileLocation start, FileLocation end) where T : ISyntaxTreeNode
         {
             Symbol symbol = new Symbol {
-                Leaf = leaf,
+                Node = node,
                 SourceFile = _filePath,
                 Start = start,
                 End = end
             };
 
-            _tokenMap[leaf] = symbol;
-            return leaf;
+            _tokenMap[node] = symbol;
+            return node;
         }
 
         /// <summary>
-        /// Generates a symbol based on the starting file location of <see cref="startLeaf"/> and the end token.
-        /// The symbol is associated wit the given leaf instance.
+        /// Generates a symbol based on the starting file location of <see cref="startNode"/> and the end token.
+        /// The symbol is associated wit the given node instance.
         /// </summary>
-        /// <param name="leaf">The leaf to associate with the new symbol.</param>
-        /// <param name="startLeaf">
-        /// The leaf to get the starting file location. This leaf must be associated with a symbol.
+        /// <param name="node">The node to associate with the new symbol.</param>
+        /// <param name="startNode">
+        /// The node to get the starting file location. This node must be associated with a symbol.
         /// </param>
-        /// <param name="endToken">The last token associated with the given leaf.</param>
-        /// <returns>The leaf instance that was passed as <see cref="leaf"/>.</returns>
+        /// <param name="endToken">The last token associated with the given node.</param>
+        /// <returns>The node instance that was passed as <see cref="node"/>.</returns>
         /// <exception cref="System.InvalidOperationException">
-        /// No symbol is associated with <see cref="startLeaf"/>
+        /// No symbol is associated with <see cref="startNode"/>
         /// </exception>
-        private T NewLeaf<T>(T leaf, ISyntaxTreeLeaf startLeaf, Token endToken) where T : ISyntaxTreeLeaf
+        private T NewNode<T>(T node, ISyntaxTreeNode startNode, Token endToken) where T : ISyntaxTreeNode
         {
-            if (!_tokenMap.TryGetValue(startLeaf, out Symbol symbol)) {
-                throw new InvalidOperationException($"No symbol associated with {nameof(startLeaf)}");
+            if (!_tokenMap.TryGetValue(startNode, out Symbol symbol)) {
+                throw new InvalidOperationException($"No symbol associated with {nameof(startNode)}");
             }
-            return NewLeaf(leaf, symbol.Start, endToken.DeriveEndLocation());
+            return NewNode(node, symbol.Start, endToken.DeriveEndLocation());
         }
 
         /// <summary>
-        /// Generates a symbol based on the starting file location of <see cref="startLeaf"/> and the ending file
-        /// location of <see cref="endLeaf"/>.
-        /// The symbol is associated wit the given leaf instance.
+        /// Generates a symbol based on the starting file location of <see cref="startNode"/> and the ending file
+        /// location of <see cref="endNode"/>.
+        /// The symbol is associated wit the given node instance.
         /// </summary>
-        /// <param name="leaf">The leaf to associate with the new symbol.</param>
-        /// <param name="startLeaf">
-        /// The leaf to get the starting file location from. This leaf must be associated with a symbol.
+        /// <param name="node">The node to associate with the new symbol.</param>
+        /// <param name="startNode">
+        /// The node to get the starting file location from. This node must be associated with a symbol.
         /// </param>
-        /// <param name="endLeaf">
-        /// The leaf to get the end file location from. This leaf must be associated with a symbol.
+        /// <param name="endNode">
+        /// The node to get the end file location from. This node must be associated with a symbol.
         /// </param>
-        /// <returns>The leaf instance that was passed as <see cref="leaf"/>.</returns>
+        /// <returns>The node instance that was passed as <see cref="node"/>.</returns>
         /// <exception cref="System.InvalidOperationException">
-        /// No symbol is associated with either <see cref="startLeaf"/> or <see cref="endLeaf"/>.
+        /// No symbol is associated with either <see cref="startNode"/> or <see cref="endNode"/>.
         /// </exception>
-        private T NewLeaf<T>(T leaf, ISyntaxTreeLeaf startLeaf, ISyntaxTreeLeaf endLeaf) where T : ISyntaxTreeLeaf
+        private T NewNode<T>(T node, ISyntaxTreeNode startNode, ISyntaxTreeNode endNode) where T : ISyntaxTreeNode
         {
-            if (!_tokenMap.TryGetValue(startLeaf, out Symbol startSymbol)) {
-                throw new InvalidOperationException($"No symbol associated with {nameof(startLeaf)}");
+            if (!_tokenMap.TryGetValue(startNode, out Symbol startSymbol)) {
+                throw new InvalidOperationException($"No symbol associated with {nameof(startNode)}");
             }
-            if (!_tokenMap.TryGetValue(endLeaf, out Symbol endSymbol)) {
-                throw new InvalidOperationException($"No symbol associated with {nameof(endLeaf)}");
+            if (!_tokenMap.TryGetValue(endNode, out Symbol endSymbol)) {
+                throw new InvalidOperationException($"No symbol associated with {nameof(endNode)}");
             }
-            return NewLeaf(leaf, startSymbol.Start, endSymbol.End);
+            return NewNode(node, startSymbol.Start, endSymbol.End);
         }
 
-        private Symbol GetSymbolForLeaf(ISyntaxTreeLeaf leaf)
+        private Symbol GetSymbolForNode(ISyntaxTreeNode node)
         {
-            if (!_tokenMap.TryGetValue(leaf, out Symbol symbol)) {
-                throw new InvalidOperationException($"No symbol associated with {nameof(leaf)}");
+            if (!_tokenMap.TryGetValue(node, out Symbol symbol)) {
+                throw new InvalidOperationException($"No symbol associated with {nameof(node)}");
             }
             return symbol;
         }

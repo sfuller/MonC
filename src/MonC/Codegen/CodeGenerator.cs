@@ -12,7 +12,7 @@ namespace MonC.Codegen
 
         public ILModule Generate(ParseModule module)
         {
-            foreach (FunctionDefinitionLeaf function in module.Functions) {
+            foreach (FunctionDefinitionNode function in module.Functions) {
                 _manager.RegisterFunction(function);
             }
 
@@ -20,7 +20,7 @@ namespace MonC.Codegen
             List<string> strings = new List<string>();
             Dictionary<string, int> enumerations = new Dictionary<string, int>();
 
-            foreach (FunctionDefinitionLeaf function in module.Functions) {
+            foreach (FunctionDefinitionNode function in module.Functions) {
                 functions.Add(GenerateFunction(module, function, strings));
             }
 
@@ -36,27 +36,27 @@ namespace MonC.Codegen
 
         }
 
-        private ILFunction GenerateFunction(ParseModule module, FunctionDefinitionLeaf leaf, List<string> strings)
+        private ILFunction GenerateFunction(ParseModule module, FunctionDefinitionNode node, List<string> strings)
         {
             StackLayoutGenerator layoutGenerator = new StackLayoutGenerator();
-            layoutGenerator.VisitFunctionDefinition(leaf);
+            layoutGenerator.VisitFunctionDefinition(node);
             FunctionStackLayout layout = layoutGenerator.GetLayout();
             FunctionBuilder builder = new FunctionBuilder(layout, module.TokenMap);
             FunctionCodeGenVisitor functionCodeGenVisitor = new FunctionCodeGenVisitor(builder, layout, _manager, strings);
-            functionCodeGenVisitor.VisitBody(leaf.Body);
+            functionCodeGenVisitor.VisitBody(node.Body);
 
             if (builder.InstructionCount == 0 || builder.Instructions[builder.InstructionCount - 1].Op != OpCode.RETURN) {
                 builder.AddInstruction(OpCode.RETURN);
             }
 
-            return builder.Build(leaf);
+            return builder.Build(node);
         }
 
         private static void ProcessEnums(ParseModule module, IDictionary<string, int> exportedEnums)
         {
-            foreach (EnumLeaf enumLeaf in module.Enums) {
-                if (enumLeaf.IsExported) {
-                    KeyValuePair<string, int>[] enumerations = enumLeaf.Enumerations;
+            foreach (EnumNode enumNode in module.Enums) {
+                if (enumNode.IsExported) {
+                    KeyValuePair<string, int>[] enumerations = enumNode.Enumerations;
                     for (int i = 0, ilen = enumerations.Length; i < ilen; ++i) {
                         var enumeration = enumerations[i];
                         exportedEnums[enumeration.Key] = enumeration.Value;

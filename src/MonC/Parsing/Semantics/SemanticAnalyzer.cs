@@ -7,14 +7,14 @@ namespace MonC.Parsing.Semantics
     public class SemanticAnalyzer
     {
         private readonly IList<ParseError> _errors;
-        private readonly IDictionary<ISyntaxTreeLeaf, Symbol> _symbolMap;
+        private readonly IDictionary<ISyntaxTreeNode, Symbol> _symbolMap;
         private readonly EnumManager _enumManager;
 
-        private readonly Dictionary<string, FunctionDefinitionLeaf> _functions = new Dictionary<string, FunctionDefinitionLeaf>();
+        private readonly Dictionary<string, FunctionDefinitionNode> _functions = new Dictionary<string, FunctionDefinitionNode>();
 
-        private readonly List<(string message, ISyntaxTreeLeaf leaf)> _errorsToProcess = new List<(string message, ISyntaxTreeLeaf leaf)>();
+        private readonly List<(string message, ISyntaxTreeNode node)> _errorsToProcess = new List<(string message, ISyntaxTreeNode node)>();
 
-        public SemanticAnalyzer(IList<ParseError> errors, IDictionary<ISyntaxTreeLeaf, Symbol> symbolMap)
+        public SemanticAnalyzer(IList<ParseError> errors, IDictionary<ISyntaxTreeNode, Symbol> symbolMap)
         {
             _errors = errors;
             _symbolMap = symbolMap;
@@ -25,35 +25,35 @@ namespace MonC.Parsing.Semantics
         {
             _functions.Clear();
 
-            foreach (EnumLeaf enumLeaf in headerModule.Enums) {
-                _enumManager.RegisterEnum(enumLeaf);
+            foreach (EnumNode enumNode in headerModule.Enums) {
+                _enumManager.RegisterEnum(enumNode);
             }
-            foreach (EnumLeaf enumLeaf in newModule.Enums) {
-                _enumManager.RegisterEnum(enumLeaf);
+            foreach (EnumNode enumNode in newModule.Enums) {
+                _enumManager.RegisterEnum(enumNode);
             }
 
-            foreach (FunctionDefinitionLeaf externalFunction in headerModule.Functions) {
+            foreach (FunctionDefinitionNode externalFunction in headerModule.Functions) {
                 _functions.Add(externalFunction.Name, externalFunction);
             }
-            foreach (FunctionDefinitionLeaf function in newModule.Functions) {
+            foreach (FunctionDefinitionNode function in newModule.Functions) {
                 if (_functions.ContainsKey(function.Name)) {
                     _errorsToProcess.Add(("Redefinition of function " + function.Name, function));
                 }
                 _functions[function.Name] = function;
             }
 
-            foreach (FunctionDefinitionLeaf function in newModule.Functions) {
+            foreach (FunctionDefinitionNode function in newModule.Functions) {
                 ProcessFunction(function);
             }
 
-            foreach ((string message, ISyntaxTreeLeaf leaf) in _errorsToProcess) {
+            foreach ((string message, ISyntaxTreeNode node) in _errorsToProcess) {
                 Symbol symbol;
-                _symbolMap.TryGetValue(leaf, out symbol);
+                _symbolMap.TryGetValue(node, out symbol);
                 _errors.Add(new ParseError {Message = message, Start = symbol.Start, End = symbol.End});
             }
         }
 
-        private void ProcessFunction(FunctionDefinitionLeaf function)
+        private void ProcessFunction(FunctionDefinitionNode function)
         {
             new VariableDeclarationProcessor(_errorsToProcess).Process(function);
             new AssignmentAnalyzer(_errorsToProcess, _symbolMap).Process(function);

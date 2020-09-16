@@ -1,31 +1,31 @@
 using System.Collections.Generic;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Parsing.Scoping
 {
     public struct Scope
     {
-        public List<DeclarationLeaf> Variables;
+        public List<DeclarationNode> Variables;
 
         public static Scope New()
         {
             return new Scope {
-                Variables = new List<DeclarationLeaf>()
+                Variables = new List<DeclarationNode>()
             };
         }
 
-        public static Scope New(FunctionDefinitionLeaf function)
+        public static Scope New(FunctionDefinitionNode function)
         {
             return new Scope {
-                Variables = new List<DeclarationLeaf>(function.Parameters)
+                Variables = new List<DeclarationNode>(function.Parameters)
             };
         }
 
         public readonly Scope Copy()
         {
             return new Scope {
-                Variables = new List<DeclarationLeaf>(Variables)
+                Variables = new List<DeclarationNode>(Variables)
             };
         }
 

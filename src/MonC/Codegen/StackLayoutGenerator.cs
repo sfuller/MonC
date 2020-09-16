@@ -1,70 +1,70 @@
 using System.Collections.Generic;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Codegen
 {
     public class StackLayoutGenerator : IStatementVisitor
     {
-        public Dictionary<DeclarationLeaf, int> _variables = new Dictionary<DeclarationLeaf, int>();
+        public Dictionary<DeclarationNode, int> _variables = new Dictionary<DeclarationNode, int>();
         private int _currentOffset;
 
         public FunctionStackLayout GetLayout()
         {
             var variables = _variables;
-            _variables = new Dictionary<DeclarationLeaf, int>();
+            _variables = new Dictionary<DeclarationNode, int>();
             return new FunctionStackLayout(variables);
         }
 
-        public void VisitBody(BodyLeaf leaf)
+        public void VisitBody(BodyNode node)
         {
-            leaf.VisitStatements(this);
+            node.VisitStatements(this);
         }
 
-        public void VisitDeclaration(DeclarationLeaf leaf)
+        public void VisitDeclaration(DeclarationNode node)
         {
-            _variables.Add(leaf, _currentOffset++);
+            _variables.Add(node, _currentOffset++);
         }
 
-        public void VisitFor(ForLeaf leaf)
+        public void VisitFor(ForNode node)
         {
-            leaf.Declaration.AcceptStatementVisitor(this);
-            VisitBody(leaf.Body);
+            node.Declaration.AcceptStatementVisitor(this);
+            VisitBody(node.Body);
         }
 
-        public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
+        public void VisitFunctionDefinition(FunctionDefinitionNode node)
         {
-            foreach (DeclarationLeaf decl in leaf.Parameters) {
+            foreach (DeclarationNode decl in node.Parameters) {
                 VisitDeclaration(decl);
             }
-            VisitBody(leaf.Body);
+            VisitBody(node.Body);
         }
 
-        public void VisitIfElse(IfElseLeaf leaf)
+        public void VisitIfElse(IfElseNode node)
         {
-            VisitBody(leaf.IfBody);
-            VisitBody(leaf.ElseBody);
+            VisitBody(node.IfBody);
+            VisitBody(node.ElseBody);
         }
 
-        public void VisitWhile(WhileLeaf leaf)
+        public void VisitWhile(WhileNode node)
         {
-            VisitBody(leaf.Body);
+            VisitBody(node.Body);
         }
 
-        public void VisitBreak(BreakLeaf leaf)
-        {
-        }
-
-        public void VisitContinue(ContinueLeaf leaf)
+        public void VisitBreak(BreakNode node)
         {
         }
 
-        public void VisitReturn(ReturnLeaf leaf)
+        public void VisitContinue(ContinueNode node)
         {
         }
 
-        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
+        public void VisitReturn(ReturnNode node)
+        {
+        }
+
+        public void VisitExpressionStatement(ExpressionStatementNode node)
         {
         }
     }

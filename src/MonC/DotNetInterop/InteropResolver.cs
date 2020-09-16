@@ -4,8 +4,8 @@ using System.Linq;
 using System.Reflection;
 using MonC.Parsing;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Statements;
 using MonC.VM;
 
 namespace MonC.DotNetInterop
@@ -15,7 +15,7 @@ namespace MonC.DotNetInterop
         private readonly bool _includeImplementations;
         private readonly Dictionary<string, Binding> _bindings = new Dictionary<string, Binding>();
         private readonly HashSet<Type> _linkableModules = new HashSet<Type>();
-        private readonly List<EnumLeaf> _enums = new List<EnumLeaf>();
+        private readonly List<EnumNode> _enums = new List<EnumNode>();
         private readonly List<string> _errors = new List<string>();
 
         public InteropResolver(bool includeImplementations = true)
@@ -24,7 +24,7 @@ namespace MonC.DotNetInterop
         }
 
         public IEnumerable<Binding> Bindings => _bindings.Values;
-        public IEnumerable<EnumLeaf> Enums => _enums;
+        public IEnumerable<EnumNode> Enums => _enums;
         public IEnumerable<string> Errors => _errors;
 
         public ParseModule CreateHeaderModule()
@@ -186,11 +186,11 @@ namespace MonC.DotNetInterop
 
         private void AddBinding(MethodInfo method, LinkableFunctionAttribute attribute, VMEnumerableDelegate implementation)
         {
-            FunctionDefinitionLeaf def = new FunctionDefinitionLeaf(
+            FunctionDefinitionNode def = new FunctionDefinitionNode(
                 name: method.Name,
                 returnType: new TypeSpecifier("int", PointerType.NotAPointer),
                 parameters: FunctionAttributeToDeclarations(attribute),
-                body: new BodyLeaf(),
+                body: new BodyNode(),
                 isExported: true
             );
 
@@ -236,10 +236,10 @@ namespace MonC.DotNetInterop
             yield return Continuation.Return(rv);
         }
 
-        private static IEnumerable<DeclarationLeaf> FunctionAttributeToDeclarations(LinkableFunctionAttribute attribute)
+        private static IEnumerable<DeclarationNode> FunctionAttributeToDeclarations(LinkableFunctionAttribute attribute)
         {
             for (int i = 0, ilen = attribute.ArgumentCount; i < ilen; ++i) {
-                yield return new DeclarationLeaf(new TypeSpecifier("int", PointerType.NotAPointer), "", new VoidExpression());
+                yield return new DeclarationNode(new TypeSpecifier("int", PointerType.NotAPointer), "", new VoidExpressionNode());
             }
         }
 
@@ -276,7 +276,7 @@ namespace MonC.DotNetInterop
             }
 
             // TODO: New attribute value for enum name, or use type name.
-            _enums.Add(new EnumLeaf(type.Name, enumerations, isExported: true));
+            _enums.Add(new EnumNode(type.Name, enumerations, isExported: true));
         }
 
     }

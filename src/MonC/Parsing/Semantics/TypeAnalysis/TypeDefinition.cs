@@ -7,19 +7,19 @@ namespace MonC.Parsing.Semantics.TypeAnalysis
     {
         public readonly string? Name;
         public readonly PointerType PointerType;
-        
+
         public TypeDefinition(string name, PointerType pointerType)
         {
             Name = name;
             PointerType = pointerType;
         }
-        
-        public TypeDefinition(TypeSpecifier leaf)
+
+        public TypeDefinition(TypeSpecifier specifier)
         {
-            Name = leaf.Name;
-            PointerType = leaf.PointerType;
+            Name = specifier.Name;
+            PointerType = specifier.PointerType;
         }
-        
+
         public bool Equals(TypeDefinition other)
         {
             return Name == other.Name && PointerType == other.PointerType;

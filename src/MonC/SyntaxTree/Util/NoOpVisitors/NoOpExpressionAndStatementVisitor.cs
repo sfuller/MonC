@@ -1,56 +1,56 @@
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.SyntaxTree.Util.NoOpVisitors
 {
     public class NoOpExpressionAndStatementVisitor : NoOpExpressionVisitor, IStatementVisitor
     {
-        public void VisitBody(BodyLeaf leaf)
+        public void VisitBody(BodyNode node)
         {
-            VisitDefaultStatement(leaf);
+            VisitDefaultStatement(node);
         }
 
-        public virtual void VisitDeclaration(DeclarationLeaf leaf)
+        public virtual void VisitDeclaration(DeclarationNode node)
         {
-            VisitDefaultStatement(leaf);
+            VisitDefaultStatement(node);
         }
 
-        public virtual void VisitBreak(BreakLeaf leaf)
+        public virtual void VisitBreak(BreakNode node)
         {
-            VisitDefaultStatement(leaf);
+            VisitDefaultStatement(node);
         }
 
-        public virtual void VisitContinue(ContinueLeaf leaf)
+        public virtual void VisitContinue(ContinueNode node)
         {
-            VisitDefaultStatement(leaf);
+            VisitDefaultStatement(node);
         }
 
-        public virtual void VisitReturn(ReturnLeaf leaf)
+        public virtual void VisitReturn(ReturnNode node)
         {
-            VisitDefaultStatement(leaf);
+            VisitDefaultStatement(node);
         }
 
-        public virtual void VisitIfElse(IfElseLeaf leaf)
+        public virtual void VisitIfElse(IfElseNode node)
         {
-            VisitDefaultStatement(leaf);
+            VisitDefaultStatement(node);
         }
 
-        public virtual void VisitFor(ForLeaf leaf)
+        public virtual void VisitFor(ForNode node)
         {
-            VisitDefaultStatement(leaf);
+            VisitDefaultStatement(node);
         }
 
-        public virtual void VisitWhile(WhileLeaf leaf)
+        public virtual void VisitWhile(WhileNode node)
         {
-            VisitDefaultStatement(leaf);
+            VisitDefaultStatement(node);
         }
 
-        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
+        public void VisitExpressionStatement(ExpressionStatementNode node)
         {
-            VisitDefaultStatement(leaf);
+            VisitDefaultStatement(node);
         }
 
-        protected virtual void VisitDefaultStatement(IStatementLeaf leaf)
+        protected virtual void VisitDefaultStatement(IStatementNode node)
         {
         }
     }
