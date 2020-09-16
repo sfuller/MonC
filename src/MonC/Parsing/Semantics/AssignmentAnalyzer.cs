@@ -42,7 +42,7 @@ namespace MonC.Parsing.Semantics
             ProcessStatementReplacementsVisitor statementReplacementsVisitor = new ProcessStatementReplacementsVisitor(this, this);
             ExpressionChildrenVisitor expressionChildrenVisitor = new ExpressionChildrenVisitor(expressionReplacementsVisitor);
             StatementChildrenVisitor statementChildrenVisitor = new StatementChildrenVisitor(statementReplacementsVisitor, expressionChildrenVisitor);
-            function.Body.AcceptStatements(statementChildrenVisitor);
+            function.Body.VisitStatements(statementChildrenVisitor);
         }
 
         public void PrepareToVisit()
@@ -50,10 +50,10 @@ namespace MonC.Parsing.Semantics
             _shouldReplace = false;
         }
 
-        bool IExpressionReplacementVisitor.ShouldReplace => _shouldReplace;
-        bool IStatementReplacementVisitor.ShouldReplace => _shouldReplace;
-        IExpressionLeaf IExpressionReplacementVisitor.NewLeaf => _newExpressionLeaf;
-        IStatementLeaf IStatementReplacementVisitor.NewLeaf => _newStatementLeaf;
+        bool IReplacementVisitor<IExpressionLeaf>.ShouldReplace => _shouldReplace;
+        bool IReplacementVisitor<IStatementLeaf>.ShouldReplace => _shouldReplace;
+        IExpressionLeaf IReplacementVisitor<IExpressionLeaf>.NewLeaf => _newExpressionLeaf;
+        IStatementLeaf IReplacementVisitor<IStatementLeaf>.NewLeaf => _newStatementLeaf;
 
         public override void VisitBinaryOperation(IBinaryOperationLeaf leaf)
         {

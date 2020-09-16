@@ -22,7 +22,7 @@ namespace MonC.Parsing.Semantics
         private readonly IList<(string name, ISyntaxTreeLeaf leaf)> _errors;
         private readonly IDictionary<ISyntaxTreeLeaf, Symbol> _symbolMap;
 
-        private IStatementLeaf _newStatementLeaf;
+        private readonly IStatementLeaf _newStatementLeaf;
         private IExpressionLeaf _newExpressionLeaf;
 
         private readonly ScopeManager _scopeManager = new ScopeManager();
@@ -49,8 +49,8 @@ namespace MonC.Parsing.Semantics
 
         public bool ShouldReplace { get; private set; }
 
-        IExpressionLeaf IExpressionReplacementVisitor.NewLeaf => _newExpressionLeaf;
-        IStatementLeaf IStatementReplacementVisitor.NewLeaf => _newStatementLeaf;
+        IExpressionLeaf IReplacementVisitor<IExpressionLeaf>.NewLeaf => _newExpressionLeaf;
+        IStatementLeaf IReplacementVisitor<IStatementLeaf>.NewLeaf => _newStatementLeaf;
 
         public void Process(FunctionDefinitionLeaf function)
         {
@@ -60,7 +60,7 @@ namespace MonC.Parsing.Semantics
             ProcessExpressionReplacementsVisitor expressionReplacementsVisitor = new ProcessExpressionReplacementsVisitor(expressionReplacementVisitor);
             ExpressionChildrenVisitor expressionChildrenVisitor = new ExpressionChildrenVisitor(expressionReplacementsVisitor);
             StatementChildrenVisitor statementChildrenVisitor = new StatementChildrenVisitor(statementReplacementsVisitor, expressionChildrenVisitor);
-            function.Body.AcceptStatements(statementChildrenVisitor);
+            function.Body.VisitStatements(statementChildrenVisitor);
         }
 
         public override void VisitUnknown(IExpressionLeaf leaf)
@@ -131,7 +131,7 @@ namespace MonC.Parsing.Semantics
                     $"(placeholder) {identifier.Name}",
                     new TypeSpecifier("int", PointerType.NotAPointer),
                     Array.Empty<DeclarationLeaf>(),
-                    new Body(Array.Empty<IStatementLeaf>()),
+                    new BodyLeaf(),
                     isExported: false
                 ),
                 arguments: Enumerable.Range(0, call.ArgumentCount).Select(call.GetArgument));

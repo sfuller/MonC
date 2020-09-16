@@ -28,6 +28,11 @@ namespace MonC.Parsing.Semantics
             _transferAllowed = transferAllowed;
         }
 
+        public void VisitBody(BodyLeaf leaf)
+        {
+            leaf.VisitStatements(this);
+        }
+
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
             // TODO?
@@ -45,8 +50,8 @@ namespace MonC.Parsing.Semantics
 
             leaf.Condition.AcceptExpressionVisitor(this);
 
-            leaf.IfBody.AcceptStatements(ifBranchVisitor);
-            leaf.ElseBody.AcceptStatements(elseBranchVisitor);
+            leaf.IfBody.VisitStatements(ifBranchVisitor);
+            leaf.ElseBody.VisitStatements(elseBranchVisitor);
 
             bool ownershipAfterIfBranch = ifBranchVisitor._ownership;
             bool ownershipAfterElseBranch = elseBranchVisitor._ownership;
@@ -71,7 +76,7 @@ namespace MonC.Parsing.Semantics
         {
             TransferPointerAnalysisVisitor subVisitor = MakeSubVisitor(transferAllowed: false);
             leaf.Condition.AcceptExpressionVisitor(subVisitor);
-            leaf.Body.AcceptStatements(subVisitor);
+            leaf.Body.VisitStatements(subVisitor);
         }
 
         public void VisitBreak(BreakLeaf leaf)

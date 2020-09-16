@@ -17,11 +17,9 @@ namespace MonC.Codegen
             return new FunctionStackLayout(variables);
         }
 
-        private void VisitBody(Body leaf)
+        public void VisitBody(BodyLeaf leaf)
         {
-            for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                leaf.GetStatement(i).AcceptStatementVisitor(this);
-            }
+            leaf.VisitStatements(this);
         }
 
         public void VisitDeclaration(DeclarationLeaf leaf)

@@ -22,7 +22,7 @@ namespace MonC.Parsing.Semantics
         public void Process(FunctionDefinitionLeaf function)
         {
             WalkScopeVisitor scopeVisitor = new WalkScopeVisitor(this, this, this, Scope.New(function));
-            function.Body.AcceptStatements(scopeVisitor);
+            function.Body.VisitStatements(scopeVisitor);
         }
 
         public override void VisitDeclaration(DeclarationLeaf leaf)

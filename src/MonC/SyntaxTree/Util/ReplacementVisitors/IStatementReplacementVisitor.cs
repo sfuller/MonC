@@ -2,10 +2,7 @@ using MonC.SyntaxTree.Leaves;
 
 namespace MonC.SyntaxTree.Util.ReplacementVisitors
 {
-    public interface IStatementReplacementVisitor : IStatementVisitor
+    public interface IStatementReplacementVisitor : IReplacementVisitor<IStatementLeaf>, IStatementVisitor
     {
-        void PrepareToVisit();
-        bool ShouldReplace { get; }
-        IStatementLeaf NewLeaf { get; }
     }
 }

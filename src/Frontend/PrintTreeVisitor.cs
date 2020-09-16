@@ -26,13 +26,11 @@ namespace MonC.Frontend
             VisitSubleaf(leaf.RHS);
         }
 
-        private void VisitBody(Body leaf)
+        public void VisitBody(BodyLeaf leaf)
         {
-            ++_currentIndent;
             Print("Body");
-            for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                VisitSubleaf(leaf.GetStatement(i));
-            }
+            ++_currentIndent;
+            leaf.VisitStatements(this);
             --_currentIndent;
         }
 

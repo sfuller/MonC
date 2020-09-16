@@ -5,6 +5,11 @@ namespace MonC.SyntaxTree.Util.NoOpVisitors
 {
     public class NoOpExpressionAndStatementVisitor : NoOpExpressionVisitor, IStatementVisitor
     {
+        public void VisitBody(BodyLeaf leaf)
+        {
+            VisitDefaultStatement(leaf);
+        }
+
         public virtual void VisitDeclaration(DeclarationLeaf leaf)
         {
             VisitDefaultStatement(leaf);

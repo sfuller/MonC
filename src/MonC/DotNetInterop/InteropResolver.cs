@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using MonC.Parsing;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves;
 using MonC.SyntaxTree.Leaves.Expressions;
 using MonC.SyntaxTree.Leaves.Statements;
 using MonC.VM;
@@ -191,7 +190,7 @@ namespace MonC.DotNetInterop
                 name: method.Name,
                 returnType: new TypeSpecifier("int", PointerType.NotAPointer),
                 parameters: FunctionAttributeToDeclarations(attribute),
-                body: new Body(Array.Empty<IStatementLeaf>()),
+                body: new BodyLeaf(),
                 isExported: true
             );
 

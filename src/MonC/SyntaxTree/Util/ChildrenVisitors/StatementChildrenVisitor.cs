@@ -14,6 +14,12 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
             _expressionVisitor = expressionVisitor;
         }
 
+        public void VisitBody(BodyLeaf leaf)
+        {
+            _statementVisitor.VisitBody(leaf);
+            leaf.VisitStatements(this);
+        }
+
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
             _statementVisitor.VisitDeclaration(leaf);
@@ -64,14 +70,6 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
         {
             _statementVisitor.VisitExpressionStatement(leaf);
             leaf.Expression.AcceptExpressionVisitor(_expressionVisitor);
-        }
-
-        private void VisitBody(Body body)
-        {
-            for (int i = 0, ilen = body.Length; i < ilen; ++i) {
-                IStatementLeaf statement = body.GetStatement(i);
-                statement.AcceptStatementVisitor(this);
-            }
         }
 
     }

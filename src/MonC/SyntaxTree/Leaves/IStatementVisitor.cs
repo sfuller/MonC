@@ -4,6 +4,8 @@ namespace MonC.SyntaxTree.Leaves
 {
     public interface IStatementVisitor
     {
+        void VisitBody(BodyLeaf leaf);
+
         void VisitDeclaration(DeclarationLeaf leaf);
         void VisitBreak(BreakLeaf leaf);
         void VisitContinue(ContinueLeaf leaf);

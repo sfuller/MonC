@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using MonC.Parsing.Scoping;
-using MonC.SyntaxTree;
 using MonC.SyntaxTree.Leaves;
 using MonC.SyntaxTree.Leaves.Statements;
 using MonC.SyntaxTree.Util.ChildrenVisitors;
@@ -33,6 +32,15 @@ namespace MonC.Parsing.Semantics
             _expressionChildrenVisitor= new ExpressionChildrenVisitor(expressionVisitor);
         }
 
+        public void VisitBody(BodyLeaf leaf)
+        {
+            VisitStatement(leaf);
+            Scope baseScope = _scopes.Peek();
+            _scopes.Push(baseScope.Copy());
+            leaf.VisitStatements(this);
+            _scopes.Pop();
+        }
+
         public void VisitDeclaration(DeclarationLeaf leaf)
         {
             VisitStatement(leaf);
@@ -62,13 +70,8 @@ namespace MonC.Parsing.Semantics
             VisitStatement(leaf);
 
             VisitExpression(leaf.Condition);
-            Scope baseScope = _scopes.Peek();
-            _scopes.Push(baseScope.Copy());
             VisitBody(leaf.IfBody);
-            _scopes.Pop();
-            _scopes.Push(baseScope.Copy());
             VisitBody(leaf.ElseBody);
-            _scopes.Pop();
         }
 
         public void VisitFor(ForLeaf leaf)
@@ -89,9 +92,7 @@ namespace MonC.Parsing.Semantics
             VisitStatement(leaf);
 
             VisitExpression(leaf.Condition);
-            _scopes.Push(_scopes.Peek().Copy());
             VisitBody(leaf.Body);
-            _scopes.Pop();
         }
 
         public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
@@ -104,13 +105,6 @@ namespace MonC.Parsing.Semantics
         {
             _scopeHandler.CurrentScope = _scopes.Peek();
             leaf.AcceptExpressionVisitor(_expressionChildrenVisitor);
-        }
-
-        private void VisitBody(Body body)
-        {
-            for (int i = 0, ilen = body.Length; i < ilen; ++i) {
-                body.GetStatement(i).AcceptStatementVisitor(this);
-            }
         }
 
         private void VisitStatement(IStatementLeaf leaf)

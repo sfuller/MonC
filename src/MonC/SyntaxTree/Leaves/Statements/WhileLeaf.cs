@@ -3,9 +3,9 @@ namespace MonC.SyntaxTree.Leaves.Statements
     public class WhileLeaf : IStatementLeaf
     {
         public IExpressionLeaf Condition;
-        public Body Body;
+        public BodyLeaf Body;
 
-        public WhileLeaf(IExpressionLeaf condition, Body body)
+        public WhileLeaf(IExpressionLeaf condition, BodyLeaf body)
         {
             Condition = condition;
             Body = body;

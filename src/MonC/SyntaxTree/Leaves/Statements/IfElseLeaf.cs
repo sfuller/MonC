@@ -3,10 +3,10 @@ namespace MonC.SyntaxTree.Leaves.Statements
     public class IfElseLeaf : IStatementLeaf
     {
         public IExpressionLeaf Condition;
-        public Body IfBody;
-        public Body ElseBody;
+        public BodyLeaf IfBody;
+        public BodyLeaf ElseBody;
 
-        public IfElseLeaf(IExpressionLeaf condition, Body ifBody, Body elseBody)
+        public IfElseLeaf(IExpressionLeaf condition, BodyLeaf ifBody, BodyLeaf elseBody)
         {
             Condition = condition;
             IfBody = ifBody;

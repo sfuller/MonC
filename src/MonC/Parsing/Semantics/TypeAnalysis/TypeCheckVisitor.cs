@@ -25,7 +25,11 @@ namespace MonC.Parsing.Semantics.TypeAnalysis
         public void Process(FunctionDefinitionLeaf function)
         {
             StatementChildrenVisitor statementVisitor = new StatementChildrenVisitor(this, this);
-            function.Body.AcceptStatements(statementVisitor);
+            function.Body.VisitStatements(statementVisitor);
+        }
+
+        public void VisitBody(BodyLeaf leaf)
+        {
         }
 
         public void VisitDeclaration(DeclarationLeaf leaf)

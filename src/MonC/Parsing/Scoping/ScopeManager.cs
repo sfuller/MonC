@@ -14,7 +14,7 @@ namespace MonC.Parsing.Scoping
         public void ProcessFunction(FunctionDefinitionLeaf function)
         {
             WalkScopeVisitor walkScopeVisitor = new WalkScopeVisitor(this, this, this, Scope.New(function));
-            function.Body.AcceptStatements(walkScopeVisitor);
+            walkScopeVisitor.VisitBody(function.Body);
         }
 
         public Scope CurrentScope { get; set; }

@@ -43,7 +43,7 @@ namespace MonC.Codegen
             FunctionStackLayout layout = layoutGenerator.GetLayout();
             FunctionBuilder builder = new FunctionBuilder(layout, module.TokenMap);
             FunctionCodeGenVisitor functionCodeGenVisitor = new FunctionCodeGenVisitor(builder, layout, _manager, strings);
-            leaf.Body.AcceptStatements(functionCodeGenVisitor);
+            functionCodeGenVisitor.VisitBody(leaf.Body);
 
             if (builder.InstructionCount == 0 || builder.Instructions[builder.InstructionCount - 1].Op != OpCode.RETURN) {
                 builder.AddInstruction(OpCode.RETURN);

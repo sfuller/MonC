@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MonC.IL;
-using MonC.SyntaxTree;
 using MonC.SyntaxTree.Leaves;
 using MonC.SyntaxTree.Leaves.Expressions;
 using MonC.SyntaxTree.Leaves.Expressions.BinaryOperations;
@@ -100,6 +99,11 @@ namespace MonC.Codegen
         {
             int value = leaf.Enum.Enumerations.First(kvp => kvp.Key == leaf.Name).Value;
             AddInstruction(OpCode.LOAD, value);
+        }
+
+        public void VisitBody(BodyLeaf leaf)
+        {
+            leaf.VisitStatements(this);
         }
 
         public void VisitDeclaration(DeclarationLeaf leaf)
@@ -279,14 +283,6 @@ namespace MonC.Codegen
         public void VisitUnknown(IExpressionLeaf leaf)
         {
             throw new InvalidOperationException("Unexpected expression leaf type. Was replacement of a parse tree leaf missed?");
-        }
-
-        private void VisitBody(Body leaf)
-        {
-            for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                IStatementLeaf statement = leaf.GetStatement(i);
-                statement.AcceptStatementVisitor(this);
-            }
         }
     }
 }

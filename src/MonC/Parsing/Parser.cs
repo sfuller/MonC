@@ -301,7 +301,7 @@ namespace MonC
                 return null;
             }
 
-            Body? body = ParseBody(ref tokens);
+            BodyLeaf? body = ParseBody(ref tokens);
             if (body == null) {
                 return null;
             }
@@ -311,7 +311,7 @@ namespace MonC
                 retunTypeStart, tokens.Peek(-1));
         }
 
-        private Body? ParseBody(ref TokenSource tokens)
+        private BodyLeaf? ParseBody(ref TokenSource tokens)
         {
             if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_BRACKET, out _)) {
                 return null;
@@ -334,7 +334,7 @@ namespace MonC
                 statements.Add(statement);
             }
 
-            return new Body(statements);
+            return new BodyLeaf(statements);
         }
 
         private IStatementLeaf? ParseStatement(ref TokenSource tokens)
@@ -435,12 +435,12 @@ namespace MonC
                 return null;
             }
 
-            Body? ifBody = ParseBody(ref tokens);
+            BodyLeaf? ifBody = ParseBody(ref tokens);
             if (ifBody == null) {
                 return null;
             }
 
-            Body? elseBody = null;
+            BodyLeaf? elseBody = null;
             Token nextToken = tokens.Peek();
 
             if (nextToken.Type == TokenType.Keyword && nextToken.Value == Keyword.ELSE) {
@@ -448,7 +448,7 @@ namespace MonC
                 elseBody = ParseBody(ref tokens);
             }
 
-            return NewLeaf(new IfElseLeaf(condition, ifBody, elseBody ?? new Body()), ifToken, tokens.Peek(-1));
+            return NewLeaf(new IfElseLeaf(condition, ifBody, elseBody ?? new BodyLeaf()), ifToken, tokens.Peek(-1));
         }
 
         private WhileLeaf? ParseWhile(ref TokenSource tokens)
@@ -467,7 +467,7 @@ namespace MonC
                 return null;
             }
 
-            Body? body = ParseBody(ref tokens);
+            BodyLeaf? body = ParseBody(ref tokens);
             if (body == null) {
                 return null;
             }
@@ -505,7 +505,7 @@ namespace MonC
                 return null;
             }
 
-            Body? body = ParseBody(ref tokens);
+            BodyLeaf? body = ParseBody(ref tokens);
             if (body == null) {
                 return null;
             }

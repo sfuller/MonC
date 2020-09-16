@@ -5,9 +5,9 @@ namespace MonC.SyntaxTree.Leaves.Statements
         public DeclarationLeaf Declaration;
         public IExpressionLeaf Condition;
         public IExpressionLeaf Update;
-        public Body Body;
+        public BodyLeaf Body;
 
-        public ForLeaf(DeclarationLeaf declaration, IExpressionLeaf condition, IExpressionLeaf update, Body body)
+        public ForLeaf(DeclarationLeaf declaration, IExpressionLeaf condition, IExpressionLeaf update, BodyLeaf body)
         {
             Declaration = declaration;
             Condition = condition;
