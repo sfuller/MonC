@@ -313,7 +313,7 @@ namespace MonC
 
         private BodyNode? ParseBody(ref TokenSource tokens)
         {
-            if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_BRACKET, out _)) {
+            if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_BRACKET, out Token bodyOpening)) {
                 return null;
             }
 
@@ -334,7 +334,7 @@ namespace MonC
                 statements.Add(statement);
             }
 
-            return new BodyNode(statements);
+            return NewNode(new BodyNode(statements), bodyOpening, tokens.Peek(-1));
         }
 
         private IStatementNode? ParseStatement(ref TokenSource tokens)
