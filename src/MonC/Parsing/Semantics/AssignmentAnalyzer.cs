@@ -1,10 +1,11 @@
 using System.Collections.Generic;
-using MonC.Parsing.ParseTreeLeaves;
+using MonC.Parsing.ParseTree;
+using MonC.Parsing.ParseTree.Nodes;
 using MonC.Parsing.Scoping;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util.ChildrenVisitors;
 using MonC.SyntaxTree.Util.NoOpVisitors;
 using MonC.SyntaxTree.Util.ReplacementVisitors;
@@ -15,26 +16,26 @@ namespace MonC.Parsing.Semantics
             NoOpExpressionAndStatementVisitor, IParseTreeVisitor,
             IStatementReplacementVisitor, IExpressionReplacementVisitor
     {
-        private readonly IList<(string message, ISyntaxTreeLeaf leaf)> _errors;
-        private readonly IDictionary<ISyntaxTreeLeaf, Symbol> _symbolMap;
+        private readonly IList<(string message, ISyntaxTreeNode node)> _errors;
+        private readonly IDictionary<ISyntaxTreeNode, Symbol> _symbolMap;
 
         private bool _shouldReplace;
-        private IExpressionLeaf _newExpressionLeaf;
+        private IExpressionNode _newExpressionNode;
 
         private readonly ScopeManager _scopeManager = new ScopeManager();
 
-        // We don't reaplace any statement leaves, so we can keep this a constant, non-null value.
-        private readonly IStatementLeaf _newStatementLeaf = new ExpressionStatementLeaf(new VoidExpression());
+        // We don't reaplace any statement nodes, so we can keep this a constant, non-null value.
+        private readonly IStatementNode _newStatementNode = new ExpressionStatementNode(new VoidExpressionNode());
 
-        public AssignmentAnalyzer(IList<(string message, ISyntaxTreeLeaf leaf)> errors, IDictionary<ISyntaxTreeLeaf, Symbol> symbolMap)
+        public AssignmentAnalyzer(IList<(string message, ISyntaxTreeNode node)> errors, IDictionary<ISyntaxTreeNode, Symbol> symbolMap)
         {
             _errors = errors;
             _symbolMap = symbolMap;
 
-            _newExpressionLeaf = new VoidExpression();
+            _newExpressionNode = new VoidExpressionNode();
         }
 
-        public void Process(FunctionDefinitionLeaf function)
+        public void Process(FunctionDefinitionNode function)
         {
             _scopeManager.ProcessFunction(function);
 
@@ -42,7 +43,7 @@ namespace MonC.Parsing.Semantics
             ProcessStatementReplacementsVisitor statementReplacementsVisitor = new ProcessStatementReplacementsVisitor(this, this);
             ExpressionChildrenVisitor expressionChildrenVisitor = new ExpressionChildrenVisitor(expressionReplacementsVisitor);
             StatementChildrenVisitor statementChildrenVisitor = new StatementChildrenVisitor(statementReplacementsVisitor, expressionChildrenVisitor);
-            function.Body.AcceptStatements(statementChildrenVisitor);
+            function.Body.VisitStatements(statementChildrenVisitor);
         }
 
         public void PrepareToVisit()
@@ -50,61 +51,61 @@ namespace MonC.Parsing.Semantics
             _shouldReplace = false;
         }
 
-        bool IExpressionReplacementVisitor.ShouldReplace => _shouldReplace;
-        bool IStatementReplacementVisitor.ShouldReplace => _shouldReplace;
-        IExpressionLeaf IExpressionReplacementVisitor.NewLeaf => _newExpressionLeaf;
-        IStatementLeaf IStatementReplacementVisitor.NewLeaf => _newStatementLeaf;
+        bool IReplacementVisitor<IExpressionNode>.ShouldReplace => _shouldReplace;
+        bool IReplacementVisitor<IStatementNode>.ShouldReplace => _shouldReplace;
+        IExpressionNode IReplacementVisitor<IExpressionNode>.NewNode => _newExpressionNode;
+        IStatementNode IReplacementVisitor<IStatementNode>.NewNode => _newStatementNode;
 
-        public override void VisitBinaryOperation(IBinaryOperationLeaf leaf)
+        public override void VisitBinaryOperation(IBinaryOperationNode node)
         {
-            leaf.AcceptBinaryOperationVisitor(this);
+            node.AcceptBinaryOperationVisitor(this);
         }
 
-        public override void VisitUnknown(IExpressionLeaf leaf)
+        public override void VisitUnknown(IExpressionNode node)
         {
-            if (leaf is IParseLeaf parseLeaf) {
-                parseLeaf.AcceptParseTreeVisitor(this);
+            if (node is IParseTreeNode parseNode) {
+                parseNode.AcceptParseTreeVisitor(this);
             }
         }
 
-        public override void VisitUnknown(IBinaryOperationLeaf leaf)
+        public override void VisitUnknown(IBinaryOperationNode node)
         {
-            if (leaf is IParseLeaf parseLeaf) {
-                parseLeaf.AcceptParseTreeVisitor(this);
+            if (node is IParseTreeNode parseNode) {
+                parseNode.AcceptParseTreeVisitor(this);
             }
         }
 
-        public void VisitAssignment(AssignmentParseLeaf leaf)
+        public void VisitAssignment(AssignmentParseNode node)
         {
-            if (!(leaf.LHS is IdentifierParseLeaf identifier)) {
-                _errors.Add(("Expecting identifier", leaf.LHS));
+            if (!(node.LHS is IdentifierParseNode identifier)) {
+                _errors.Add(("Expecting identifier", node.LHS));
                 return;
             }
 
             _shouldReplace = true;
-            IExpressionLeaf resultLeaf;
+            IExpressionNode resultNode;
 
-            DeclarationLeaf declaration = _scopeManager.GetScope(leaf).Variables.Find(d => d.Name == identifier.Name);
+            DeclarationNode declaration = _scopeManager.GetScope(node).Variables.Find(d => d.Name == identifier.Name);
             if (declaration == null) {
                 _errors.Add(($"Undeclared identifier {identifier.Name}", identifier));
-                resultLeaf = new VoidExpression();
+                resultNode = new VoidExpressionNode();
             } else {
-                resultLeaf = new AssignmentLeaf(declaration, leaf.RHS);
+                resultNode = new AssignmentNode(declaration, node.RHS);
             }
 
-            _newExpressionLeaf = resultLeaf;
+            _newExpressionNode = resultNode;
 
-            // TODO: Need more automated symbol association for new leaves.
+            // TODO: Need more automated symbol association for new nodes.
             Symbol originalSymbol;
-            _symbolMap.TryGetValue(leaf, out originalSymbol);
-            _symbolMap[_newExpressionLeaf] = originalSymbol;
+            _symbolMap.TryGetValue(node, out originalSymbol);
+            _symbolMap[_newExpressionNode] = originalSymbol;
         }
 
-        public void VisitIdentifier(IdentifierParseLeaf leaf)
+        public void VisitIdentifier(IdentifierParseNode node)
         {
         }
 
-        public void VisitFunctionCall(FunctionCallParseLeaf leaf)
+        public void VisitFunctionCall(FunctionCallParseNode node)
         {
         }
     }

@@ -1,15 +1,15 @@
 using System.Collections.Generic;
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Parsing.Semantics
 {
     public class TransferPointerAnalysisVisitor : IStatementVisitor, IExpressionVisitor
     {
-        private readonly IList<(string message, ISyntaxTreeLeaf leaf)> _errors;
+        private readonly IList<(string message, ISyntaxTreeNode node)> _errors;
         private readonly bool _transferAllowed;
-        private readonly DeclarationLeaf _pointer;
+        private readonly DeclarationNode _pointer;
 
         private bool _ownership = true;
 
@@ -19,8 +19,8 @@ namespace MonC.Parsing.Semantics
         }
 
         public TransferPointerAnalysisVisitor(
-                DeclarationLeaf pointer,
-                IList<(string message, ISyntaxTreeLeaf leaf)> errors,
+                DeclarationNode pointer,
+                IList<(string message, ISyntaxTreeNode node)> errors,
                 bool transferAllowed = true)
         {
             _pointer = pointer;
@@ -28,25 +28,30 @@ namespace MonC.Parsing.Semantics
             _transferAllowed = transferAllowed;
         }
 
-        public void VisitDeclaration(DeclarationLeaf leaf)
+        public void VisitBody(BodyNode node)
+        {
+            node.VisitStatements(this);
+        }
+
+        public void VisitDeclaration(DeclarationNode node)
         {
             // TODO?
         }
 
-        public void VisitFor(ForLeaf leaf)
+        public void VisitFor(ForNode node)
         {
             // TODO?
         }
 
-        public void VisitIfElse(IfElseLeaf leaf)
+        public void VisitIfElse(IfElseNode node)
         {
             TransferPointerAnalysisVisitor ifBranchVisitor = MakeSubVisitor();
             TransferPointerAnalysisVisitor elseBranchVisitor = MakeSubVisitor();
 
-            leaf.Condition.AcceptExpressionVisitor(this);
+            node.Condition.AcceptExpressionVisitor(this);
 
-            leaf.IfBody.AcceptStatements(ifBranchVisitor);
-            leaf.ElseBody.AcceptStatements(elseBranchVisitor);
+            node.IfBody.VisitStatements(ifBranchVisitor);
+            node.ElseBody.VisitStatements(elseBranchVisitor);
 
             bool ownershipAfterIfBranch = ifBranchVisitor._ownership;
             bool ownershipAfterElseBranch = elseBranchVisitor._ownership;
@@ -58,105 +63,105 @@ namespace MonC.Parsing.Semantics
                 _ownership = false;
 
                 if (ownershipAfterIfBranch) {
-                    // TODO: Add free statement leaf to If body
+                    // TODO: Add free statement node to If body
                 }
 
                 if (ownershipAfterElseBranch) {
-                    // TODO: Add free statement leaf to Else body. This involves creating an else body if null.
+                    // TODO: Add free statement node to Else body. This involves creating an else body if null.
                 }
             }
         }
 
-        public void VisitWhile(WhileLeaf leaf)
+        public void VisitWhile(WhileNode node)
         {
             TransferPointerAnalysisVisitor subVisitor = MakeSubVisitor(transferAllowed: false);
-            leaf.Condition.AcceptExpressionVisitor(subVisitor);
-            leaf.Body.AcceptStatements(subVisitor);
+            node.Condition.AcceptExpressionVisitor(subVisitor);
+            node.Body.VisitStatements(subVisitor);
         }
 
-        public void VisitBreak(BreakLeaf leaf)
+        public void VisitBreak(BreakNode node)
         {
         }
 
-        public void VisitContinue(ContinueLeaf leaf)
+        public void VisitContinue(ContinueNode node)
         {
         }
 
-        public void VisitReturn(ReturnLeaf leaf)
+        public void VisitReturn(ReturnNode node)
         {
             // TODO: Is this sufficient? Are there other types of expressions that could cause ownership transfer?
-            if (leaf.RHS is VariableLeaf variableLeaf) {
-                if (variableLeaf.Declaration == _pointer) {
-                    TakeOwnership(leaf);
+            if (node.RHS is VariableNode variableNode) {
+                if (variableNode.Declaration == _pointer) {
+                    TakeOwnership(node);
                 }
             }
         }
 
-        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
+        public void VisitExpressionStatement(ExpressionStatementNode node)
         {
             throw new System.NotImplementedException();
         }
 
-        public void VisitVoid(VoidExpression leaf)
+        public void VisitVoid(VoidExpressionNode node)
         {
             throw new System.NotImplementedException();
         }
 
-        public void VisitBinaryOperation(IBinaryOperationLeaf leaf)
+        public void VisitBinaryOperation(IBinaryOperationNode node)
         {
         }
 
-        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationNode node)
         {
         }
 
-        public void VisitNumericLiteral(NumericLiteralLeaf leaf)
+        public void VisitNumericLiteral(NumericLiteralNode node)
         {
         }
 
-        public void VisitStringLiteral(StringLiteralLeaf leaf)
+        public void VisitStringLiteral(StringLiteralNode node)
         {
         }
 
-        public void VisitEnumValue(EnumValueLeaf leaf)
+        public void VisitEnumValue(EnumValueNode node)
         {
         }
 
-        public void VisitFunctionCall(FunctionCallLeaf leaf)
+        public void VisitFunctionCall(FunctionCallNode node)
         {
-            for (int argumentIndex = 0, argumentLength = leaf.ArgumentCount; argumentIndex < argumentLength; ++argumentIndex) {
-                ISyntaxTreeLeaf argument = leaf.GetArgument(argumentIndex);
+            for (int argumentIndex = 0, argumentLength = node.ArgumentCount; argumentIndex < argumentLength; ++argumentIndex) {
+                ISyntaxTreeNode argument = node.GetArgument(argumentIndex);
                 if (argument == _pointer) {
                     // Note: If same pointer is passed as multiple parameters, an error will occur.
                     // This conventiently prevents the function from possibly accidentally free-ing twice.
                     // We may want to have more formal aliasing errors.
-                    TakeOwnership(leaf);
+                    TakeOwnership(node);
                 }
             }
         }
 
-        public void VisitVariable(VariableLeaf leaf)
+        public void VisitVariable(VariableNode node)
         {
         }
 
-        public void VisitAssignment(AssignmentLeaf leaf)
+        public void VisitAssignment(AssignmentNode node)
         {
             // TOOD: What should happen if LHS is the pointer in question? should we allow that pointer to be assigned,
             // and if so, we should free the old value if owned, set ownership = true?
 
             // TODO: Is this sufficient? Are there other types of expressions that could cause ownership transfer?
-            if (leaf.RHS is VariableLeaf variableLeaf) {
-                if (variableLeaf.Declaration == _pointer) {
-                    TakeOwnership(leaf);
+            if (node.RHS is VariableNode variableNode) {
+                if (variableNode.Declaration == _pointer) {
+                    TakeOwnership(node);
                 }
             }
         }
 
-        public void VisitUnknown(IExpressionLeaf leaf)
+        public void VisitUnknown(IExpressionNode node)
         {
         }
 
-        private void TakeOwnership(ISyntaxTreeLeaf context)
+        private void TakeOwnership(ISyntaxTreeNode context)
         {
             if (_transferAllowed) {
                 _errors.Add(("Cannot transfer ownership in this context.", context));

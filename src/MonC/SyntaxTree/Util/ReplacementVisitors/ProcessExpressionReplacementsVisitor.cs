@@ -1,5 +1,5 @@
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Expressions;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
 
 namespace MonC.SyntaxTree.Util.ReplacementVisitors
 {
@@ -12,65 +12,65 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
             _replacer = replacer;
         }
 
-        public void VisitVoid(VoidExpression leaf)
+        public void VisitVoid(VoidExpressionNode node)
         {
         }
 
-        public void VisitNumericLiteral(NumericLiteralLeaf leaf)
+        public void VisitNumericLiteral(NumericLiteralNode node)
         {
         }
 
-        public void VisitStringLiteral(StringLiteralLeaf leaf)
+        public void VisitStringLiteral(StringLiteralNode node)
         {
         }
 
-        public void VisitEnumValue(EnumValueLeaf leaf)
+        public void VisitEnumValue(EnumValueNode node)
         {
         }
 
-        public void VisitVariable(VariableLeaf leaf)
+        public void VisitVariable(VariableNode node)
         {
         }
 
-        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationNode node)
         {
-            leaf.RHS = ProcessReplacement(leaf.RHS);
+            node.RHS = ProcessReplacement(node.RHS);
         }
 
-        public void VisitBinaryOperation(IBinaryOperationLeaf leaf)
+        public void VisitBinaryOperation(IBinaryOperationNode node)
         {
             // TODO: Should this be optional to allow more flexibility with a IBinaryOperationVisitor?
-            leaf.LHS = ProcessReplacement(leaf.LHS);
-            leaf.RHS = ProcessReplacement(leaf.RHS);
+            node.LHS = ProcessReplacement(node.LHS);
+            node.RHS = ProcessReplacement(node.RHS);
         }
 
-        public void VisitFunctionCall(FunctionCallLeaf leaf)
+        public void VisitFunctionCall(FunctionCallNode node)
         {
-            for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                leaf.SetArgument(i, ProcessReplacement(leaf.GetArgument(i)));
+            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
+                node.SetArgument(i, ProcessReplacement(node.GetArgument(i)));
             }
         }
 
-        public void VisitAssignment(AssignmentLeaf leaf)
+        public void VisitAssignment(AssignmentNode node)
         {
-            leaf.RHS = ProcessReplacement(leaf.RHS);
+            node.RHS = ProcessReplacement(node.RHS);
         }
 
-        public void VisitUnknown(IExpressionLeaf leaf)
+        public void VisitUnknown(IExpressionNode node)
         {
             // TODO: Should we do anything here?
         }
 
-        private IExpressionLeaf ProcessReplacement(IExpressionLeaf leaf)
+        private IExpressionNode ProcessReplacement(IExpressionNode node)
         {
             _replacer.PrepareToVisit();
-            leaf.AcceptExpressionVisitor(_replacer);
+            node.AcceptExpressionVisitor(_replacer);
 
             if (!_replacer.ShouldReplace) {
-                return leaf;
+                return node;
             }
 
-            return _replacer.NewLeaf;
+            return _replacer.NewNode;
         }
     }
 }

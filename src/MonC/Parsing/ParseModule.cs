@@ -5,8 +5,8 @@ namespace MonC.Parsing
 {
     public class ParseModule
     {
-        public readonly List<FunctionDefinitionLeaf> Functions = new List<FunctionDefinitionLeaf>();
-        public readonly List<EnumLeaf> Enums = new List<EnumLeaf>();
-        public readonly Dictionary<ISyntaxTreeLeaf, Symbol> TokenMap = new Dictionary<ISyntaxTreeLeaf, Symbol>();
+        public readonly List<FunctionDefinitionNode> Functions = new List<FunctionDefinitionNode>();
+        public readonly List<EnumNode> Enums = new List<EnumNode>();
+        public readonly Dictionary<ISyntaxTreeNode, Symbol> TokenMap = new Dictionary<ISyntaxTreeNode, Symbol>();
     }
 }

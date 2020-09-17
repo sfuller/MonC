@@ -1,43 +1,43 @@
 ﻿using System;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Expressions.BinaryOperations;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
 
 namespace MonC.LLVM
 {
-    public struct BinaryOperationCodeGenVisitor : IBinaryOperationVisitor
+    public readonly struct BinaryOperationCodeGenVisitor : IBinaryOperationVisitor
     {
-        private FunctionCodeGenVisitor _codeGenVisitor;
+        private readonly FunctionCodeGenVisitor _codeGenVisitor;
 
         public BinaryOperationCodeGenVisitor(FunctionCodeGenVisitor codeGenVisitor) =>
             _codeGenVisitor = codeGenVisitor;
 
-        public void VisitCompareLTBinOp(CompareLTBinOpLeaf leaf) =>
-            GenerateRelationalComparison(leaf, CAPI.LLVMIntPredicate.IntSLT, CAPI.LLVMRealPredicate.RealOLT);
+        public void VisitCompareLTBinOp(CompareLtBinOpNode node) =>
+            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntSLT, CAPI.LLVMRealPredicate.RealOLT);
 
-        public void VisitCompareLTEBinOp(CompareLTEBinOpLeaf leaf) =>
-            GenerateRelationalComparison(leaf, CAPI.LLVMIntPredicate.IntSLE, CAPI.LLVMRealPredicate.RealOLE);
+        public void VisitCompareLTEBinOp(CompareLteBinOpNode node) =>
+            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntSLE, CAPI.LLVMRealPredicate.RealOLE);
 
-        public void VisitCompareGTBinOp(CompareGTBinOpLeaf leaf) =>
-            GenerateRelationalComparison(leaf, CAPI.LLVMIntPredicate.IntSGT, CAPI.LLVMRealPredicate.RealOGT);
+        public void VisitCompareGTBinOp(CompareGtBinOpNode node) =>
+            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntSGT, CAPI.LLVMRealPredicate.RealOGT);
 
-        public void VisitCompareGTEBinOp(CompareGTEBinOpLeaf leaf) =>
-            GenerateRelationalComparison(leaf, CAPI.LLVMIntPredicate.IntSGE, CAPI.LLVMRealPredicate.RealOGE);
+        public void VisitCompareGTEBinOp(CompareGteBinOpNode node) =>
+            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntSGE, CAPI.LLVMRealPredicate.RealOGE);
 
-        public void VisitCompareEqualityBinOp(CompareEqualityBinOpLeaf leaf) =>
-            GenerateRelationalComparison(leaf, CAPI.LLVMIntPredicate.IntEQ, CAPI.LLVMRealPredicate.RealUEQ);
+        public void VisitCompareEqualityBinOp(CompareEqualityBinOpNode node) =>
+            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntEQ, CAPI.LLVMRealPredicate.RealUEQ);
 
-        public void VisitCompareInequalityBinOp(CompareInequalityBinOpLeaf leaf) =>
-            GenerateRelationalComparison(leaf, CAPI.LLVMIntPredicate.IntNE, CAPI.LLVMRealPredicate.RealUNE);
+        public void VisitCompareInequalityBinOp(CompareInequalityBinOpNode node) =>
+            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntNE, CAPI.LLVMRealPredicate.RealUNE);
 
-        public void VisitLogicalAndBinOp(LogicalAndBinOpLeaf leaf)
+        public void VisitLogicalAndBinOp(LogicalAndBinOpNode node)
         {
-            leaf.LHS.AcceptExpressionVisitor(_codeGenVisitor);
+            node.LHS.AcceptExpressionVisitor(_codeGenVisitor);
             Value lhs = _codeGenVisitor._visitedValue;
             if (!lhs.IsValid) {
                 throw new InvalidOperationException("LHS did not produce a usable rvalue");
             }
 
-            _codeGenVisitor.SetCurrentDebugLocation(leaf);
+            _codeGenVisitor.SetCurrentDebugLocation(node);
             lhs = _codeGenVisitor.ConvertToBool(lhs);
 
             BasicBlock contBlock = _codeGenVisitor._genContext.Context.CreateBasicBlock("land.end");
@@ -51,13 +51,13 @@ namespace MonC.LLVM
 
             // TODO: This can be further optimized by recursively gathering LHS pred blocks and adding them to the phi
             // rather than generating several phis
-            leaf.RHS.AcceptExpressionVisitor(_codeGenVisitor);
+            node.RHS.AcceptExpressionVisitor(_codeGenVisitor);
             Value rhs = _codeGenVisitor._visitedValue;
             if (!rhs.IsValid) {
                 throw new InvalidOperationException("RHS did not produce a usable rvalue");
             }
 
-            _codeGenVisitor.SetCurrentDebugLocation(leaf);
+            _codeGenVisitor.SetCurrentDebugLocation(node);
             rhs = _codeGenVisitor.ConvertToBool(rhs);
             _codeGenVisitor._builder.BuildBr(contBlock);
             BasicBlock rhsPredBlock = _codeGenVisitor._builder.InsertBlock;
@@ -73,15 +73,15 @@ namespace MonC.LLVM
             _codeGenVisitor._visitedValue = phi;
         }
 
-        public void VisitLogicalOrBinOp(LogicalOrBinOpLeaf leaf)
+        public void VisitLogicalOrBinOp(LogicalOrBinOpNode node)
         {
-            leaf.LHS.AcceptExpressionVisitor(_codeGenVisitor);
+            node.LHS.AcceptExpressionVisitor(_codeGenVisitor);
             Value lhs = _codeGenVisitor._visitedValue;
             if (!lhs.IsValid) {
                 throw new InvalidOperationException("LHS did not produce a usable rvalue");
             }
 
-            _codeGenVisitor.SetCurrentDebugLocation(leaf);
+            _codeGenVisitor.SetCurrentDebugLocation(node);
             lhs = _codeGenVisitor.ConvertToBool(lhs);
 
             BasicBlock contBlock = _codeGenVisitor._genContext.Context.CreateBasicBlock("lor.end");
@@ -95,13 +95,13 @@ namespace MonC.LLVM
 
             // TODO: This can be further optimized by recursively gathering LHS pred blocks and adding them to the phi
             // rather than generating several phis
-            leaf.RHS.AcceptExpressionVisitor(_codeGenVisitor);
+            node.RHS.AcceptExpressionVisitor(_codeGenVisitor);
             Value rhs = _codeGenVisitor._visitedValue;
             if (!rhs.IsValid) {
                 throw new InvalidOperationException("RHS did not produce a usable rvalue");
             }
 
-            _codeGenVisitor.SetCurrentDebugLocation(leaf);
+            _codeGenVisitor.SetCurrentDebugLocation(node);
             rhs = _codeGenVisitor.ConvertToBool(rhs);
             _codeGenVisitor._builder.BuildBr(contBlock);
             BasicBlock rhsPredBlock = _codeGenVisitor._builder.InsertBlock;
@@ -117,50 +117,50 @@ namespace MonC.LLVM
             _codeGenVisitor._visitedValue = phi;
         }
 
-        public void VisitAddBinOp(AddBinOpLeaf leaf)
+        public void VisitAddBinOp(AddBinOpNode node)
         {
-            GetBinaryArithmeticOperands(leaf, out Value lhs, out Value rhs, out bool isFloat);
+            GetBinaryArithmeticOperands(node, out Value lhs, out Value rhs, out bool isFloat);
             _codeGenVisitor._visitedValue = isFloat
                 ? _codeGenVisitor._builder.BuildFAdd(lhs, rhs)
                 : _codeGenVisitor._builder.BuildAdd(lhs, rhs);
         }
 
-        public void VisitSubtractBinOp(SubtractBinOpLeaf leaf)
+        public void VisitSubtractBinOp(SubtractBinOpNode node)
         {
-            GetBinaryArithmeticOperands(leaf, out Value lhs, out Value rhs, out bool isFloat);
+            GetBinaryArithmeticOperands(node, out Value lhs, out Value rhs, out bool isFloat);
             _codeGenVisitor._visitedValue = isFloat
                 ? _codeGenVisitor._builder.BuildFSub(lhs, rhs)
                 : _codeGenVisitor._builder.BuildSub(lhs, rhs);
         }
 
-        public void VisitMultiplyBinOp(MultiplyBinOpLeaf leaf)
+        public void VisitMultiplyBinOp(MultiplyBinOpNode node)
         {
-            GetBinaryArithmeticOperands(leaf, out Value lhs, out Value rhs, out bool isFloat);
+            GetBinaryArithmeticOperands(node, out Value lhs, out Value rhs, out bool isFloat);
             _codeGenVisitor._visitedValue = isFloat
                 ? _codeGenVisitor._builder.BuildFMul(lhs, rhs)
                 : _codeGenVisitor._builder.BuildMul(lhs, rhs);
         }
 
-        public void VisitDivideBinOp(DivideBinOpLeaf leaf)
+        public void VisitDivideBinOp(DivideBinOpNode node)
         {
-            GetBinaryArithmeticOperands(leaf, out Value lhs, out Value rhs, out bool isFloat);
+            GetBinaryArithmeticOperands(node, out Value lhs, out Value rhs, out bool isFloat);
             _codeGenVisitor._visitedValue = isFloat
                 ? _codeGenVisitor._builder.BuildFDiv(lhs, rhs)
                 : _codeGenVisitor._builder.BuildSDiv(lhs, rhs);
         }
 
-        public void VisitModuloBinOp(ModuloBinOpLeaf leaf)
+        public void VisitModuloBinOp(ModuloBinOpNode node)
         {
-            GetBinaryArithmeticOperands(leaf, out Value lhs, out Value rhs, out bool isFloat);
+            GetBinaryArithmeticOperands(node, out Value lhs, out Value rhs, out bool isFloat);
             _codeGenVisitor._visitedValue = isFloat
                 ? _codeGenVisitor._builder.BuildFRem(lhs, rhs)
                 : _codeGenVisitor._builder.BuildSRem(lhs, rhs);
         }
 
-        public void VisitUnknown(IBinaryOperationLeaf leaf)
+        public void VisitUnknown(IBinaryOperationNode node)
         {
             throw new InvalidOperationException(
-                "Unexpected binary operation leaf type. Was replacement of a parse tree leaf missed?");
+                "Unexpected binary operation node type. Was replacement of a parse tree node missed?");
         }
 
         private void TypePromotionForBinaryOperation(ref Value lhs, ref Value rhs, out bool isFloat)
@@ -187,22 +187,22 @@ namespace MonC.LLVM
             isFloat = lhsTp.IsFloatingPointType();
         }
 
-        private void GenerateRelationalComparison(IBinaryOperationLeaf leaf, CAPI.LLVMIntPredicate intPred,
+        private void GenerateRelationalComparison(IBinaryOperationNode node, CAPI.LLVMIntPredicate intPred,
             CAPI.LLVMRealPredicate realPred)
         {
-            leaf.LHS.AcceptExpressionVisitor(_codeGenVisitor);
+            node.LHS.AcceptExpressionVisitor(_codeGenVisitor);
             Value lhs = _codeGenVisitor._visitedValue;
             if (!lhs.IsValid) {
                 throw new InvalidOperationException("LHS did not produce a usable rvalue");
             }
 
-            leaf.RHS.AcceptExpressionVisitor(_codeGenVisitor);
+            node.RHS.AcceptExpressionVisitor(_codeGenVisitor);
             Value rhs = _codeGenVisitor._visitedValue;
             if (!rhs.IsValid) {
                 throw new InvalidOperationException("RHS did not produce a usable rvalue");
             }
 
-            _codeGenVisitor.SetCurrentDebugLocation(leaf);
+            _codeGenVisitor.SetCurrentDebugLocation(node);
             TypePromotionForBinaryOperation(ref lhs, ref rhs, out bool isFloat);
 
             if (!isFloat) {
@@ -213,22 +213,22 @@ namespace MonC.LLVM
             }
         }
 
-        private void GetBinaryArithmeticOperands(IBinaryOperationLeaf leaf, out Value lhs, out Value rhs,
+        private void GetBinaryArithmeticOperands(IBinaryOperationNode node, out Value lhs, out Value rhs,
             out bool isFloat)
         {
-            leaf.LHS.AcceptExpressionVisitor(_codeGenVisitor);
+            node.LHS.AcceptExpressionVisitor(_codeGenVisitor);
             lhs = _codeGenVisitor._visitedValue;
             if (!lhs.IsValid) {
                 throw new InvalidOperationException("LHS did not produce a usable rvalue");
             }
 
-            leaf.RHS.AcceptExpressionVisitor(_codeGenVisitor);
+            node.RHS.AcceptExpressionVisitor(_codeGenVisitor);
             rhs = _codeGenVisitor._visitedValue;
             if (!rhs.IsValid) {
                 throw new InvalidOperationException("RHS did not produce a usable rvalue");
             }
 
-            _codeGenVisitor.SetCurrentDebugLocation(leaf);
+            _codeGenVisitor.SetCurrentDebugLocation(node);
             TypePromotionForBinaryOperation(ref lhs, ref rhs, out isFloat);
         }
     }

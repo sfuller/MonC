@@ -2,11 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MonC.IL;
-using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Expressions.BinaryOperations;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Codegen
 {
@@ -49,89 +48,94 @@ namespace MonC.Codegen
             return _functionBuilder.AddInstruction(op, immediate);
         }
 
-        private void AddDebugSymbol(int address, ISyntaxTreeLeaf associatedLeaf)
+        private void AddDebugSymbol(int address, ISyntaxTreeNode associatedNode)
         {
-            _functionBuilder.AddDebugSymbol(address, associatedLeaf);
+            _functionBuilder.AddDebugSymbol(address, associatedNode);
         }
 
-        public void VisitBinaryOperation(IBinaryOperationLeaf leaf)
+        public void VisitBinaryOperation(IBinaryOperationNode node)
         {
-            bool shouldCoerceSides = leaf is LogicalAndBinOpLeaf;
+            bool shouldCoerceSides = node is LogicalAndBinOpNode;
 
             // Evaluate right hand side and put it in the stack.
             int rhsStackAddress = AllocTemporaryStackAddress();
-            leaf.RHS.AcceptExpressionVisitor(this);
+            node.RHS.AcceptExpressionVisitor(this);
             if (shouldCoerceSides) {
                 AddInstruction(OpCode.BOOL);
             }
             AddInstruction(OpCode.WRITE, rhsStackAddress);
 
             // Evaluate left hand side and keep it in the a register
-            leaf.LHS.AcceptExpressionVisitor(this);
+            node.LHS.AcceptExpressionVisitor(this);
 
             int comparisonOperationAddress = _functionBuilder.InstructionCount;
 
 
             BinaryOperationCodeGenVisitor binOpVisitor = new BinaryOperationCodeGenVisitor(_functionBuilder);
             binOpVisitor.Setup(rhsStackAddress);
-            leaf.AcceptBinaryOperationVisitor(binOpVisitor);
+            node.AcceptBinaryOperationVisitor(binOpVisitor);
 
             FreeTemporaryStackAddress();
 
-            AddDebugSymbol(comparisonOperationAddress, leaf);
+            AddDebugSymbol(comparisonOperationAddress, node);
         }
 
-        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationNode node)
         {
             UnaryOperationCodeGenVisitor unaryVisitor = new UnaryOperationCodeGenVisitor(_functionBuilder, this);
-            leaf.AcceptUnaryOperationVisitor(unaryVisitor);
+            node.AcceptUnaryOperationVisitor(unaryVisitor);
         }
 
-        public void VisitAssignment(AssignmentLeaf leaf)
+        public void VisitAssignment(AssignmentNode node)
         {
-            leaf.RHS.AcceptExpressionVisitor(this);
+            node.RHS.AcceptExpressionVisitor(this);
             int variableAddress;
-            _layout.Variables.TryGetValue(leaf.Declaration, out variableAddress);
+            _layout.Variables.TryGetValue(node.Declaration, out variableAddress);
             int addr = AddInstruction(OpCode.WRITE, variableAddress);
-            AddDebugSymbol(addr, leaf);
+            AddDebugSymbol(addr, node);
         }
 
-        public void VisitEnumValue(EnumValueLeaf leaf)
+        public void VisitEnumValue(EnumValueNode node)
         {
-            int value = leaf.Enum.Enumerations.First(kvp => kvp.Key == leaf.Name).Value;
+            int value = node.Enum.Enumerations.First(kvp => kvp.Key == node.Name).Value;
             AddInstruction(OpCode.LOAD, value);
         }
 
-        public void VisitDeclaration(DeclarationLeaf leaf)
+        public void VisitBody(BodyNode node)
+        {
+            node.VisitStatements(this);
+        }
+
+        public void VisitDeclaration(DeclarationNode node)
         {
             // TODO: Support not doing an assignment when expression is void.
             // Maybe this could be accomplished by having an ExpressionCodeGenVisitor that return if a value was set.
             // If we transition the bytecode format to be more stack based, the ExpressionCodeGenVisitor could return
             // how many values were pushed.
-            leaf.Assignment.AcceptExpressionVisitor(this);
-            int addr = AddInstruction(OpCode.WRITE, _layout.Variables[leaf]);
-            AddDebugSymbol(addr, leaf);
+            node.Assignment.AcceptExpressionVisitor(this);
+            int addr = AddInstruction(OpCode.WRITE, _layout.Variables[node]);
+            AddDebugSymbol(addr, node);
         }
 
-        public void VisitFor(ForLeaf leaf)
+        public void VisitFor(ForNode node)
         {
-            leaf.Declaration.AcceptStatementVisitor(this);
+            node.Declaration.AcceptStatementVisitor(this);
 
             // jump straight to condition
             int initialJumpLocation = AddInstruction(OpCode.NOOP);
 
             // Generate body code
             int bodyLocation = _functionBuilder.InstructionCount;
-            VisitBody(leaf.Body);
+            VisitBody(node.Body);
 
             int continueJumpLocation = _functionBuilder.InstructionCount;
 
             // Generate update code
-            leaf.Update.AcceptExpressionVisitor(this);
+            node.Update.AcceptExpressionVisitor(this);
 
             // Generate condition code
             int conditionLocation = _functionBuilder.InstructionCount;
-            leaf.Condition.AcceptExpressionVisitor(this);
+            node.Condition.AcceptExpressionVisitor(this);
 
             // Branch to body if condition met.
             int currentLocation = _functionBuilder.InstructionCount;
@@ -152,13 +156,13 @@ namespace MonC.Codegen
             _continues.Clear();
         }
 
-        public void VisitFunctionCall(FunctionCallLeaf leaf)
+        public void VisitFunctionCall(FunctionCallNode node)
         {
-            int argumentStackLength = leaf.ArgumentCount + 1;
+            int argumentStackLength = node.ArgumentCount + 1;
             int argumentStack = AllocTemporaryStackAddress(argumentStackLength);
 
             // First argument is the index of the function to be called
-            int functionLoadAddr = AddInstruction(OpCode.LOAD, _functionManager.GetFunctionIndex(leaf.LHS));
+            int functionLoadAddr = AddInstruction(OpCode.LOAD, _functionManager.GetFunctionIndex(node.LHS));
             AddInstruction(OpCode.WRITE, argumentStack);
 
             _functionBuilder.SetInstructionReferencingFunctionAddress(functionLoadAddr);
@@ -166,8 +170,8 @@ namespace MonC.Codegen
             // The rest of the argument stack is the argument values.
             int argumentStackValuesStart = argumentStack + 1;
 
-            for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                leaf.GetArgument(i).AcceptExpressionVisitor(this);
+            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
+                node.GetArgument(i).AcceptExpressionVisitor(this);
                 AddInstruction(OpCode.WRITE, argumentStackValuesStart + i);
             }
 
@@ -176,29 +180,29 @@ namespace MonC.Codegen
             FreeTemporaryStackAddress(argumentStackLength);
 
             // Add debug symbol at the first instruction that starts preparing the function to be called.
-            AddDebugSymbol(functionLoadAddr, leaf);
+            AddDebugSymbol(functionLoadAddr, node);
         }
 
-        public void VisitVariable(VariableLeaf leaf)
+        public void VisitVariable(VariableNode node)
         {
-            AddInstruction(OpCode.READ, _layout.Variables[leaf.Declaration]);
+            AddInstruction(OpCode.READ, _layout.Variables[node.Declaration]);
         }
 
-        public void VisitIfElse(IfElseLeaf leaf)
+        public void VisitIfElse(IfElseNode node)
         {
             int startAddress = _functionBuilder.InstructionCount;
-            AddDebugSymbol(startAddress, leaf.Condition);
+            AddDebugSymbol(startAddress, node.Condition);
 
-            leaf.Condition.AcceptExpressionVisitor(this);
+            node.Condition.AcceptExpressionVisitor(this);
 
             // Make space for the branch instruction we will instert.
             int branchIndex = AddInstruction(OpCode.NOOP);
 
-            VisitBody(leaf.IfBody);
+            VisitBody(node.IfBody);
             // Jump to end of if/else after evaluation of if body.
             int ifEndIndex = AddInstruction(OpCode.NOOP);
 
-            VisitBody(leaf.ElseBody);
+            VisitBody(node.ElseBody);
 
             int endIndex = _functionBuilder.InstructionCount;
 
@@ -206,35 +210,35 @@ namespace MonC.Codegen
             _functionBuilder.Instructions[ifEndIndex] =  new Instruction(OpCode.JUMP, endIndex - ifEndIndex - 1);
         }
 
-        public void VisitVoid(VoidExpression leaf)
+        public void VisitVoid(VoidExpressionNode node)
         {
         }
 
-        public void VisitNumericLiteral(NumericLiteralLeaf leaf)
+        public void VisitNumericLiteral(NumericLiteralNode node)
         {
-            AddInstruction(OpCode.LOAD, leaf.Value);
+            AddInstruction(OpCode.LOAD, node.Value);
         }
 
-        public void VisitStringLiteral(StringLiteralLeaf leaf)
+        public void VisitStringLiteral(StringLiteralNode node)
         {
             int index = _strings.Count;
-            _strings.Add(leaf.Value);
+            _strings.Add(node.Value);
             int addr = AddInstruction(OpCode.LOAD, index);
             _functionBuilder.SetStringInstruction(addr);
         }
 
-        public void VisitWhile(WhileLeaf leaf)
+        public void VisitWhile(WhileNode node)
         {
             // jump straight to condition
             int initialJumpLocation = AddInstruction(OpCode.NOOP);
 
             // Generate body code
             int bodyLocation = _functionBuilder.InstructionCount;
-            VisitBody(leaf.Body);
+            VisitBody(node.Body);
 
             // Generate condition code
             int conditionLocation = _functionBuilder.InstructionCount;
-            leaf.Condition.AcceptExpressionVisitor(this);
+            node.Condition.AcceptExpressionVisitor(this);
 
             // Branch to body if condition met.
             int currentLocation = _functionBuilder.InstructionCount;
@@ -250,43 +254,35 @@ namespace MonC.Codegen
             _breaks.Clear();
         }
 
-        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
+        public void VisitExpressionStatement(ExpressionStatementNode node)
         {
-            leaf.Expression.AcceptExpressionVisitor(this);
+            node.Expression.AcceptExpressionVisitor(this);
         }
 
-        public void VisitBreak(BreakLeaf leaf)
+        public void VisitBreak(BreakNode node)
         {
             int breakIndex = AddInstruction(OpCode.NOOP);
             _breaks.Push(breakIndex);
-            AddDebugSymbol(breakIndex, leaf);
+            AddDebugSymbol(breakIndex, node);
         }
 
-        public void VisitContinue(ContinueLeaf leaf)
+        public void VisitContinue(ContinueNode node)
         {
             int continueIndex = AddInstruction(OpCode.NOOP);
             _continues.Push(continueIndex);
-            AddDebugSymbol(continueIndex, leaf);
+            AddDebugSymbol(continueIndex, node);
         }
 
-        public void VisitReturn(ReturnLeaf leaf)
+        public void VisitReturn(ReturnNode node)
         {
-            leaf.RHS.AcceptExpressionVisitor(this);
+            node.RHS.AcceptExpressionVisitor(this);
             int addr = AddInstruction(OpCode.RETURN);
-            AddDebugSymbol(addr, leaf);
+            AddDebugSymbol(addr, node);
         }
 
-        public void VisitUnknown(IExpressionLeaf leaf)
+        public void VisitUnknown(IExpressionNode node)
         {
-            throw new InvalidOperationException("Unexpected expression leaf type. Was replacement of a parse tree leaf missed?");
-        }
-
-        private void VisitBody(Body leaf)
-        {
-            for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                IStatementLeaf statement = leaf.GetStatement(i);
-                statement.AcceptStatementVisitor(this);
-            }
+            throw new InvalidOperationException("Unexpected expression node type. Was replacement of a parse tree node missed?");
         }
     }
 }

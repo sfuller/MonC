@@ -1,4 +1,4 @@
-using MonC.SyntaxTree.Leaves;
+using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Util.NoOpVisitors;
 using MonC.SyntaxTree.Util.ReplacementVisitors;
 
@@ -16,23 +16,23 @@ namespace MonC.Parsing.Scoping
         }
 
         public bool ShouldReplace => _innerVisitor.ShouldReplace;
-        public IExpressionLeaf NewLeaf => _innerVisitor.NewLeaf;
+        public IExpressionNode NewNode => _innerVisitor.NewNode;
 
         public void PrepareToVisit()
         {
             _innerVisitor.PrepareToVisit();
         }
 
-        public override void VisitUnknown(IExpressionLeaf leaf)
+        public override void VisitUnknown(IExpressionNode node)
         {
-            VisitDefaultExpression(leaf);
+            VisitDefaultExpression(node);
         }
 
-        protected override void VisitDefaultExpression(IExpressionLeaf leaf)
+        protected override void VisitDefaultExpression(IExpressionNode node)
         {
-            leaf.AcceptExpressionVisitor(_innerVisitor);
+            node.AcceptExpressionVisitor(_innerVisitor);
             if (_innerVisitor.ShouldReplace) {
-                _scopeManager.ReplaceLeaf(leaf, _innerVisitor.NewLeaf);
+                _scopeManager.ReplaceNode(node, _innerVisitor.NewNode);
             }
         }
     }

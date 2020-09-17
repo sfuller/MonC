@@ -5,7 +5,7 @@ namespace MonC.DotNetInterop
 {
     public struct Binding
     {
-        public FunctionDefinitionLeaf Prototype;
+        public FunctionDefinitionNode Prototype;
         public VMFunction Implementation;
     }
 }

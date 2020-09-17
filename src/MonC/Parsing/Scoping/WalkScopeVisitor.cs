@@ -1,8 +1,7 @@
 using System.Collections.Generic;
 using MonC.Parsing.Scoping;
-using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util.ChildrenVisitors;
 
 namespace MonC.Parsing.Semantics
@@ -33,91 +32,86 @@ namespace MonC.Parsing.Semantics
             _expressionChildrenVisitor= new ExpressionChildrenVisitor(expressionVisitor);
         }
 
-        public void VisitDeclaration(DeclarationLeaf leaf)
+        public void VisitBody(BodyNode node)
         {
-            VisitStatement(leaf);
-            VisitExpression(leaf.Assignment);
+            VisitStatement(node);
+            Scope baseScope = _scopes.Peek();
+            _scopes.Push(baseScope.Copy());
+            node.VisitStatements(this);
+            _scopes.Pop();
+        }
+
+        public void VisitDeclaration(DeclarationNode node)
+        {
+            VisitStatement(node);
+            VisitExpression(node.Assignment);
             Scope scope = _scopes.Peek();
-            scope.Variables.Add(leaf);
+            scope.Variables.Add(node);
         }
 
-        public void VisitBreak(BreakLeaf leaf)
+        public void VisitBreak(BreakNode node)
         {
-            VisitStatement(leaf);
+            VisitStatement(node);
         }
 
-        public void VisitContinue(ContinueLeaf leaf)
+        public void VisitContinue(ContinueNode node)
         {
-            VisitStatement(leaf);
+            VisitStatement(node);
         }
 
-        public void VisitReturn(ReturnLeaf leaf)
+        public void VisitReturn(ReturnNode node)
         {
-            VisitStatement(leaf);
-            VisitExpression(leaf.RHS);
+            VisitStatement(node);
+            VisitExpression(node.RHS);
         }
 
-        public void VisitIfElse(IfElseLeaf leaf)
+        public void VisitIfElse(IfElseNode node)
         {
-            VisitStatement(leaf);
+            VisitStatement(node);
 
-            VisitExpression(leaf.Condition);
-            Scope baseScope = _scopes.Peek();
-            _scopes.Push(baseScope.Copy());
-            VisitBody(leaf.IfBody);
-            _scopes.Pop();
-            _scopes.Push(baseScope.Copy());
-            VisitBody(leaf.ElseBody);
-            _scopes.Pop();
+            VisitExpression(node.Condition);
+            VisitBody(node.IfBody);
+            VisitBody(node.ElseBody);
         }
 
-        public void VisitFor(ForLeaf leaf)
+        public void VisitFor(ForNode node)
         {
-            VisitStatement(leaf);
+            VisitStatement(node);
 
             Scope baseScope = _scopes.Peek();
             _scopes.Push(baseScope.Copy());
-            VisitDeclaration(leaf.Declaration);
-            VisitExpression(leaf.Condition);
-            VisitExpression(leaf.Update);
-            VisitBody(leaf.Body);
+            VisitDeclaration(node.Declaration);
+            VisitExpression(node.Condition);
+            VisitExpression(node.Update);
+            VisitBody(node.Body);
             _scopes.Pop();
         }
 
-        public void VisitWhile(WhileLeaf leaf)
+        public void VisitWhile(WhileNode node)
         {
-            VisitStatement(leaf);
+            VisitStatement(node);
 
-            VisitExpression(leaf.Condition);
-            _scopes.Push(_scopes.Peek().Copy());
-            VisitBody(leaf.Body);
-            _scopes.Pop();
+            VisitExpression(node.Condition);
+            VisitBody(node.Body);
         }
 
-        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
+        public void VisitExpressionStatement(ExpressionStatementNode node)
         {
-            VisitStatement(leaf);
-            VisitExpression(leaf.Expression);
+            VisitStatement(node);
+            VisitExpression(node.Expression);
         }
 
-        private void VisitExpression(IExpressionLeaf leaf)
+        private void VisitExpression(IExpressionNode node)
         {
             _scopeHandler.CurrentScope = _scopes.Peek();
-            leaf.AcceptExpressionVisitor(_expressionChildrenVisitor);
+            node.AcceptExpressionVisitor(_expressionChildrenVisitor);
         }
 
-        private void VisitBody(Body body)
-        {
-            for (int i = 0, ilen = body.Length; i < ilen; ++i) {
-                body.GetStatement(i).AcceptStatementVisitor(this);
-            }
-        }
-
-        private void VisitStatement(IStatementLeaf leaf)
+        private void VisitStatement(IStatementNode node)
         {
             Scope scope = _scopes.Peek();
             _scopeHandler.CurrentScope = scope;
-            leaf.AcceptStatementVisitor(_statementVisitor);
+            node.AcceptStatementVisitor(_statementVisitor);
         }
     }
 }

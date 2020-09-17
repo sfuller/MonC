@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.IL
 {
@@ -21,7 +21,7 @@ namespace MonC.IL
 
         public Instruction[] Code;
         public IDictionary<int, Symbol> Symbols;
-        public Dictionary<int, DeclarationLeaf> VariableSymbols;
+        public Dictionary<int, DeclarationNode> VariableSymbols;
 
         /// <summary>
         /// All indices of instructions that reference a function address. Used for linking.
@@ -39,7 +39,7 @@ namespace MonC.IL
                 Code = Array.Empty<Instruction>(),
                 Symbols = new Dictionary<int, Symbol>(),
                 StringInstructions = Array.Empty<int>(),
-                VariableSymbols = new Dictionary<int, DeclarationLeaf>(),
+                VariableSymbols = new Dictionary<int, DeclarationNode>(),
                 InstructionsReferencingFunctionAddresses = Array.Empty<int>()
             };
         }

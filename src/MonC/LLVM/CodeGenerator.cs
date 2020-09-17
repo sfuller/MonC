@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using MonC.Parsing;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.LLVM
 {
-    using StackLayoutGenerator = MonC.Codegen.StackLayoutGenerator;
-    using FunctionStackLayout = MonC.Codegen.FunctionStackLayout;
+    using StackLayoutGenerator = Codegen.StackLayoutGenerator;
+    using FunctionStackLayout = Codegen.FunctionStackLayout;
 
     /// <summary>
     /// Frequently referenced objects within the scope of CodeGenerator.Generate
@@ -85,7 +85,7 @@ namespace MonC.LLVM
             return useType;
         }
 
-        public bool TryGetTokenSymbol(ISyntaxTreeLeaf leaf, out Symbol symbol) =>
+        public bool TryGetTokenSymbol(ISyntaxTreeNode leaf, out Symbol symbol) =>
             ParseModule.TokenMap.TryGetValue(leaf, out symbol);
 
         public class Function
@@ -96,9 +96,9 @@ namespace MonC.LLVM
             public Value? RetvalStorage { get; private set; }
             public Metadata DiFwdDecl { get; }
             public Metadata DiFunctionDef { get; private set; }
-            private readonly FunctionDefinitionLeaf _leaf;
+            private readonly FunctionDefinitionNode _leaf;
 
-            public Function(CodeGeneratorContext genContext, FunctionDefinitionLeaf leaf)
+            public Function(CodeGeneratorContext genContext, FunctionDefinitionNode leaf)
             {
                 _leaf = leaf;
 
@@ -114,14 +114,14 @@ namespace MonC.LLVM
 
                 if (genContext.DiBuilder != null) {
                     genContext.TryGetTokenSymbol(leaf, out Symbol range);
-                    DiFwdDecl = genContext.DiBuilder.CreateReplaceableCompositeType(
+                    DiFwdDecl = genContext.DiBuilder!.CreateReplaceableCompositeType(
                         CAPI.LLVMDWARFTag.subroutine_type, leaf.Name, genContext.DiFile, genContext.DiFile,
                         range.LLVMLine, 0, 0, 0, CAPI.LLVMDIFlags.FwdDecl, "");
                 }
             }
 
-            public readonly Dictionary<DeclarationLeaf, Value>
-                VariableValues = new Dictionary<DeclarationLeaf, Value>();
+            public readonly Dictionary<DeclarationNode, Value>
+                VariableValues = new Dictionary<DeclarationNode, Value>();
 
             /// <summary>
             /// Add entry basic block to this function and fill in additional debug info.
@@ -160,7 +160,7 @@ namespace MonC.LLVM
                 // Emit store instructions for parameters
                 Value[] funcParams = FunctionValue.Params;
                 for (int i = 0, ilen = funcParams.Length; i < ilen; ++i) {
-                    DeclarationLeaf parameter = _leaf.Parameters[i];
+                    DeclarationNode parameter = _leaf.Parameters[i];
                     Value paramValue = funcParams[i];
                     VariableValues.TryGetValue(parameter, out Value varStorage);
                     varStorage.SetName($"{parameter.Name}.addr");
@@ -171,14 +171,14 @@ namespace MonC.LLVM
                 if (genContext.DiBuilder != null) {
                     // Create subroutine type debug info
                     genContext.TryGetTokenSymbol(_leaf, out Symbol range);
-                    Metadata subroutineType = genContext.DiBuilder.CreateSubroutineType(genContext.DiFile,
+                    Metadata subroutineType = genContext.DiBuilder!.CreateSubroutineType(genContext.DiFile,
                         Array.ConvertAll(_leaf.Parameters, param => genContext.LookupDiType(param.Type)),
                         CAPI.LLVMDIFlags.Zero);
                     Metadata funcLocation = genContext.Context.CreateDebugLocation(range.LLVMLine,
                         genContext.ColumnInfo ? range.LLVMColumn : 0, DiFwdDecl, Metadata.Null);
 
                     // Create subroutine debug info and substitute over forward declaration
-                    DiFunctionDef = genContext.DiBuilder.CreateFunction(genContext.DiFile, _leaf.Name, _leaf.Name,
+                    DiFunctionDef = genContext.DiBuilder!.CreateFunction(genContext.DiFile, _leaf.Name, _leaf.Name,
                         genContext.DiFile, range.LLVMLine, subroutineType, true, true, range.LLVMLine,
                         CAPI.LLVMDIFlags.Zero, false);
                     DiFwdDecl.ReplaceAllUsesWith(DiFunctionDef);
@@ -186,10 +186,10 @@ namespace MonC.LLVM
                     // Create llvm.dbg.declare calls for each parameter's storage
                     Metadata paramExpression = genContext.DiBuilder.CreateExpression();
                     for (int i = 0, ilen = _leaf.Parameters.Length; i < ilen; ++i) {
-                        DeclarationLeaf parameter = _leaf.Parameters[i];
+                        DeclarationNode parameter = _leaf.Parameters[i];
                         genContext.TryGetTokenSymbol(parameter, out Symbol paramRange);
                         Metadata paramType = genContext.LookupDiType(parameter.Type);
-                        Metadata paramMetadata = genContext.DiBuilder.CreateParameterVariable(DiFunctionDef,
+                        Metadata paramMetadata = genContext.DiBuilder!.CreateParameterVariable(DiFunctionDef,
                             parameter.Name, (uint) i + 1, genContext.DiFile, paramRange.LLVMLine, paramType, true,
                             CAPI.LLVMDIFlags.Zero);
                         VariableValues.TryGetValue(parameter, out Value varStorage);
@@ -209,7 +209,7 @@ namespace MonC.LLVM
         public readonly Dictionary<string, Function> DefinedFunctions = new Dictionary<string, Function>();
         public readonly Dictionary<string, Function> UndefinedFunctions = new Dictionary<string, Function>();
 
-        public void RegisterDefinedFunction(FunctionDefinitionLeaf leaf)
+        public void RegisterDefinedFunction(FunctionDefinitionNode leaf)
         {
             if (DefinedFunctions.ContainsKey(leaf.Name)) {
                 return;
@@ -220,7 +220,7 @@ namespace MonC.LLVM
             FunctionTable.Add(leaf.Name, function);
         }
 
-        public Function GetFunctionDeclaration(FunctionDefinitionLeaf leaf)
+        public Function GetFunctionDeclaration(FunctionDefinitionNode leaf)
         {
             if (!FunctionTable.TryGetValue(leaf.Name, out Function function)) {
                 function = new Function(this, leaf);
@@ -231,7 +231,7 @@ namespace MonC.LLVM
             return function;
         }
 
-        public Function GetFunctionDefinition(FunctionDefinitionLeaf leaf)
+        public Function GetFunctionDefinition(FunctionDefinitionNode leaf)
         {
             if (!DefinedFunctions.TryGetValue(leaf.Name, out Function function)) {
                 throw new InvalidOperationException($"{leaf.Name} was not registered with RegisterDefinedFunction");
@@ -260,19 +260,19 @@ namespace MonC.LLVM
                 targetTriple, optBuilder != null, debugInfo, columnInfo);
 
             // Declaration pass
-            foreach (FunctionDefinitionLeaf function in parseModule.Functions) {
+            foreach (FunctionDefinitionNode function in parseModule.Functions) {
                 genContext.RegisterDefinedFunction(function);
             }
 
             // Definition pass
-            foreach (FunctionDefinitionLeaf function in parseModule.Functions) {
+            foreach (FunctionDefinitionNode function in parseModule.Functions) {
                 CodeGeneratorContext.Function ctxFunction = genContext.GetFunctionDefinition(function);
 
                 using (Builder builder = genContext.Context.CreateBuilder()) {
                     FunctionCodeGenVisitor functionCodeGenVisitor = new FunctionCodeGenVisitor(genContext, ctxFunction,
                         builder, ctxFunction.StartDefinition(genContext, builder));
                     builder.PositionAtEnd(functionCodeGenVisitor._basicBlock);
-                    function.Body.AcceptStatements(functionCodeGenVisitor);
+                    function.Body.VisitStatements(functionCodeGenVisitor);
 
                     if (genContext.DiBuilder != null) {
                         // TODO: Use the body end rather than the function end
@@ -303,8 +303,8 @@ namespace MonC.LLVM
             }
 
             // Enum pass
-            foreach (EnumLeaf enumLeaf in parseModule.Enums) {
-                KeyValuePair<string, int>[] enumerations = enumLeaf.Enumerations;
+            foreach (EnumNode enumNode in parseModule.Enums) {
+                KeyValuePair<string, int>[] enumerations = enumNode.Enumerations;
 
                 Metadata[] enumerators = new Metadata[enumerations.Length];
                 for (int i = 0, ilen = enumerations.Length; i < ilen; ++i) {
@@ -313,9 +313,9 @@ namespace MonC.LLVM
                         genContext.Module.DiBuilder.CreateEnumerator(enumeration.Key, enumeration.Value, false);
                 }
 
-                genContext.TryGetTokenSymbol(enumLeaf, out Symbol range);
+                genContext.TryGetTokenSymbol(enumNode, out Symbol range);
                 genContext.Module.DiBuilder.CreateEnumerationType(genContext.DiFile,
-                    (enumLeaf.IsExported ? "export." : "") + $"enum.{fileName}.{range.LLVMLine}", genContext.DiFile,
+                    (enumNode.IsExported ? "export." : "") + $"enum.{fileName}.{range.LLVMLine}", genContext.DiFile,
                     range.LLVMLine, genContext.Module.DiBuilder.Int32Type.GetTypeSizeInBits(),
                     genContext.Module.DiBuilder.Int32Type.GetTypeAlignInBits(), enumerators,
                     genContext.Module.DiBuilder.Int32Type);

@@ -1,17 +1,16 @@
 using System;
 using System.Linq;
-using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.LLVM
 {
     public class FunctionCodeGenVisitor : IStatementVisitor, IExpressionVisitor
     {
-        internal CodeGeneratorContext _genContext;
-        internal CodeGeneratorContext.Function _function;
-        internal Builder _builder;
+        internal readonly CodeGeneratorContext _genContext;
+        internal readonly CodeGeneratorContext.Function _function;
+        internal readonly Builder _builder;
         internal BasicBlock _basicBlock;
         internal Metadata _lexicalScope;
         internal Value _visitedValue;
@@ -24,14 +23,12 @@ namespace MonC.LLVM
             _builder = builder;
             _basicBlock = basicBlock;
             _lexicalScope = _function.DiFunctionDef;
-            _visitedValue = new Value();
-            _breakContinueTop = new BreakContinue();
         }
 
-        internal Metadata SetCurrentDebugLocation(ISyntaxTreeLeaf leaf)
+        internal Metadata SetCurrentDebugLocation(ISyntaxTreeNode node)
         {
             if (_genContext.DiBuilder != null) {
-                _genContext.TryGetTokenSymbol(leaf, out Symbol range);
+                _genContext.TryGetTokenSymbol(node, out Symbol range);
                 Metadata location = _genContext.Context.CreateDebugLocation(range.LLVMLine,
                     _genContext.ColumnInfo ? range.LLVMColumn : 0, _lexicalScope, Metadata.Null);
                 _builder.SetCurrentDebugLocation(location);
@@ -91,63 +88,58 @@ namespace MonC.LLVM
             return _builder.BuildCast(castOp, val, tp);
         }
 
-        public void VisitBinaryOperation(IBinaryOperationLeaf leaf)
+        public void VisitBinaryOperation(IBinaryOperationNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            leaf.AcceptBinaryOperationVisitor(new BinaryOperationCodeGenVisitor(this));
+            node.AcceptBinaryOperationVisitor(new BinaryOperationCodeGenVisitor(this));
         }
 
-        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            leaf.AcceptUnaryOperationVisitor(new UnaryOperationCodeGenVisitor(this));
+            node.AcceptUnaryOperationVisitor(new UnaryOperationCodeGenVisitor(this));
         }
 
-        public void VisitBody(Body leaf)
+        public void VisitBody(BodyNode node)
         {
             Metadata oldLexicalScope = _lexicalScope;
 
             // Push new lexical block
             if (_genContext.DiBuilder != null) {
-                // TODO: BodyNode needs to be implemented
-                //_genContext.TryGetTokenSymbol(leaf, out Symbol range);
-                //_lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
-                //    range.LLVMLine, _genContext.ColumnInfo ? range.LLVMColumn : 0);
-                _lexicalScope = _function.DiFunctionDef;
+                _genContext.TryGetTokenSymbol(node, out Symbol range);
+                _lexicalScope = _genContext.DiBuilder!.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                    range.LLVMLine, _genContext.ColumnInfo ? range.LLVMColumn : 0);
             }
 
-            for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                IStatementLeaf statement = leaf.GetStatement(i);
-                statement.AcceptStatementVisitor(this);
-            }
+            node.VisitStatements(this);
 
             _lexicalScope = oldLexicalScope;
         }
 
-        public void VisitDeclaration(DeclarationLeaf leaf)
+        public void VisitDeclaration(DeclarationNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            leaf.Assignment.AcceptExpressionVisitor(this);
+            node.Assignment.AcceptExpressionVisitor(this);
             if (!_visitedValue.IsValid) {
                 return;
             }
 
-            Metadata dbgLocation = SetCurrentDebugLocation(leaf);
-            _function.VariableValues.TryGetValue(leaf, out Value varStorage);
+            Metadata dbgLocation = SetCurrentDebugLocation(node);
+            _function.VariableValues.TryGetValue(node, out Value varStorage);
 
             if (_genContext.DiBuilder != null) {
-                _genContext.TryGetTokenSymbol(leaf, out Symbol varRange);
-                Metadata varType = _genContext.LookupDiType(leaf.Type);
-                Metadata varMetadata = _genContext.DiBuilder.CreateAutoVariable(_lexicalScope, leaf.Name,
+                _genContext.TryGetTokenSymbol(node, out Symbol varRange);
+                Metadata varType = _genContext.LookupDiType(node.Type);
+                Metadata varMetadata = _genContext.DiBuilder!.CreateAutoVariable(_lexicalScope, node.Name,
                     _genContext.DiFile, varRange.LLVMLine, varType, true, CAPI.LLVMDIFlags.Zero,
                     varType.GetTypeAlignInBits());
                 _genContext.DiBuilder.InsertDeclareAtEnd(varStorage, varMetadata,
@@ -171,7 +163,7 @@ namespace MonC.LLVM
 
         private BreakContinue _breakContinueTop;
 
-        public void VisitFor(ForLeaf leaf)
+        public void VisitFor(ForNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
@@ -179,29 +171,29 @@ namespace MonC.LLVM
 
             Metadata oldLexicalScope = _lexicalScope;
             if (_genContext.DiBuilder != null) {
-                _genContext.TryGetTokenSymbol(leaf.Declaration, out Symbol declRange);
-                _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                _genContext.TryGetTokenSymbol(node.Declaration, out Symbol declRange);
+                _lexicalScope = _genContext.DiBuilder!.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
                     declRange.LLVMLine, _genContext.ColumnInfo ? declRange.LLVMColumn : 0);
             }
 
-            leaf.Declaration.AcceptStatementVisitor(this);
+            node.Declaration.AcceptStatementVisitor(this);
 
             BasicBlock condBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "for.cond");
             BasicBlock bodyBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "for.body");
             BasicBlock incBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "for.inc");
             BasicBlock endBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "for.end");
 
-            SetCurrentDebugLocation(leaf);
+            SetCurrentDebugLocation(node);
             BuildBrIfNecessary(condBasicBlock);
 
             _builder.PositionAtEnd(condBasicBlock);
-            leaf.Condition.AcceptExpressionVisitor(this);
+            node.Condition.AcceptExpressionVisitor(this);
             Value condVal = _visitedValue;
             if (!condVal.IsValid) {
                 throw new InvalidOperationException("condition did not produce a usable rvalue");
             }
 
-            SetCurrentDebugLocation(leaf);
+            SetCurrentDebugLocation(node);
             condVal = ConvertToBool(condVal);
 
             _builder.BuildCondBr(condVal, bodyBasicBlock, endBasicBlock);
@@ -209,12 +201,12 @@ namespace MonC.LLVM
             _builder.PositionAtEnd(bodyBasicBlock);
             BreakContinue oldBreakContinueTop = _breakContinueTop;
             _breakContinueTop = new BreakContinue(endBasicBlock, incBasicBlock);
-            VisitBody(leaf.Body);
+            VisitBody(node.Body);
             _breakContinueTop = oldBreakContinueTop;
             BuildBrIfNecessary(incBasicBlock);
 
             _builder.PositionAtEnd(incBasicBlock);
-            leaf.Update.AcceptExpressionVisitor(this);
+            node.Update.AcceptExpressionVisitor(this);
             BuildBrIfNecessary(condBasicBlock);
 
             _builder.PositionAtEnd(endBasicBlock);
@@ -222,18 +214,18 @@ namespace MonC.LLVM
             _lexicalScope = oldLexicalScope;
         }
 
-        public void VisitFunctionCall(FunctionCallLeaf leaf)
+        public void VisitFunctionCall(FunctionCallNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            CodeGeneratorContext.Function func = _genContext.GetFunctionDeclaration(leaf.LHS);
+            CodeGeneratorContext.Function func = _genContext.GetFunctionDeclaration(node.LHS);
             Type[] paramTypes = func.FunctionType.ParamTypes;
 
-            Value[] args = new Value[leaf.ArgumentCount];
-            for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                leaf.GetArgument(i).AcceptExpressionVisitor(this);
+            Value[] args = new Value[node.ArgumentCount];
+            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
+                node.GetArgument(i).AcceptExpressionVisitor(this);
                 if (!_visitedValue.IsValid) {
                     throw new InvalidOperationException("argument did not produce a usable rvalue");
                 }
@@ -241,22 +233,22 @@ namespace MonC.LLVM
                 args[i] = ConvertToType(_visitedValue, paramTypes[i]);
             }
 
-            SetCurrentDebugLocation(leaf);
+            SetCurrentDebugLocation(node);
             _visitedValue = _builder.BuildCall(func.FunctionType, func.FunctionValue, args);
         }
 
-        public void VisitVariable(VariableLeaf leaf)
+        public void VisitVariable(VariableNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            SetCurrentDebugLocation(leaf);
-            _function.VariableValues.TryGetValue(leaf.Declaration, out Value varStorage);
-            _visitedValue = _builder.BuildLoad(_genContext.LookupType(leaf.Declaration.Type), varStorage);
+            SetCurrentDebugLocation(node);
+            _function.VariableValues.TryGetValue(node.Declaration, out Value varStorage);
+            _visitedValue = _builder.BuildLoad(_genContext.LookupType(node.Declaration.Type), varStorage);
         }
 
-        public void VisitIfElse(IfElseLeaf leaf)
+        public void VisitIfElse(IfElseNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
@@ -264,23 +256,23 @@ namespace MonC.LLVM
 
             Metadata oldLexicalScope = _lexicalScope;
             if (_genContext.DiBuilder != null) {
-                _genContext.TryGetTokenSymbol(leaf.Condition, out Symbol condRange);
-                _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                _genContext.TryGetTokenSymbol(node.Condition, out Symbol condRange);
+                _lexicalScope = _genContext.DiBuilder!.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
                     condRange.LLVMLine, _genContext.ColumnInfo ? condRange.LLVMColumn : 0);
             }
 
-            leaf.Condition.AcceptExpressionVisitor(this);
+            node.Condition.AcceptExpressionVisitor(this);
             Value condVal = _visitedValue;
             if (!condVal.IsValid) {
                 throw new InvalidOperationException("condition did not produce a usable rvalue");
             }
 
-            SetCurrentDebugLocation(leaf);
+            SetCurrentDebugLocation(node);
             condVal = ConvertToBool(condVal);
 
             BasicBlock ifThenBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "if.then");
             BasicBlock ifElseBasicBlock = BasicBlock.Null;
-            if (leaf.ElseBody.Length > 0)
+            if (node.ElseBody.Statements.Count > 0)
                 ifElseBasicBlock = _genContext.Context.CreateBasicBlock("if.else");
             BasicBlock ifEndBasicBlock = _genContext.Context.CreateBasicBlock("if.end");
 
@@ -288,12 +280,12 @@ namespace MonC.LLVM
                 ifElseBasicBlock.IsValid ? ifElseBasicBlock : ifEndBasicBlock);
 
             _builder.PositionAtEnd(ifThenBasicBlock);
-            VisitBody(leaf.IfBody);
+            VisitBody(node.IfBody);
             BuildBrIfNecessary(ifEndBasicBlock);
-            if (leaf.ElseBody.Length > 0) {
+            if (node.ElseBody.Statements.Count > 0) {
                 _function.FunctionValue.AppendExistingBasicBlock(ifElseBasicBlock);
                 _builder.PositionAtEnd(ifElseBasicBlock);
-                VisitBody(leaf.ElseBody);
+                VisitBody(node.ElseBody);
                 BuildBrIfNecessary(ifEndBasicBlock);
             }
 
@@ -303,26 +295,26 @@ namespace MonC.LLVM
             _lexicalScope = oldLexicalScope;
         }
 
-        public void VisitVoid(VoidExpression leaf)
+        public void VisitVoid(VoidExpressionNode node)
         {
             _visitedValue = new Value();
         }
 
-        public void VisitNumericLiteral(NumericLiteralLeaf leaf)
+        public void VisitNumericLiteral(NumericLiteralNode node)
         {
-            _visitedValue = Value.ConstInt(_genContext.Context.Int32Type, (ulong) leaf.Value, true);
+            _visitedValue = Value.ConstInt(_genContext.Context.Int32Type, (ulong) node.Value, true);
         }
 
-        public void VisitStringLiteral(StringLiteralLeaf leaf)
+        public void VisitStringLiteral(StringLiteralNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            _visitedValue = _builder.BuildGlobalStringPtr(leaf.Value);
+            _visitedValue = _builder.BuildGlobalStringPtr(node.Value);
         }
 
-        public void VisitWhile(WhileLeaf leaf)
+        public void VisitWhile(WhileNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
@@ -330,8 +322,8 @@ namespace MonC.LLVM
 
             Metadata oldLexicalScope = _lexicalScope;
             if (_genContext.DiBuilder != null) {
-                _genContext.TryGetTokenSymbol(leaf.Condition, out Symbol condRange);
-                _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                _genContext.TryGetTokenSymbol(node.Condition, out Symbol condRange);
+                _lexicalScope = _genContext.DiBuilder!.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
                     condRange.LLVMLine, _genContext.ColumnInfo ? condRange.LLVMColumn : 0);
             }
 
@@ -339,17 +331,17 @@ namespace MonC.LLVM
             BasicBlock bodyBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "while.body");
             BasicBlock endBasicBlock = _genContext.Context.AppendBasicBlock(_function.FunctionValue, "while.end");
 
-            SetCurrentDebugLocation(leaf);
+            SetCurrentDebugLocation(node);
             BuildBrIfNecessary(condBasicBlock);
 
             _builder.PositionAtEnd(condBasicBlock);
-            leaf.Condition.AcceptExpressionVisitor(this);
+            node.Condition.AcceptExpressionVisitor(this);
             Value condVal = _visitedValue;
             if (!condVal.IsValid) {
                 throw new InvalidOperationException("condition did not produce a usable rvalue");
             }
 
-            SetCurrentDebugLocation(leaf);
+            SetCurrentDebugLocation(node);
             condVal = ConvertToBool(condVal);
 
             _builder.BuildCondBr(condVal, bodyBasicBlock, endBasicBlock);
@@ -357,7 +349,7 @@ namespace MonC.LLVM
             _builder.PositionAtEnd(bodyBasicBlock);
             BreakContinue oldBreakContinueTop = _breakContinueTop;
             _breakContinueTop = new BreakContinue(endBasicBlock, condBasicBlock);
-            VisitBody(leaf.Body);
+            VisitBody(node.Body);
             _breakContinueTop = oldBreakContinueTop;
             BuildBrIfNecessary(condBasicBlock);
 
@@ -366,41 +358,41 @@ namespace MonC.LLVM
             _lexicalScope = oldLexicalScope;
         }
 
-        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
+        public void VisitExpressionStatement(ExpressionStatementNode node)
         {
-            leaf.Expression.AcceptExpressionVisitor(this);
+            node.Expression.AcceptExpressionVisitor(this);
         }
 
-        public void VisitBreak(BreakLeaf leaf)
+        public void VisitBreak(BreakNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            SetCurrentDebugLocation(leaf);
+            SetCurrentDebugLocation(node);
             _builder.BuildBr(_breakContinueTop.BreakBlock);
             _builder.ClearInsertionPosition();
         }
 
-        public void VisitContinue(ContinueLeaf leaf)
+        public void VisitContinue(ContinueNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            SetCurrentDebugLocation(leaf);
+            SetCurrentDebugLocation(node);
             _builder.BuildBr(_breakContinueTop.ContinueBlock);
             _builder.ClearInsertionPosition();
         }
 
-        public void VisitReturn(ReturnLeaf leaf)
+        public void VisitReturn(ReturnNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            if (leaf.RHS is VoidExpression) {
-                SetCurrentDebugLocation(leaf);
+            if (node.RHS is VoidExpressionNode) {
+                SetCurrentDebugLocation(node);
                 if (_function.ReturnBlock != null) {
                     _visitedValue = _builder.BuildBr(_function.ReturnBlock.Value);
                 } else {
@@ -411,13 +403,13 @@ namespace MonC.LLVM
                 return;
             }
 
-            leaf.RHS.AcceptExpressionVisitor(this);
+            node.RHS.AcceptExpressionVisitor(this);
             Value retVal = _visitedValue;
             if (!retVal.IsValid) {
                 throw new InvalidOperationException("return did not produce a usable rvalue");
             }
 
-            SetCurrentDebugLocation(leaf);
+            SetCurrentDebugLocation(node);
             retVal = ConvertToType(retVal, _function.FunctionType.ReturnType);
 
             if (_function.ReturnBlock != null && _function.RetvalStorage != null) {
@@ -430,32 +422,32 @@ namespace MonC.LLVM
             _builder.ClearInsertionPosition();
         }
 
-        public void VisitAssignment(AssignmentLeaf leaf)
+        public void VisitAssignment(AssignmentNode node)
         {
             // Don't insert unreachable code
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            leaf.RHS.AcceptExpressionVisitor(this);
+            node.RHS.AcceptExpressionVisitor(this);
             if (!_visitedValue.IsValid) {
                 throw new InvalidOperationException("assignment did not produce a usable rvalue");
             }
 
-            SetCurrentDebugLocation(leaf);
-            _function.VariableValues.TryGetValue(leaf.Declaration, out Value varStorage);
+            SetCurrentDebugLocation(node);
+            _function.VariableValues.TryGetValue(node.Declaration, out Value varStorage);
             _visitedValue = _builder.BuildStore(_visitedValue, varStorage);
         }
 
-        public void VisitEnumValue(EnumValueLeaf leaf)
+        public void VisitEnumValue(EnumValueNode node)
         {
-            int value = leaf.Enum.Enumerations.First(kvp => kvp.Key == leaf.Name).Value;
+            int value = node.Enum.Enumerations.First(kvp => kvp.Key == node.Name).Value;
             _visitedValue = Value.ConstInt(_genContext.Context.Int32Type, (ulong) value, true);
         }
 
-        public void VisitUnknown(IExpressionLeaf leaf)
+        public void VisitUnknown(IExpressionNode node)
         {
             throw new InvalidOperationException(
-                "Unexpected expression leaf type. Was replacement of a parse tree leaf missed?");
+                "Unexpected expression node type. Was replacement of a parse tree node missed?");
         }
     }
 }

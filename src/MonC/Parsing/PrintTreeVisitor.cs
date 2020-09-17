@@ -1,11 +1,10 @@
-using System;
 using System.IO;
-using MonC.Parsing;
-using MonC.Parsing.ParseTreeLeaves;
+using MonC.Parsing.ParseTree;
+using MonC.Parsing.ParseTree.Nodes;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Frontend
 {
@@ -17,170 +16,168 @@ namespace MonC.Frontend
 
         public PrintTreeVisitor(TextWriter writer) => _writer = writer;
 
-        public void VisitBinaryOperation(IBinaryOperationLeaf leaf)
+        public void VisitBinaryOperation(IBinaryOperationNode node)
         {
-            Print($"{leaf.GetType().Name}");
-            VisitSubleaf(leaf.LHS);
-            VisitSubleaf(leaf.RHS);
+            Print($"{node.GetType().Name}");
+            VisitSubnode(node.LHS);
+            VisitSubnode(node.RHS);
         }
 
-        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationNode node)
         {
-            Print($"{leaf.GetType().Name}");
-            VisitSubleaf(leaf.RHS);
+            Print($"{node.GetType().Name}");
+            VisitSubnode(node.RHS);
         }
 
-        private void VisitBody(Body leaf)
+        public void VisitBody(BodyNode node)
         {
-            ++_currentIndent;
             Print("Body");
-            for (int i = 0, ilen = leaf.Length; i < ilen; ++i) {
-                VisitSubleaf(leaf.GetStatement(i));
-            }
+            ++_currentIndent;
+            node.VisitStatements(this);
             --_currentIndent;
         }
 
-        public void VisitDeclaration(DeclarationLeaf leaf)
+        public void VisitDeclaration(DeclarationNode node)
         {
-            Print($"Declaration (Type={leaf.Type}, Name={leaf.Name})");
-            VisitSubleaf(leaf.Assignment);
+            Print($"Declaration (Type={node.Type}, Name={node.Name})");
+            VisitSubnode(node.Assignment);
         }
 
-        public void VisitFor(ForLeaf leaf)
+        public void VisitFor(ForNode node)
         {
             Print("For");
-            VisitSubleaf(leaf.Declaration);
-            VisitSubleaf(leaf.Condition);
-            VisitSubleaf(leaf.Update);
-            VisitBody(leaf.Body);
+            VisitSubnode(node.Declaration);
+            VisitSubnode(node.Condition);
+            VisitSubnode(node.Update);
+            VisitBody(node.Body);
         }
 
-        public void VisitFunctionDefinition(FunctionDefinitionLeaf leaf)
+        public void VisitFunctionDefinition(FunctionDefinitionNode node)
         {
-            Print($"Function Definition ({leaf.ReturnType} {leaf.Name})");
-            VisitBody(leaf.Body);
+            Print($"Function Definition ({node.ReturnType} {node.Name})");
+            VisitBody(node.Body);
         }
 
-        public void VisitFunctionCall(FunctionCallLeaf leaf)
+        public void VisitFunctionCall(FunctionCallNode node)
         {
-            Print($"Function Call (name: {leaf.LHS.Name}, {leaf.ArgumentCount} arguments)");
-            for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                VisitSubleaf(leaf.GetArgument(i));
+            Print($"Function Call (name: {node.LHS.Name}, {node.ArgumentCount} arguments)");
+            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
+                VisitSubnode(node.GetArgument(i));
             }
         }
 
-        public void VisitVariable(VariableLeaf leaf)
+        public void VisitVariable(VariableNode node)
         {
             Print("Variable");
-            VisitSubleaf(leaf.Declaration);
+            VisitSubnode(node.Declaration);
         }
 
-        public void VisitIfElse(IfElseLeaf leaf)
+        public void VisitIfElse(IfElseNode node)
         {
             Print("If Else");
-            VisitSubleaf(leaf.Condition);
-            VisitBody(leaf.IfBody);
-            VisitBody(leaf.ElseBody);
+            VisitSubnode(node.Condition);
+            VisitBody(node.IfBody);
+            VisitBody(node.ElseBody);
         }
 
-        public void VisitVoid(VoidExpression leaf)
+        public void VisitVoid(VoidExpressionNode node)
         {
             Print("Void Expression");
         }
 
-        public void VisitNumericLiteral(NumericLiteralLeaf leaf)
+        public void VisitNumericLiteral(NumericLiteralNode node)
         {
-            Print($"Numeric Literal ({leaf.Value})");
+            Print($"Numeric Literal ({node.Value})");
         }
 
-        public void VisitStringLiteral(StringLiteralLeaf leaf)
+        public void VisitStringLiteral(StringLiteralNode node)
         {
-            Print($"String Literal ({leaf.Value})");
+            Print($"String Literal ({node.Value})");
         }
 
-        public void VisitWhile(WhileLeaf leaf)
+        public void VisitWhile(WhileNode node)
         {
             Print("While");
-            VisitSubleaf(leaf.Condition);
-            VisitBody(leaf.Body);
+            VisitSubnode(node.Condition);
+            VisitBody(node.Body);
         }
 
-        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
+        public void VisitExpressionStatement(ExpressionStatementNode node)
         {
             Print("Expression Statement");
-            VisitSubleaf(leaf.Expression);
+            VisitSubnode(node.Expression);
         }
 
-        public void VisitBreak(BreakLeaf leaf)
+        public void VisitBreak(BreakNode node)
         {
             Print("Break");
         }
 
-        public void VisitContinue(ContinueLeaf leaf)
+        public void VisitContinue(ContinueNode node)
         {
             Print("Continue");
         }
 
-        public void VisitReturn(ReturnLeaf leaf)
+        public void VisitReturn(ReturnNode node)
         {
             Print("Return");
-            VisitSubleaf(leaf.RHS);
+            VisitSubnode(node.RHS);
         }
 
-        public void VisitAssignment(AssignmentLeaf leaf)
+        public void VisitAssignment(AssignmentNode node)
         {
             Print("Assignment");
-            VisitSubleaf(leaf.Declaration);
-            VisitSubleaf(leaf.RHS);
+            VisitSubnode(node.Declaration);
+            VisitSubnode(node.RHS);
         }
 
-        public void VisitUnknown(IExpressionLeaf leaf)
+        public void VisitUnknown(IExpressionNode node)
         {
-            Print($"{leaf.GetType().Name}");
+            Print($"{node.GetType().Name}");
         }
 
-        public void VisitEnum(EnumLeaf leaf)
+        public void VisitEnum(EnumNode node)
         {
             Print("Enum");
         }
 
-        public void VisitEnumValue(EnumValueLeaf leaf)
+        public void VisitEnumValue(EnumValueNode node)
         {
-            Print($"EnumValue (Name={leaf.Name})");
+            Print($"EnumValue (Name={node.Name})");
         }
 
-        public void VisitAssignment(AssignmentParseLeaf leaf)
+        public void VisitAssignment(AssignmentParseNode node)
         {
-            Print("Assignment (Parse Tree Leaf)");
-            VisitSubleaf(leaf.LHS);
-            VisitSubleaf(leaf.RHS);
+            Print("Assignment (Parse Tree Node)");
+            VisitSubnode(node.LHS);
+            VisitSubnode(node.RHS);
         }
 
-        public void VisitIdentifier(IdentifierParseLeaf leaf)
+        public void VisitIdentifier(IdentifierParseNode node)
         {
-            Print($"Identifier (Parse Tree Leaf) (Name={leaf.Name})");
+            Print($"Identifier (Parse Tree Node) (Name={node.Name})");
         }
 
-        public void VisitFunctionCall(FunctionCallParseLeaf leaf)
+        public void VisitFunctionCall(FunctionCallParseNode node)
         {
-            Print("Function Call (Parse Tree Leaf)");
-            VisitSubleaf(leaf.LHS);
-            for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                VisitSubleaf(leaf.GetArgument(i));
+            Print("Function Call (Parse Tree Node)");
+            VisitSubnode(node.LHS);
+            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
+                VisitSubnode(node.GetArgument(i));
             }
         }
 
-        private void VisitSubleaf(IStatementLeaf leaf)
+        private void VisitSubnode(IStatementNode node)
         {
             ++_currentIndent;
-            leaf.AcceptStatementVisitor(this);
+            node.AcceptStatementVisitor(this);
             --_currentIndent;
         }
 
-        private void VisitSubleaf(IExpressionLeaf leaf)
+        private void VisitSubnode(IExpressionNode node)
         {
             ++_currentIndent;
-            leaf.AcceptExpressionVisitor(this);
+            node.AcceptExpressionVisitor(this);
             --_currentIndent;
         }
 

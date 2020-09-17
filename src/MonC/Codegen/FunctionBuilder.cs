@@ -9,7 +9,7 @@ namespace MonC.Codegen
     public class FunctionBuilder
     {
         private readonly FunctionStackLayout _layout;
-        private readonly IDictionary<ISyntaxTreeLeaf, Symbol> _leafToTokenMap;
+        private readonly IDictionary<ISyntaxTreeNode, Symbol> _nodeToTokenMap;
 
         private readonly IDictionary<int, Symbol> _addressToTokenMap = new Dictionary<int, Symbol>();
         private readonly List<Instruction> _instructions = new List<Instruction>();
@@ -28,10 +28,10 @@ namespace MonC.Codegen
         /// </summary>
         private int _maxStackWorkOffset;
 
-        public FunctionBuilder(FunctionStackLayout layout, IDictionary<ISyntaxTreeLeaf, Symbol> leafToTokenMap)
+        public FunctionBuilder(FunctionStackLayout layout, IDictionary<ISyntaxTreeNode, Symbol> nodeToTokenMap)
         {
             _layout = layout;
-            _leafToTokenMap = leafToTokenMap;
+            _nodeToTokenMap = nodeToTokenMap;
 
             if (layout.Variables.Count > 0) {
                 _stackWorkOffset = layout.Variables.Max(kvp => kvp.Value) + 1;
@@ -49,10 +49,10 @@ namespace MonC.Codegen
             return index;
         }
 
-        public void AddDebugSymbol(int address, ISyntaxTreeLeaf associatedLeaf)
+        public void AddDebugSymbol(int address, ISyntaxTreeNode associatedNode)
         {
             Symbol range;
-            _leafToTokenMap.TryGetValue(associatedLeaf, out range);
+            _nodeToTokenMap.TryGetValue(associatedNode, out range);
             _addressToTokenMap[address] = range;
         }
 
@@ -80,10 +80,10 @@ namespace MonC.Codegen
             _stringInstructions.Add(instructionIndex);
         }
 
-        public ILFunction Build(FunctionDefinitionLeaf functionDefinitionLeaf)
+        public ILFunction Build(FunctionDefinitionNode functionDefinitionNode)
         {
             // Note: Will need to be adjusted when non sizeof(int) sized types are introduced.
-            int argumentMemorySize = functionDefinitionLeaf.Parameters.Length;
+            int argumentMemorySize = functionDefinitionNode.Parameters.Length;
 
             return new ILFunction {
                 ArgumentMemorySize = argumentMemorySize,

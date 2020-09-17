@@ -1,5 +1,6 @@
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Statements;
+using System;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.SyntaxTree.Util.ReplacementVisitors
 {
@@ -14,81 +15,86 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
             _expressionReplacer = expressionReplacer;
         }
 
-        public void VisitDeclaration(DeclarationLeaf leaf)
+        public void VisitBody(BodyNode node)
         {
-            leaf.Assignment = ProcessExpressionReplacement(leaf.Assignment);
-        }
-
-        public void VisitBreak(BreakLeaf leaf)
-        {
-        }
-
-        public void VisitContinue(ContinueLeaf leaf)
-        {
-        }
-
-        public void VisitReturn(ReturnLeaf leaf)
-        {
-            leaf.RHS = ProcessExpressionReplacement(leaf.RHS);
-        }
-
-        public void VisitIfElse(IfElseLeaf leaf)
-        {
-            leaf.Condition = ProcessExpressionReplacement(leaf.Condition);
-            ProcessBodyReplacements(leaf.IfBody);
-            ProcessBodyReplacements(leaf.ElseBody);
-        }
-
-        public void VisitFor(ForLeaf leaf)
-        {
-            // TODO: Eliminate type cast -- specific visitors for each type of replacement needed.
-            leaf.Declaration = (DeclarationLeaf) ProcessStatementReplacement(leaf.Declaration);
-            leaf.Condition = ProcessExpressionReplacement(leaf.Condition);
-            leaf.Update = ProcessExpressionReplacement(leaf.Update);
-            ProcessBodyReplacements(leaf.Body);
-        }
-
-        public void VisitWhile(WhileLeaf leaf)
-        {
-            leaf.Condition = ProcessExpressionReplacement(leaf.Condition);
-            ProcessBodyReplacements(leaf.Body);
-        }
-
-        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
-        {
-            leaf.Expression = ProcessExpressionReplacement(leaf.Expression);
-        }
-
-        private void ProcessBodyReplacements(Body body)
-        {
-            for (int i = 0, ilen = body.Length; i < ilen; ++i) {
-                IStatementLeaf statement = body.GetStatement(i);
-                body.SetStatement(i, ProcessStatementReplacement(statement));
+            for (int i = 0, ilen = node.Statements.Count; i < ilen; ++i) {
+                node.Statements[i] = ProcessStatementReplacement(node.Statements[i]);
             }
         }
 
-        private IExpressionLeaf ProcessExpressionReplacement(IExpressionLeaf leaf)
+        public void VisitDeclaration(DeclarationNode node)
+        {
+            node.Assignment = ProcessExpressionReplacement(node.Assignment);
+        }
+
+        public void VisitBreak(BreakNode node)
+        {
+        }
+
+        public void VisitContinue(ContinueNode node)
+        {
+        }
+
+        public void VisitReturn(ReturnNode node)
+        {
+            node.RHS = ProcessExpressionReplacement(node.RHS);
+        }
+
+        public void VisitIfElse(IfElseNode node)
+        {
+            node.Condition = ProcessExpressionReplacement(node.Condition);
+            node.IfBody = ProcessStatementReplacement(node.IfBody);
+            node.ElseBody = ProcessStatementReplacement(node.ElseBody);
+        }
+
+        public void VisitFor(ForNode node)
+        {
+            node.Declaration = ProcessStatementReplacement(node.Declaration);
+            node.Condition = ProcessExpressionReplacement(node.Condition);
+            node.Update = ProcessExpressionReplacement(node.Update);
+            node.Body = ProcessStatementReplacement(node.Body);
+        }
+
+        public void VisitWhile(WhileNode node)
+        {
+            node.Condition = ProcessExpressionReplacement(node.Condition);
+            node.Body = ProcessStatementReplacement(node.Body);
+        }
+
+        public void VisitExpressionStatement(ExpressionStatementNode node)
+        {
+            node.Expression = ProcessExpressionReplacement(node.Expression);
+        }
+
+        private T ProcessExpressionReplacement<T>(T node) where T : IExpressionNode
         {
             _expressionReplacer.PrepareToVisit();
-            leaf.AcceptExpressionVisitor(_expressionReplacer);
-
-            if (!_expressionReplacer.ShouldReplace) {
-                return leaf;
-            }
-
-            return _expressionReplacer.NewLeaf;
+            node.AcceptExpressionVisitor(_expressionReplacer);
+            return GetReplacement(node, _expressionReplacer);
         }
 
-        private IStatementLeaf ProcessStatementReplacement(IStatementLeaf leaf)
+        private T ProcessStatementReplacement<T>(T node) where T : IStatementNode
         {
             _statementReplacer.PrepareToVisit();
-            leaf.AcceptStatementVisitor(_statementReplacer);
+            node.AcceptStatementVisitor(_statementReplacer);
+            return GetReplacement(node, _statementReplacer);
+        }
 
-            if (!_statementReplacer.ShouldReplace) {
-                return leaf;
+
+        private T GetReplacement<T, ReplacerT>(T node, IReplacementVisitor<ReplacerT> replacer)
+            where T : ISyntaxTreeNode
+            where ReplacerT : ISyntaxTreeNode
+        {
+            if (!replacer.ShouldReplace) {
+                return node;
             }
 
-            return _statementReplacer.NewLeaf;
+            // TODO: Add static analysis for this.
+            if (!(replacer.NewNode is T replacement)) {
+                throw new InvalidOperationException("Cannot replace, type mismatch");
+            }
+
+            return replacement;
         }
 
     }

@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util.ChildrenVisitors;
 
 namespace MonC.Parsing.Semantics.TypeAnalysis
@@ -10,9 +10,9 @@ namespace MonC.Parsing.Semantics.TypeAnalysis
     public class TypeCheckVisitor : IStatementVisitor, IExpressionVisitor
     {
         public TypeDefinition Type { get; set; }
-        private readonly IList<(string message, ISyntaxTreeLeaf leaf)> _errors;
+        private readonly IList<(string message, ISyntaxTreeNode node)> _errors;
 
-        public TypeCheckVisitor(IList<(string message, ISyntaxTreeLeaf leaf)> errors)
+        public TypeCheckVisitor(IList<(string message, ISyntaxTreeNode node)> errors)
         {
             _errors = errors;
         }
@@ -22,119 +22,123 @@ namespace MonC.Parsing.Semantics.TypeAnalysis
             return new TypeCheckVisitor(_errors);
         }
 
-        public void Process(FunctionDefinitionLeaf function)
+        public void Process(FunctionDefinitionNode function)
         {
             StatementChildrenVisitor statementVisitor = new StatementChildrenVisitor(this, this);
-            function.Body.AcceptStatements(statementVisitor);
+            function.Body.VisitStatements(statementVisitor);
         }
 
-        public void VisitDeclaration(DeclarationLeaf leaf)
+        public void VisitBody(BodyNode node)
         {
-            if (leaf.Assignment is VoidExpression) {
+        }
+
+        public void VisitDeclaration(DeclarationNode node)
+        {
+            if (node.Assignment is VoidExpressionNode) {
                 // Ommited assignment.
                 return;
             }
             // TODO: Check assignment expression type against declaration type.
-            leaf.Assignment.AcceptExpressionVisitor(this);
+            node.Assignment.AcceptExpressionVisitor(this);
         }
 
-        public void VisitIfElse(IfElseLeaf leaf)
+        public void VisitIfElse(IfElseNode node)
         {
         }
 
-        public void VisitFor(ForLeaf leaf)
+        public void VisitFor(ForNode node)
         {
         }
 
-        public void VisitWhile(WhileLeaf leaf)
+        public void VisitWhile(WhileNode node)
         {
         }
 
-        public void VisitBreak(BreakLeaf leaf)
+        public void VisitBreak(BreakNode node)
         {
         }
 
-        public void VisitContinue(ContinueLeaf leaf)
+        public void VisitContinue(ContinueNode node)
         {
         }
 
-        public void VisitReturn(ReturnLeaf leaf)
+        public void VisitReturn(ReturnNode node)
         {
             // TODO: Verify return value matches function type.
-            leaf.RHS.AcceptExpressionVisitor(this);
+            node.RHS.AcceptExpressionVisitor(this);
         }
 
-        public void VisitExpressionStatement(ExpressionStatementLeaf leaf)
+        public void VisitExpressionStatement(ExpressionStatementNode node)
         {
-            leaf.Expression.AcceptExpressionVisitor(this);
+            node.Expression.AcceptExpressionVisitor(this);
         }
 
-        public void VisitVoid(VoidExpression leaf)
+        public void VisitVoid(VoidExpressionNode node)
         {
             Type = new TypeDefinition("void", PointerType.NotAPointer);
         }
 
-        public void VisitBinaryOperation(IBinaryOperationLeaf leaf)
+        public void VisitBinaryOperation(IBinaryOperationNode node)
         {
             TypeCheckVisitor lhsTypeCheck = MakeSubVisitor();
             TypeCheckVisitor rhsTypeCheck = MakeSubVisitor();
-            leaf.LHS.AcceptExpressionVisitor(lhsTypeCheck);
-            leaf.RHS.AcceptExpressionVisitor(rhsTypeCheck);
+            node.LHS.AcceptExpressionVisitor(lhsTypeCheck);
+            node.RHS.AcceptExpressionVisitor(rhsTypeCheck);
 
             // For now, both sides must be of same type.
             if (lhsTypeCheck.Type != rhsTypeCheck.Type) {
-                _errors.Add(("Type mismatch", leaf));
+                _errors.Add(("Type mismatch", node));
             }
 
             // TODO: Ensure operator is valid based on type.
             Type = lhsTypeCheck.Type;
         }
 
-        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationNode node)
         {
             // TOOD: Need to account for unary cast operator.
-            leaf.RHS.AcceptExpressionVisitor(this);
+            node.RHS.AcceptExpressionVisitor(this);
             // TODO: Ensure operator is valid based on type.
         }
 
-        public void VisitFunctionCall(FunctionCallLeaf leaf)
+        public void VisitFunctionCall(FunctionCallNode node)
         {
-            Type = new TypeDefinition(leaf.LHS.ReturnType);
+            Type = new TypeDefinition(node.LHS.ReturnType);
         }
 
-        public void VisitVariable(VariableLeaf leaf)
+        public void VisitVariable(VariableNode node)
         {
-            Type = new TypeDefinition(leaf.Declaration.Type);
+            Type = new TypeDefinition(node.Declaration.Type);
         }
 
-        public void VisitEnumValue(EnumValueLeaf leaf)
+        public void VisitEnumValue(EnumValueNode node)
         {
-            Type = new TypeDefinition(leaf.Enum.Name, PointerType.NotAPointer);
+            Type = new TypeDefinition(node.Enum.Name, PointerType.NotAPointer);
         }
 
-        public void VisitNumericLiteral(NumericLiteralLeaf leaf)
+        public void VisitNumericLiteral(NumericLiteralNode node)
         {
             Type = new TypeDefinition("int", PointerType.NotAPointer);
         }
 
-        public void VisitStringLiteral(StringLiteralLeaf leaf)
+        public void VisitStringLiteral(StringLiteralNode node)
         {
             // String literals are represented as ints, for now.
             Type = new TypeDefinition("int", PointerType.NotAPointer);
         }
 
-        public void VisitAssignment(AssignmentLeaf leaf)
+        public void VisitAssignment(AssignmentNode node)
         {
-            Type = new TypeDefinition(leaf.Declaration.Type);
+            Type = new TypeDefinition(node.Declaration.Type);
             TypeCheckVisitor rhsCheck = MakeSubVisitor();
-            leaf.RHS.AcceptExpressionVisitor(rhsCheck);
+            node.RHS.AcceptExpressionVisitor(rhsCheck);
 
             if (Type != rhsCheck.Type) {
-                _errors.Add(("Type mismatch", leaf));
+                _errors.Add(("Type mismatch", node));
             }
         }
 
-        public void VisitUnknown(IExpressionLeaf leaf)
+        public void VisitUnknown(IExpressionNode node)
         {
         }
     }

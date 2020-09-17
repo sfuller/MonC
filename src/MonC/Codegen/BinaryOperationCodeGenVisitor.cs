@@ -1,7 +1,7 @@
 using System;
 using MonC.IL;
-using MonC.SyntaxTree.Leaves.Expressions;
-using MonC.SyntaxTree.Leaves.Expressions.BinaryOperations;
+using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
 
 namespace MonC.Codegen
 {
@@ -22,83 +22,83 @@ namespace MonC.Codegen
             _rhsStackAddress = rhsStackAddress;
         }
 
-        public void VisitCompareLTBinOp(CompareLTBinOpLeaf leaf)
+        public void VisitCompareLTBinOp(CompareLtBinOpNode node)
         {
-            GenerateRelationalComparison(leaf);
+            GenerateRelationalComparison(node);
         }
 
-        public void VisitCompareLTEBinOp(CompareLTEBinOpLeaf leaf)
+        public void VisitCompareLTEBinOp(CompareLteBinOpNode node)
         {
-            GenerateRelationalComparison(leaf);
+            GenerateRelationalComparison(node);
         }
 
-        public void VisitCompareGTBinOp(CompareGTBinOpLeaf leaf)
+        public void VisitCompareGTBinOp(CompareGtBinOpNode node)
         {
-            GenerateRelationalComparison(leaf);
+            GenerateRelationalComparison(node);
         }
 
-        public void VisitCompareGTEBinOp(CompareGTEBinOpLeaf leaf)
+        public void VisitCompareGTEBinOp(CompareGteBinOpNode node)
         {
-            GenerateRelationalComparison(leaf);
+            GenerateRelationalComparison(node);
         }
 
-        public void VisitCompareEqualityBinOp(CompareEqualityBinOpLeaf leaf)
+        public void VisitCompareEqualityBinOp(CompareEqualityBinOpNode node)
         {
             _functionBuilder.AddInstruction(OpCode.CMPE, _rhsStackAddress);
         }
 
-        public void VisitCompareInequalityBinOp(CompareInequalityBinOpLeaf leaf)
+        public void VisitCompareInequalityBinOp(CompareInequalityBinOpNode node)
         {
             _functionBuilder.AddInstruction(OpCode.CMPE, _rhsStackAddress);
             _functionBuilder.AddInstruction(OpCode.LNOT);
         }
 
-        public void VisitLogicalAndBinOp(LogicalAndBinOpLeaf leaf)
+        public void VisitLogicalAndBinOp(LogicalAndBinOpNode node)
         {
             _functionBuilder.AddInstruction(OpCode.BOOL);
             _functionBuilder.AddInstruction(OpCode.AND, _rhsStackAddress);
         }
 
-        public void VisitLogicalOrBinOp(LogicalOrBinOpLeaf leaf)
+        public void VisitLogicalOrBinOp(LogicalOrBinOpNode node)
         {
             _functionBuilder.AddInstruction(OpCode.OR, _rhsStackAddress);
             _functionBuilder.AddInstruction(OpCode.BOOL);
         }
 
-        public void VisitAddBinOp(AddBinOpLeaf leaf)
+        public void VisitAddBinOp(AddBinOpNode node)
         {
             _functionBuilder.AddInstruction(OpCode.ADD, _rhsStackAddress);
         }
 
-        public void VisitSubtractBinOp(SubtractBinOpLeaf leaf)
+        public void VisitSubtractBinOp(SubtractBinOpNode node)
         {
             _functionBuilder.AddInstruction(OpCode.SUB, _rhsStackAddress);
         }
 
-        public void VisitMultiplyBinOp(MultiplyBinOpLeaf leaf)
+        public void VisitMultiplyBinOp(MultiplyBinOpNode node)
         {
             _functionBuilder.AddInstruction(OpCode.MUL, _rhsStackAddress);
         }
 
-        public void VisitDivideBinOp(DivideBinOpLeaf leaf)
+        public void VisitDivideBinOp(DivideBinOpNode node)
         {
             _functionBuilder.AddInstruction(OpCode.DIV, _rhsStackAddress);
         }
 
-        public void VisitModuloBinOp(ModuloBinOpLeaf leaf)
+        public void VisitModuloBinOp(ModuloBinOpNode node)
         {
             _functionBuilder.AddInstruction(OpCode.MOD, _rhsStackAddress);
         }
 
-        public void VisitUnknown(IBinaryOperationLeaf leaf)
+        public void VisitUnknown(IBinaryOperationNode node)
         {
-            throw new InvalidOperationException("Unexpected binary operation leaf type. Was replacement of a parse tree leaf missed?");
+            throw new InvalidOperationException("Unexpected binary operation node type. Was replacement of a parse tree node missed?");
         }
 
-        private void GenerateRelationalComparison(IBinaryOperationLeaf leaf)
+        private void GenerateRelationalComparison(IBinaryOperationNode node)
         {
-            bool isGreaterThan = leaf is CompareGTBinOpLeaf || leaf is CompareGTEBinOpLeaf;
-            bool includeEquals = (leaf is CompareLTEBinOpLeaf || leaf is CompareGTEBinOpLeaf) ^ isGreaterThan;
+            bool isGreaterThan = node is CompareGtBinOpNode || node is CompareGteBinOpNode;
+            bool includeEquals = (node is CompareLteBinOpNode || node is CompareGteBinOpNode) ^ isGreaterThan;
 
             if (includeEquals) {
                 _functionBuilder.AddInstruction(OpCode.CMPLTE, _rhsStackAddress);

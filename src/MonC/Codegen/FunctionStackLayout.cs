@@ -1,15 +1,15 @@
 using System.Collections.Generic;
-using MonC.SyntaxTree.Leaves.Statements;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Codegen
 {
     public class FunctionStackLayout
     {
-        public readonly Dictionary<DeclarationLeaf, int> Variables;
+        public readonly Dictionary<DeclarationNode, int> Variables;
 
-        public FunctionStackLayout(IDictionary<DeclarationLeaf, int> variables)
+        public FunctionStackLayout(IDictionary<DeclarationNode, int> variables)
         {
-            Variables = new Dictionary<DeclarationLeaf, int>(variables);
+            Variables = new Dictionary<DeclarationNode, int>(variables);
         }
     }
 }

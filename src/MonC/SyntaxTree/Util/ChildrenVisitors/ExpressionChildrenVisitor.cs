@@ -1,5 +1,5 @@
-using MonC.SyntaxTree.Leaves;
-using MonC.SyntaxTree.Leaves.Expressions;
+using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
 
 namespace MonC.SyntaxTree.Util.ChildrenVisitors
 {
@@ -18,65 +18,65 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
             return this;
         }
 
-        public void VisitVoid(VoidExpression leaf)
+        public void VisitVoid(VoidExpressionNode node)
         {
-            Visitor.VisitVoid(leaf);
+            Visitor.VisitVoid(node);
         }
 
-        public void VisitNumericLiteral(NumericLiteralLeaf leaf)
+        public void VisitNumericLiteral(NumericLiteralNode node)
         {
-            Visitor.VisitNumericLiteral(leaf);
+            Visitor.VisitNumericLiteral(node);
         }
 
-        public void VisitStringLiteral(StringLiteralLeaf leaf)
+        public void VisitStringLiteral(StringLiteralNode node)
         {
-            Visitor.VisitStringLiteral(leaf);
+            Visitor.VisitStringLiteral(node);
         }
 
-        public void VisitEnumValue(EnumValueLeaf leaf)
+        public void VisitEnumValue(EnumValueNode node)
         {
-            Visitor.VisitEnumValue(leaf);
+            Visitor.VisitEnumValue(node);
         }
 
-        public void VisitVariable(VariableLeaf leaf)
+        public void VisitVariable(VariableNode node)
         {
-            Visitor.VisitVariable(leaf);
+            Visitor.VisitVariable(node);
         }
 
-        public void VisitUnaryOperation(IUnaryOperationLeaf leaf)
+        public void VisitUnaryOperation(IUnaryOperationNode node)
         {
-            Visitor.VisitUnaryOperation(leaf);
-            leaf.RHS.AcceptExpressionVisitor(this);
+            Visitor.VisitUnaryOperation(node);
+            node.RHS.AcceptExpressionVisitor(this);
         }
 
-        public void VisitBinaryOperation(IBinaryOperationLeaf leaf)
+        public void VisitBinaryOperation(IBinaryOperationNode node)
         {
-            Visitor.VisitBinaryOperation(leaf);
+            Visitor.VisitBinaryOperation(node);
 
             // NOTE: We may want to make this recursion of LHS and RHS optional, in case the outer visitor uses a
             // IBinaryOperationVisitor.
-            leaf.LHS.AcceptExpressionVisitor(this);
-            leaf.RHS.AcceptExpressionVisitor(this);
+            node.LHS.AcceptExpressionVisitor(this);
+            node.RHS.AcceptExpressionVisitor(this);
         }
 
-        public void VisitFunctionCall(FunctionCallLeaf leaf)
+        public void VisitFunctionCall(FunctionCallNode node)
         {
-            Visitor.VisitFunctionCall(leaf);
-            for (int i = 0, ilen = leaf.ArgumentCount; i < ilen; ++i) {
-                IExpressionLeaf argument = leaf.GetArgument(i);
+            Visitor.VisitFunctionCall(node);
+            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
+                IExpressionNode argument = node.GetArgument(i);
                 argument.AcceptExpressionVisitor(this);
             }
         }
 
-        public void VisitAssignment(AssignmentLeaf leaf)
+        public void VisitAssignment(AssignmentNode node)
         {
-            Visitor.VisitAssignment(leaf);
-            leaf.RHS.AcceptExpressionVisitor(this);
+            Visitor.VisitAssignment(node);
+            node.RHS.AcceptExpressionVisitor(this);
         }
 
-        public void VisitUnknown(IExpressionLeaf leaf)
+        public void VisitUnknown(IExpressionNode node)
         {
-            Visitor.VisitUnknown(leaf);
+            Visitor.VisitUnknown(node);
         }
     }
 }
