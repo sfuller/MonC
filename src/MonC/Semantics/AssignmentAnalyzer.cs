@@ -1,38 +1,35 @@
 using System.Collections.Generic;
 using MonC.Parsing.ParseTree;
 using MonC.Parsing.ParseTree.Nodes;
-using MonC.Parsing.Scoping;
+using MonC.Semantics.Scoping;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util.ChildrenVisitors;
+using MonC.SyntaxTree.Util.Delegators;
 using MonC.SyntaxTree.Util.NoOpVisitors;
 using MonC.SyntaxTree.Util.ReplacementVisitors;
 
-namespace MonC.Parsing.Semantics
+namespace MonC.Semantics
 {
-    public class AssignmentAnalyzer :
-            NoOpExpressionAndStatementVisitor, IParseTreeVisitor,
-            IStatementReplacementVisitor, IExpressionReplacementVisitor
+    public class AssignmentAnalyzer : NoOpExpressionVisitor, IParseTreeVisitor, IReplacementSource
     {
-        private readonly IList<(string message, ISyntaxTreeNode node)> _errors;
+        private readonly IErrorManager _errors;
         private readonly IDictionary<ISyntaxTreeNode, Symbol> _symbolMap;
 
-        private bool _shouldReplace;
-        private IExpressionNode _newExpressionNode;
-
         private readonly ScopeManager _scopeManager = new ScopeManager();
+        private readonly SyntaxTreeDelegator _replacementDelegator = new SyntaxTreeDelegator();
 
-        // We don't reaplace any statement nodes, so we can keep this a constant, non-null value.
-        private readonly IStatementNode _newStatementNode = new ExpressionStatementNode(new VoidExpressionNode());
+        private bool _shouldReplace;
+        private ISyntaxTreeNode _newNode = new VoidExpressionNode();
 
-        public AssignmentAnalyzer(IList<(string message, ISyntaxTreeNode node)> errors, IDictionary<ISyntaxTreeNode, Symbol> symbolMap)
+        public AssignmentAnalyzer(IErrorManager errors, IDictionary<ISyntaxTreeNode, Symbol> symbolMap)
         {
             _errors = errors;
             _symbolMap = symbolMap;
 
-            _newExpressionNode = new VoidExpressionNode();
+            _replacementDelegator.ExpressionVisitor = this;
         }
 
         public void Process(FunctionDefinitionNode function)
@@ -40,9 +37,17 @@ namespace MonC.Parsing.Semantics
             _scopeManager.ProcessFunction(function);
 
             ProcessExpressionReplacementsVisitor expressionReplacementsVisitor = new ProcessExpressionReplacementsVisitor(this);
-            ProcessStatementReplacementsVisitor statementReplacementsVisitor = new ProcessStatementReplacementsVisitor(this, this);
-            ExpressionChildrenVisitor expressionChildrenVisitor = new ExpressionChildrenVisitor(expressionReplacementsVisitor);
-            StatementChildrenVisitor statementChildrenVisitor = new StatementChildrenVisitor(statementReplacementsVisitor, expressionChildrenVisitor);
+
+            // Configure the expression children visitor to use the expression replacements visitor for expressions.
+            SyntaxTreeDelegator expressionChildrenDelegator = new SyntaxTreeDelegator();
+            expressionChildrenDelegator.ExpressionVisitor = expressionReplacementsVisitor;
+            ExpressionChildrenVisitor expressionChildrenVisitor = new ExpressionChildrenVisitor(expressionChildrenDelegator);
+
+            // Configure the statement children visitor to use the expression children visitor when encountering expressions.
+            SyntaxTreeDelegator statementChildrenDelegator = new SyntaxTreeDelegator();
+            statementChildrenDelegator.ExpressionVisitor = expressionChildrenVisitor;
+            StatementChildrenVisitor statementChildrenVisitor = new StatementChildrenVisitor(statementChildrenDelegator);
+
             function.Body.VisitStatements(statementChildrenVisitor);
         }
 
@@ -51,10 +56,9 @@ namespace MonC.Parsing.Semantics
             _shouldReplace = false;
         }
 
-        bool IReplacementVisitor<IExpressionNode>.ShouldReplace => _shouldReplace;
-        bool IReplacementVisitor<IStatementNode>.ShouldReplace => _shouldReplace;
-        IExpressionNode IReplacementVisitor<IExpressionNode>.NewNode => _newExpressionNode;
-        IStatementNode IReplacementVisitor<IStatementNode>.NewNode => _newStatementNode;
+        ISyntaxTreeVisitor IReplacementSource.ReplacementVisitor => _replacementDelegator;
+        bool IReplacementSource.ShouldReplace => _shouldReplace;
+        ISyntaxTreeNode IReplacementSource.NewNode => _newNode;
 
         public override void VisitBinaryOperation(IBinaryOperationNode node)
         {
@@ -68,17 +72,10 @@ namespace MonC.Parsing.Semantics
             }
         }
 
-        public override void VisitUnknown(IBinaryOperationNode node)
-        {
-            if (node is IParseTreeNode parseNode) {
-                parseNode.AcceptParseTreeVisitor(this);
-            }
-        }
-
         public void VisitAssignment(AssignmentParseNode node)
         {
             if (!(node.LHS is IdentifierParseNode identifier)) {
-                _errors.Add(("Expecting identifier", node.LHS));
+                _errors.AddError("Expecting identifier", node.LHS);
                 return;
             }
 
@@ -87,18 +84,18 @@ namespace MonC.Parsing.Semantics
 
             DeclarationNode declaration = _scopeManager.GetScope(node).Variables.Find(d => d.Name == identifier.Name);
             if (declaration == null) {
-                _errors.Add(($"Undeclared identifier {identifier.Name}", identifier));
+                _errors.AddError($"Undeclared identifier {identifier.Name}", identifier);
                 resultNode = new VoidExpressionNode();
             } else {
                 resultNode = new AssignmentNode(declaration, node.RHS);
             }
 
-            _newExpressionNode = resultNode;
+            _newNode = resultNode;
 
             // TODO: Need more automated symbol association for new nodes.
             Symbol originalSymbol;
             _symbolMap.TryGetValue(node, out originalSymbol);
-            _symbolMap[_newExpressionNode] = originalSymbol;
+            _symbolMap[_newNode] = originalSymbol;
         }
 
         public void VisitIdentifier(IdentifierParseNode node)
@@ -106,6 +103,10 @@ namespace MonC.Parsing.Semantics
         }
 
         public void VisitFunctionCall(FunctionCallParseNode node)
+        {
+        }
+
+        public void VisitTypeSpecifier(TypeSpecifierParseNode node)
         {
         }
     }

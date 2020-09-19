@@ -4,13 +4,14 @@ using System.Globalization;
 using System.Linq;
 using MonC.Parsing;
 using MonC.Parsing.ParseTree.Nodes;
-using MonC.Parsing.Semantics;
+using MonC.Semantics;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
 using MonC.SyntaxTree.Nodes.Expressions.UnaryOperations;
 using MonC.SyntaxTree.Nodes.Statements;
+using MonC.TypeSystem;
 
 
 namespace MonC
@@ -247,9 +248,9 @@ namespace MonC
             var parameters = new List<DeclarationNode>();
 
             Token retunTypeStart = tokens.Peek();
-            TypeSpecifier? returnType = ParseTypeSpecifier(ref tokens);
+            TypeSpecifierParseNode? returnType = ParseTypeSpecifier(ref tokens);
             if (returnType == null) {
-                returnType = new TypeSpecifier("", PointerType.NotAPointer);
+                returnType = new TypeSpecifierParseNode("", PointerMode.NotAPointer);
             }
 
             Token name;
@@ -369,7 +370,7 @@ namespace MonC
         private DeclarationNode? ParseDeclaration(ref TokenSource tokens)
         {
             Token startToken = tokens.Peek();
-            TypeSpecifier? typeSpecifier = ParseTypeSpecifier(ref tokens);
+            TypeSpecifierParseNode? typeSpecifier = ParseTypeSpecifier(ref tokens);
             Token nameToken;
             if (typeSpecifier == null || !tokens.Next(TokenType.Identifier, out nameToken)) {
                 return null;
@@ -846,7 +847,7 @@ namespace MonC
             Syntax.POINTER_WEAK
         };
 
-        private TypeSpecifier? ParseTypeSpecifier(ref TokenSource tokens)
+        private TypeSpecifierParseNode? ParseTypeSpecifier(ref TokenSource tokens)
         {
             Token typenameToken;
             if (!tokens.Next(TokenType.Identifier, out typenameToken)) {
@@ -855,29 +856,22 @@ namespace MonC
 
             Token next = tokens.Peek();
 
-            PointerType pointerType = PointerType.NotAPointer;
+            PointerMode mode = PointerMode.NotAPointer;
 
             if (next.Type == TokenType.Syntax) {
                 if (PointerTokens.Contains(next.Value)) {
-                    switch (next.Value) {
-                        case Syntax.POINTER_BORROWED:
-                            pointerType = PointerType.Borrowed;
-                            break;
-                        case Syntax.POINTER_OWNED:
-                            pointerType = PointerType.Owned;
-                            break;
-                        case Syntax.POINTER_SHARED:
-                            pointerType = PointerType.Shared;
-                            break;
-                        case Syntax.POINTER_WEAK:
-                            pointerType = PointerType.Weak;
-                            break;
-                    }
+                    mode = next.Value switch {
+                        Syntax.POINTER_BORROWED => PointerMode.Borrowed,
+                        Syntax.POINTER_OWNED => PointerMode.Owned,
+                        Syntax.POINTER_SHARED => PointerMode.Shared,
+                        Syntax.POINTER_WEAK => PointerMode.Weak,
+                        _ => mode
+                    };
                     tokens.Consume();
                 }
             }
 
-            return new TypeSpecifier(typenameToken.Value, pointerType);
+            return new TypeSpecifierParseNode(typenameToken.Value, mode);
         }
 
         private void ParseSemiColonForgiving(ref TokenSource tokens)

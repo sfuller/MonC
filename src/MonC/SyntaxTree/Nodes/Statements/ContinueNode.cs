@@ -1,8 +1,8 @@
 namespace MonC.SyntaxTree.Nodes.Statements
 {
-    public class ContinueNode : IStatementNode
+    public class ContinueNode : StatementNode
     {
-        public void AcceptStatementVisitor(IStatementVisitor visitor)
+        public override void AcceptStatementVisitor(IStatementVisitor visitor)
         {
             visitor.VisitContinue(this);
         }

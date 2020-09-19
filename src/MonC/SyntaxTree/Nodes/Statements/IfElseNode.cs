@@ -1,6 +1,6 @@
 namespace MonC.SyntaxTree.Nodes.Statements
 {
-    public class IfElseNode : IStatementNode
+    public class IfElseNode : StatementNode
     {
         public IExpressionNode Condition;
         public BodyNode IfBody;
@@ -13,7 +13,7 @@ namespace MonC.SyntaxTree.Nodes.Statements
             ElseBody = elseBody;
         }
 
-        public void AcceptStatementVisitor(IStatementVisitor visitor)
+        public override void AcceptStatementVisitor(IStatementVisitor visitor)
         {
             visitor.VisitIfElse(this);
         }

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace MonC.SyntaxTree.Nodes.Statements
 {
-    public class BodyNode : IStatementNode
+    public class BodyNode : StatementNode
     {
         public readonly List<IStatementNode> Statements;
 
@@ -16,7 +16,7 @@ namespace MonC.SyntaxTree.Nodes.Statements
             Statements = new List<IStatementNode>(statements);
         }
 
-        public void AcceptStatementVisitor(IStatementVisitor visitor)
+        public override void AcceptStatementVisitor(IStatementVisitor visitor)
         {
             visitor.VisitBody(this);
         }

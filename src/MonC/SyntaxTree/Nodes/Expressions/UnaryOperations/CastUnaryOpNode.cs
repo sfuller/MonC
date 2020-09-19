@@ -1,10 +1,12 @@
+using MonC.SyntaxTree.Nodes.Specifiers;
+
 namespace MonC.SyntaxTree.Nodes.Expressions.UnaryOperations
 {
     public class CastUnaryOpNode : UnaryOperationNode
     {
-        public TypeSpecifier ToType;
+        public ITypeSpecifierNode ToType;
 
-        public CastUnaryOpNode(TypeSpecifier toType, IExpressionNode rhs) : base(rhs)
+        public CastUnaryOpNode(ITypeSpecifierNode toType, IExpressionNode rhs) : base(rhs)
         {
             ToType = toType;
         }

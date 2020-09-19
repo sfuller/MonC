@@ -1,10 +1,13 @@
 using System.Collections.Generic;
-using MonC.Parsing.Semantics.TypeAnalysis;
+using MonC.Parsing;
+using MonC.Semantics.TypeChecks;
+using MonC.TypeSystem;
 using MonC.SyntaxTree;
+using MonC.TypeSystem.Types.Impl;
 
-namespace MonC.Parsing.Semantics
+namespace MonC.Semantics
 {
-    public class SemanticAnalyzer
+    public class SemanticAnalyzer : IErrorManager
     {
         private readonly IList<ParseError> _errors;
         private readonly IDictionary<ISyntaxTreeNode, Symbol> _symbolMap;
@@ -14,16 +17,25 @@ namespace MonC.Parsing.Semantics
 
         private readonly List<(string message, ISyntaxTreeNode node)> _errorsToProcess = new List<(string message, ISyntaxTreeNode node)>();
 
+        private readonly TypeManager _typeManager;
+
         public SemanticAnalyzer(IList<ParseError> errors, IDictionary<ISyntaxTreeNode, Symbol> symbolMap)
         {
             _errors = errors;
             _symbolMap = symbolMap;
             _enumManager = new EnumManager(errors);
+
+            _typeManager = new TypeManager();
         }
 
         public void Analyze(ParseModule headerModule, ParseModule newModule)
         {
             _functions.Clear();
+
+            // TODO: Load types from header module.
+
+            _typeManager.RegisterType(new PrimitiveTypeImpl("int"));
+
 
             foreach (EnumNode enumNode in headerModule.Enums) {
                 _enumManager.RegisterEnum(enumNode);
@@ -55,11 +67,16 @@ namespace MonC.Parsing.Semantics
 
         private void ProcessFunction(FunctionDefinitionNode function)
         {
-            new VariableDeclarationProcessor(_errorsToProcess).Process(function);
-            new AssignmentAnalyzer(_errorsToProcess, _symbolMap).Process(function);
-            new TranslateIdentifiersVisitor(_functions, _errorsToProcess, _enumManager, _symbolMap).Process(function);
-            new TypeCheckVisitor(_errorsToProcess).Process(function);
+            new VariableDeclarationProcessor(this).Process(function);
+            new AssignmentAnalyzer(this, _symbolMap).Process(function);
+            new TranslateIdentifiersVisitor(_functions, this, _enumManager, _symbolMap).Process(function);
+            new TypeResolver(_typeManager, this).Process(function);
+            new TypeCheckVisitor(_typeManager, this).Process(function);
         }
 
+        void IErrorManager.AddError(string message, ISyntaxTreeNode node)
+        {
+            _errorsToProcess.Add((message, node));
+        }
     }
 }

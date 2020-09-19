@@ -2,7 +2,7 @@ using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.SyntaxTree.Nodes.Expressions
 {
-    public class VariableNode : IExpressionNode
+    public class VariableNode : ExpressionNode
     {
         public DeclarationNode Declaration;
 
@@ -11,7 +11,7 @@ namespace MonC.SyntaxTree.Nodes.Expressions
             Declaration = declaration;
         }
 
-        public void AcceptExpressionVisitor(IExpressionVisitor visitor)
+        public override void AcceptExpressionVisitor(IExpressionVisitor visitor)
         {
             visitor.VisitVariable(this);
         }

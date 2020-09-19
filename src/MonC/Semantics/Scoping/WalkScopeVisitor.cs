@@ -1,10 +1,10 @@
 using System.Collections.Generic;
-using MonC.Parsing.Scoping;
+using MonC.Semantics.Scoping;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util.ChildrenVisitors;
 
-namespace MonC.Parsing.Semantics
+namespace MonC.Semantics
 {
     public interface IScopeHandler
     {
@@ -14,22 +14,21 @@ namespace MonC.Parsing.Semantics
     public class WalkScopeVisitor : IStatementVisitor
     {
         private readonly IScopeHandler _scopeHandler;
-        private readonly IStatementVisitor _statementVisitor;
+        private readonly ISyntaxTreeVisitor _innerVisitor;
         private readonly Stack<Scope> _scopes = new Stack<Scope>();
         private readonly ExpressionChildrenVisitor _expressionChildrenVisitor;
 
         public WalkScopeVisitor(
                 IScopeHandler scopeHandler,
-                IStatementVisitor statementVisitor,
-                IExpressionVisitor expressionVisitor,
+                ISyntaxTreeVisitor innerVisitor,
                 Scope initialScope)
         {
             _scopeHandler = scopeHandler;
-            _statementVisitor = statementVisitor;
+            _innerVisitor = innerVisitor;
             _scopes.Push(initialScope);
 
             // Scope can't change inside of expressions, so just use a children visitor for expressions.
-            _expressionChildrenVisitor= new ExpressionChildrenVisitor(expressionVisitor);
+            _expressionChildrenVisitor = new ExpressionChildrenVisitor(innerVisitor);
         }
 
         public void VisitBody(BodyNode node)
@@ -111,7 +110,7 @@ namespace MonC.Parsing.Semantics
         {
             Scope scope = _scopes.Peek();
             _scopeHandler.CurrentScope = scope;
-            node.AcceptStatementVisitor(_statementVisitor);
+            node.AcceptSyntaxTreeVisitor(_innerVisitor);
         }
     }
 }
