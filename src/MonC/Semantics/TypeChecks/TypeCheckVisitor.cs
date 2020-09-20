@@ -2,6 +2,7 @@ using System;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Expressions.UnaryOperations;
 using MonC.SyntaxTree.Nodes.Specifiers;
 using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util.ChildrenVisitors;
@@ -10,7 +11,7 @@ using MonC.TypeSystem.Types;
 
 namespace MonC.Semantics.TypeChecks
 {
-    public class TypeCheckVisitor : ISyntaxTreeVisitor, IStatementVisitor, IExpressionVisitor
+    public class TypeCheckVisitor : ISyntaxTreeVisitor, IStatementVisitor, IExpressionVisitor, ISpecifierVisitor
     {
         private readonly TypeManager _typeManager;
         private readonly IErrorManager _errors;
@@ -61,12 +62,18 @@ namespace MonC.Semantics.TypeChecks
 
         public void VisitDeclaration(DeclarationNode node)
         {
-            if (node.Assignment is VoidExpressionNode) {
-                // Ommited assignment.
+            node.Type.AcceptSpecifierVisitor(this);
+
+            TypeCheckVisitor assignmentVisitor = MakeSubVisitor();
+            node.Assignment.AcceptExpressionVisitor(assignmentVisitor);
+
+            if (Type == null || assignmentVisitor.Type == null) {
                 return;
             }
-            // TODO: Check assignment expression type against declaration type.
-            node.Assignment.AcceptExpressionVisitor(this);
+
+            if (Type != assignmentVisitor.Type) {
+                AddAssigmentTypeMismatchError(Type, assignmentVisitor.Type, node);
+            }
         }
 
         public void VisitIfElse(IfElseNode node)
@@ -102,7 +109,6 @@ namespace MonC.Semantics.TypeChecks
 
         public void VisitVoid(VoidExpressionNode node)
         {
-            Type = _typeManager.GetType("void")!; // TODO: Better way of managing primitive types.
         }
 
         public void VisitBinaryOperation(IBinaryOperationNode node)
@@ -130,7 +136,11 @@ namespace MonC.Semantics.TypeChecks
 
         public void VisitUnaryOperation(IUnaryOperationNode node)
         {
-            // TOOD: Need to account for unary cast operator.
+            if (node is CastUnaryOpNode castNode) {
+                castNode.ToType.AcceptSpecifierVisitor(this);
+                return;
+            }
+
             node.RHS.AcceptExpressionVisitor(this);
             // TODO: Ensure operator is valid based on type.
         }
@@ -186,14 +196,28 @@ namespace MonC.Semantics.TypeChecks
             }
 
             if (Type != rhsCheck.Type) {
-                string message = "Type mismatch between assignment operator.\n" +
-                                 $"  LHS: {Type.Represent()}\n" +
-                                 $"  RHS: {rhsCheck.Type.Represent()}";
-                _errors.AddError(message, node);
+                AddAssigmentTypeMismatchError(Type, rhsCheck.Type, node);
             }
         }
 
+        private void AddAssigmentTypeMismatchError(IType lhsType, IType rhsType, ISyntaxTreeNode node)
+        {
+            string message = "Type mismatch between assignment operator.\n" +
+                             $"  LHS: {lhsType.Represent()}\n" +
+                             $"  RHS: {rhsType.Represent()}";
+            _errors.AddError(message, node);
+        }
+
         public void VisitUnknown(IExpressionNode node)
+        {
+        }
+
+        public void VisitTypeSpecifier(TypeSpecifierNode node)
+        {
+            Type = node.Type;
+        }
+
+        public void VisitUnknown(ISpecifierNode node)
         {
         }
     }

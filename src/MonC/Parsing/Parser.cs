@@ -777,6 +777,13 @@ namespace MonC
 
         private IUnaryOperationNode? ParseUnaryOperation(ref TokenSource tokens)
         {
+            TokenSource castTokens = tokens.Fork();
+            CastUnaryOpNode? castNode = ParseCast(ref castTokens);
+            if (castNode != null) {
+                tokens.Consume(castTokens);
+                return castNode;
+            }
+
             Token op = tokens.Next();
             IExpressionNode? rhs = ParseExpression(ref tokens, TOKEN_PRECEDENCE_UNARY);
             if (rhs == null) {
@@ -798,6 +805,27 @@ namespace MonC
                 return null;
             }
             return NewNode(rawNode, token.Location, GetSymbolForNode(rhs).End);
+        }
+
+        private CastUnaryOpNode? ParseCast(ref TokenSource tokens)
+        {
+            if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_PAREN, out Token startToken)) {
+                return null;
+            }
+
+            TypeSpecifierParseNode? typeSpecifier = ParseTypeSpecifier(ref tokens);
+            if (typeSpecifier == null) {
+                return null;
+            }
+
+            tokens.Next(TokenType.Syntax, Syntax.CLOSING_PAREN, out Token endToken);
+
+            IExpressionNode? rhs = ParseExpression(ref tokens, TOKEN_PRECEDENCE_UNARY);
+            if (rhs == null) {
+                return null;
+            }
+
+            return NewNode(new CastUnaryOpNode(typeSpecifier, rhs), startToken, endToken);
         }
 
         private IdentifierParseNode? ParseIdentifierExpression(ref TokenSource tokens)
