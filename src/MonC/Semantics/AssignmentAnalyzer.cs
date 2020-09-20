@@ -37,15 +37,18 @@ namespace MonC.Semantics
             _scopeManager.ProcessFunction(function);
 
             ProcessExpressionReplacementsVisitor expressionReplacementsVisitor = new ProcessExpressionReplacementsVisitor(this);
+            ProcessStatementReplacementsVisitor statementReplacementsVisitor = new ProcessStatementReplacementsVisitor(this);
 
             // Configure the expression children visitor to use the expression replacements visitor for expressions.
             SyntaxTreeDelegator expressionChildrenDelegator = new SyntaxTreeDelegator();
             expressionChildrenDelegator.ExpressionVisitor = expressionReplacementsVisitor;
+            expressionChildrenDelegator.StatementVisitor = statementReplacementsVisitor;
             ExpressionChildrenVisitor expressionChildrenVisitor = new ExpressionChildrenVisitor(expressionChildrenDelegator);
 
             // Configure the statement children visitor to use the expression children visitor when encountering expressions.
             SyntaxTreeDelegator statementChildrenDelegator = new SyntaxTreeDelegator();
             statementChildrenDelegator.ExpressionVisitor = expressionChildrenVisitor;
+            statementChildrenDelegator.StatementVisitor = statementReplacementsVisitor;
             StatementChildrenVisitor statementChildrenVisitor = new StatementChildrenVisitor(statementChildrenDelegator);
 
             function.Body.VisitStatements(statementChildrenVisitor);
@@ -66,6 +69,16 @@ namespace MonC.Semantics
         }
 
         public override void VisitUnknown(IExpressionNode node)
+        {
+            TryVisitingParseNode(node);
+        }
+
+        public override void VisitUnknown(IBinaryOperationNode node)
+        {
+            TryVisitingParseNode(node);
+        }
+
+        private void TryVisitingParseNode(ISyntaxTreeNode node)
         {
             if (node is IParseTreeNode parseNode) {
                 parseNode.AcceptParseTreeVisitor(this);

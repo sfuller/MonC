@@ -19,10 +19,9 @@ namespace MonC.Semantics.TypeChecks
         {
             _typeManager = typeManager;
             _errors = errors;
-            Type = typeManager.GetType("void")!; // TODO: Better way of retrieving standard types.
         }
 
-        public IType Type { get; set; }
+        public IType? Type { get; set; }
 
         private TypeCheckVisitor MakeSubVisitor()
         {
@@ -113,9 +112,16 @@ namespace MonC.Semantics.TypeChecks
             node.LHS.AcceptExpressionVisitor(lhsTypeCheck);
             node.RHS.AcceptExpressionVisitor(rhsTypeCheck);
 
+            if (lhsTypeCheck.Type == null || rhsTypeCheck.Type == null) {
+                return;
+            }
+
             // For now, both sides must be of same type.
             if (lhsTypeCheck.Type != rhsTypeCheck.Type) {
-                _errors.AddError("Type mismatch", node);
+                string message = "Type mismatch between binary operator.\n" +
+                                 $"  LHS: {lhsTypeCheck.Type.Represent()}\n" +
+                                 $"  RHS: {rhsTypeCheck.Type.Represent()}";
+                _errors.AddError(message, node);
             }
 
             // TODO: Ensure operator is valid based on type.
@@ -175,8 +181,15 @@ namespace MonC.Semantics.TypeChecks
             TypeCheckVisitor rhsCheck = MakeSubVisitor();
             node.RHS.AcceptExpressionVisitor(rhsCheck);
 
+            if (Type == null || rhsCheck.Type == null) {
+                return;
+            }
+
             if (Type != rhsCheck.Type) {
-                _errors.AddError("Type mismatch", node);
+                string message = "Type mismatch between assignment operator.\n" +
+                                 $"  LHS: {Type.Represent()}\n" +
+                                 $"  RHS: {rhsCheck.Type.Represent()}";
+                _errors.AddError(message, node);
             }
         }
 

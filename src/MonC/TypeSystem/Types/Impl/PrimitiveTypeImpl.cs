@@ -8,5 +8,10 @@ namespace MonC.TypeSystem.Types.Impl
         {
             Name = name;
         }
+
+        public string Represent()
+        {
+            return Name;
+        }
     }
 }
