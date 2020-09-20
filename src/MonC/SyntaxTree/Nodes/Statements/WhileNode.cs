@@ -1,6 +1,6 @@
 namespace MonC.SyntaxTree.Nodes.Statements
 {
-    public class WhileNode : IStatementNode
+    public class WhileNode : StatementNode
     {
         public IExpressionNode Condition;
         public BodyNode Body;
@@ -11,7 +11,7 @@ namespace MonC.SyntaxTree.Nodes.Statements
             Body = body;
         }
 
-        public void AcceptStatementVisitor(IStatementVisitor visitor)
+        public override void AcceptStatementVisitor(IStatementVisitor visitor)
         {
             visitor.VisitWhile(this);
         }

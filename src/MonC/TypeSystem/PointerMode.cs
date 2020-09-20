@@ -1,7 +1,7 @@
 
-namespace MonC.SyntaxTree
+namespace MonC.TypeSystem
 {
-    public enum PointerType
+    public enum PointerMode
     {
         NotAPointer,
         Shared,

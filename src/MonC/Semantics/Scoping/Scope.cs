@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes.Statements;
 
-namespace MonC.Parsing.Scoping
+namespace MonC.Semantics.Scoping
 {
     public struct Scope
     {

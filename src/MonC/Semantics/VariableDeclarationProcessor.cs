@@ -1,18 +1,17 @@
-using System.Collections.Generic;
-using MonC.Parsing.Scoping;
+using MonC.Semantics.Scoping;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util.NoOpVisitors;
 
-namespace MonC.Parsing.Semantics
+namespace MonC.Semantics
 {
     // TODO: Rename to DuplicateDeclarationAnalyzer?
-    public class VariableDeclarationProcessor : NoOpExpressionAndStatementVisitor, IScopeHandler
+    public class VariableDeclarationProcessor : NoOpStatementVisitor, ISyntaxTreeVisitor, IScopeHandler
     {
-        private readonly IList<(string message, ISyntaxTreeNode node)> _errors;
+        private readonly IErrorManager _errors;
 
-        public VariableDeclarationProcessor(IList<(string message, ISyntaxTreeNode node)> errors)
+        public VariableDeclarationProcessor(IErrorManager errors)
         {
             _errors = errors;
         }
@@ -21,7 +20,7 @@ namespace MonC.Parsing.Semantics
 
         public void Process(FunctionDefinitionNode function)
         {
-            WalkScopeVisitor scopeVisitor = new WalkScopeVisitor(this, this, this, Scope.New(function));
+            WalkScopeVisitor scopeVisitor = new WalkScopeVisitor(this, this, Scope.New(function));
             function.Body.VisitStatements(scopeVisitor);
         }
 
@@ -31,13 +30,25 @@ namespace MonC.Parsing.Semantics
             DeclarationNode previousNode = CurrentScope.Variables.Find(existingNode => node.Name == existingNode.Name);
 
             if (previousNode != null) {
-                _errors.Add(($"Duplicate declaration {node.Name}", node));
+                _errors.AddError($"Duplicate declaration {node.Name}", node);
             }
         }
 
-        public override void VisitUnknown(IExpressionNode node)
+        public void VisitTopLevelStatement(ITopLevelStatementNode node)
         {
-            // It is okay to not handle parse tree nodes, or any other unrecognized nodes for that matter.
+        }
+
+        public void VisitStatement(IStatementNode node)
+        {
+            node.AcceptStatementVisitor(this);
+        }
+
+        public void VisitExpression(IExpressionNode node)
+        {
+        }
+
+        public void VisitSpecifier(ISpecifierNode node)
+        {
         }
     }
 }

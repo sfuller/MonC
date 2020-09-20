@@ -11,6 +11,11 @@ namespace MonC.Parsing.ParseTree.Nodes
             Name = name;
         }
 
+        public void AcceptSyntaxTreeVisitor(ISyntaxTreeVisitor visitor)
+        {
+            visitor.VisitExpression(this);
+        }
+
         public void AcceptExpressionVisitor(IExpressionVisitor visitor)
         {
             visitor.VisitUnknown(this);

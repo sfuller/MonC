@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using MonC.SyntaxTree;
 
-namespace MonC.Parsing.Semantics
+namespace MonC.Semantics
 {
     public class EnumManager
     {

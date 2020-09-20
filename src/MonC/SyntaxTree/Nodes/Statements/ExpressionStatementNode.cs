@@ -1,6 +1,6 @@
 namespace MonC.SyntaxTree.Nodes
 {
-    public class ExpressionStatementNode : IStatementNode
+    public class ExpressionStatementNode : StatementNode
     {
         public IExpressionNode Expression;
 
@@ -9,7 +9,7 @@ namespace MonC.SyntaxTree.Nodes
             Expression = expression;
         }
 
-        public void AcceptStatementVisitor(IStatementVisitor visitor)
+        public override void AcceptStatementVisitor(IStatementVisitor visitor)
         {
             visitor.VisitExpressionStatement(this);
         }

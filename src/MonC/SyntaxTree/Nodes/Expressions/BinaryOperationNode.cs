@@ -1,6 +1,6 @@
 namespace MonC.SyntaxTree.Nodes.Expressions
 {
-    public abstract class BinaryOperationNode : IBinaryOperationNode
+    public abstract class BinaryOperationNode : ExpressionNode, IBinaryOperationNode
     {
         public IExpressionNode LHS { get; set; }
         public IExpressionNode RHS { get; set; }
@@ -11,7 +11,7 @@ namespace MonC.SyntaxTree.Nodes.Expressions
             RHS = rhs;
         }
 
-        public void AcceptExpressionVisitor(IExpressionVisitor visitor)
+        public override void AcceptExpressionVisitor(IExpressionVisitor visitor)
         {
             visitor.VisitBinaryOperation(this);
         }

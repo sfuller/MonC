@@ -9,6 +9,11 @@ namespace MonC.SyntaxTree.Nodes.Expressions
             RHS = rhs;
         }
 
+        public void AcceptSyntaxTreeVisitor(ISyntaxTreeVisitor visitor)
+        {
+            visitor.VisitExpression(this);
+        }
+
         public void AcceptExpressionVisitor(IExpressionVisitor visitor)
         {
             visitor.VisitUnaryOperation(this);

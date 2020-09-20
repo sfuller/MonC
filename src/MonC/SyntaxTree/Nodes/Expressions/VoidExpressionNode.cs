@@ -1,9 +1,8 @@
 namespace MonC.SyntaxTree.Nodes.Expressions
 {
-    public class VoidExpressionNode : IExpressionNode
+    public class VoidExpressionNode : ExpressionNode
     {
-
-        public void AcceptExpressionVisitor(IExpressionVisitor visitor)
+        public override void AcceptExpressionVisitor(IExpressionVisitor visitor)
         {
             visitor.VisitVoid(this);
         }

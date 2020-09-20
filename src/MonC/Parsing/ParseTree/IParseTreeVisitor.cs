@@ -7,5 +7,6 @@ namespace MonC.Parsing.ParseTree
         void VisitAssignment(AssignmentParseNode node);
         void VisitIdentifier(IdentifierParseNode node);
         void VisitFunctionCall(FunctionCallParseNode node);
+        void VisitTypeSpecifier(TypeSpecifierParseNode node);
     }
 }

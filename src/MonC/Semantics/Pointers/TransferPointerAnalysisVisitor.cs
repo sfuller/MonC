@@ -3,7 +3,7 @@ using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Statements;
 
-namespace MonC.Parsing.Semantics
+namespace MonC.Semantics.Pointers
 {
     public class TransferPointerAnalysisVisitor : IStatementVisitor, IExpressionVisitor
     {
