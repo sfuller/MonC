@@ -38,10 +38,10 @@ namespace MonC.Semantics
 
 
             foreach (EnumNode enumNode in headerModule.Enums) {
-                _enumManager.RegisterEnum(enumNode);
+                RegisterEnum(enumNode);
             }
             foreach (EnumNode enumNode in newModule.Enums) {
-                _enumManager.RegisterEnum(enumNode);
+                RegisterEnum(enumNode);
             }
 
             foreach (FunctionDefinitionNode externalFunction in headerModule.Functions) {
@@ -63,6 +63,12 @@ namespace MonC.Semantics
                 _symbolMap.TryGetValue(node, out symbol);
                 _errors.Add(new ParseError {Message = message, Start = symbol.Start, End = symbol.End});
             }
+        }
+
+        private void RegisterEnum(EnumNode enumNode)
+        {
+            _enumManager.RegisterEnum(enumNode);
+            _typeManager.RegisterType(new PrimitiveTypeImpl(enumNode.Name));
         }
 
         private void ProcessFunction(FunctionDefinitionNode function)
