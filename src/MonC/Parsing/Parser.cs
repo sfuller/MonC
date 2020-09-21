@@ -34,8 +34,10 @@ namespace MonC
             ParseModule outputModule = new ParseModule();
             _tokenMap = outputModule.TokenMap;
 
+            ParseModuleHopper hopper = new ParseModuleHopper(outputModule);
+
             while (tokenSource.Peek().Type != TokenType.None) {
-                ParseTopLevelStatement(ref tokenSource, outputModule.Functions, outputModule.Enums);
+                ParseTopLevelStatement(ref tokenSource)?.AcceptTopLevelVisitor(hopper);
             }
 
             SemanticAnalyzer analyzer = new SemanticAnalyzer(errors, _tokenMap);
@@ -120,6 +122,24 @@ namespace MonC
                 return result;
             }
 
+            public bool TryNext(TokenType type, out Token token)
+            {
+                bool matches = Peek(0, type, out token);
+                if (matches) {
+                    Consume();
+                }
+                return matches;
+            }
+
+            public bool TryNext(TokenType type, string value, out Token token)
+            {
+                bool matches = Peek(0, type, value, out token);
+                if (matches) {
+                    Consume();
+                }
+                return matches;
+            }
+
             public void AddError(ParseError error)
             {
                 if (_errors == null) {
@@ -159,7 +179,7 @@ namespace MonC
             }
         }
 
-        private void ParseTopLevelStatement(ref TokenSource tokens, IList<FunctionDefinitionNode> functions, IList<EnumNode> enums)
+        private ITopLevelStatementNode? ParseTopLevelStatement(ref TokenSource tokens)
         {
             bool isExported = true;
 
@@ -171,17 +191,17 @@ namespace MonC
             }
 
             if (token.Type == TokenType.Keyword && token.Value == Keyword.ENUM) {
-                EnumNode? enumNode = ParseEnum(ref tokens, isExported);
-                if (enumNode != null) {
-                    enums.Add(enumNode);
-                }
-                return;
+                return ParseEnum(ref tokens, isExported);
             }
 
-            FunctionDefinitionNode? def = ParseFunction(ref tokens, isExported);
-            if (def != null) {
-                functions.Add(def);
+            TokenSource structTokens = tokens.Fork();
+            StructNode? structNode = ParseStruct(ref structTokens, isExported);
+            if (structNode != null) {
+                tokens.Consume(structTokens);
+                return structNode;
             }
+
+            return ParseFunction(ref tokens, isExported);
         }
 
         private EnumNode? ParseEnum(ref TokenSource tokens, bool isExported)
@@ -241,6 +261,39 @@ namespace MonC
             }
 
             return NewNode(new EnumNode(nameToken.Value, enumerations, isExported), startToken, tokens.Peek(-1));
+        }
+
+        private StructNode? ParseStruct(ref TokenSource tokens, bool isExported)
+        {
+            if (!tokens.Next(TokenType.Keyword, Keyword.STRUCT, out Token startToken)) {
+                return null;
+            }
+
+            string name = "";
+            if (tokens.TryNext(TokenType.Identifier, out Token nameToken)) {
+                name = nameToken.Value;
+            }
+
+            // TODO: Support function associations
+
+            tokens.TryNext(TokenType.Syntax, Syntax.OPENING_BRACKET, out _);
+
+            List<DeclarationNode> declarations = new List<DeclarationNode>();
+
+            while (true) {
+                TokenSource declarationTokens = tokens.Fork();
+                DeclarationNode? declarationNode = ParseDeclaration(ref declarationTokens);
+                if (declarationNode == null) {
+                    break;
+                }
+                tokens.Consume(declarationTokens);
+                declarations.Add(declarationNode);
+                ParseSemiColonForgiving(ref tokens);
+            }
+
+            tokens.TryNext(TokenType.Syntax, Syntax.CLOSING_BRACKET, out _);
+
+            return NewNode(new StructNode(name, declarations, isExported), startToken, tokens.Peek(-1));
         }
 
         private FunctionDefinitionNode? ParseFunction(ref TokenSource tokens, bool isExported)

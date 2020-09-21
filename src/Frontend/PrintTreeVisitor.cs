@@ -55,6 +55,11 @@ namespace MonC.Frontend
             VisitBody(node.Body);
         }
 
+        public void VisitStruct(StructNode node)
+        {
+            Print($"Struct ({node.Name})");
+        }
+
         public void VisitFunctionCall(FunctionCallNode node)
         {
             Print($"Function Call (name: {node.LHS.Name}, {node.ArgumentCount} arguments)");

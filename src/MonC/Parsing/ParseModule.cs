@@ -7,6 +7,7 @@ namespace MonC.Parsing
     {
         public readonly List<FunctionDefinitionNode> Functions = new List<FunctionDefinitionNode>();
         public readonly List<EnumNode> Enums = new List<EnumNode>();
+        public readonly List<StructNode> Structs = new List<StructNode>();
         public readonly Dictionary<ISyntaxTreeNode, Symbol> TokenMap = new Dictionary<ISyntaxTreeNode, Symbol>();
     }
 }
