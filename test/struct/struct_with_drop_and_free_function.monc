@@ -1,0 +1,17 @@
+
+struct Foo : drop=drop_foo, free=free_foo {
+    int a;
+    int b;
+}
+
+void drop_foo(Foo& foo) drop {
+
+}
+
+void free_foo(Foo^ foo) {
+}
+
+int main() {
+    return 0;
+}
+
