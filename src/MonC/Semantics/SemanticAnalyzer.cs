@@ -73,7 +73,7 @@ namespace MonC.Semantics
 
         private void ProcessFunction(FunctionDefinitionNode function)
         {
-            new VariableDeclarationProcessor(this).Process(function);
+            new DuplicateVariableDeclarationAnalyzer(this).Process(function);
             new AssignmentAnalyzer(this, _symbolMap).Process(function);
             new TranslateIdentifiersVisitor(_functions, this, _enumManager, _symbolMap).Process(function);
             new TypeResolver(_typeManager, this).Process(function);

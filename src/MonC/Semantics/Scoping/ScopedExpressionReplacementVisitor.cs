@@ -51,5 +51,10 @@ namespace MonC.Semantics.Scoping
         {
             VisitDefault(node);
         }
+
+        public void VisitStructFunctionAssociation(StructFunctionAssociationNode node)
+        {
+            VisitDefault(node);
+        }
     }
 }

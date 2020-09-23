@@ -8,6 +8,7 @@ namespace MonC.SyntaxTree.Util.Delegators
         public IStatementVisitor? StatementVisitor;
         public IExpressionVisitor? ExpressionVisitor;
         public ISpecifierVisitor? SpecifierVisitor;
+        public IStructFunctionAssociationVisitor? StructFunctionAssociationVisitor;
 
         public void VisitTopLevelStatement(ITopLevelStatementNode node)
         {
@@ -34,6 +35,13 @@ namespace MonC.SyntaxTree.Util.Delegators
         {
             if (SpecifierVisitor != null) {
                 node.AcceptSpecifierVisitor(SpecifierVisitor);
+            }
+        }
+
+        public void VisitStructFunctionAssociation(StructFunctionAssociationNode node)
+        {
+            if (StructFunctionAssociationVisitor != null) {
+                StructFunctionAssociationVisitor.VisitStructFunctionAssociation(node);
             }
         }
     }
