@@ -22,7 +22,7 @@ namespace MonC
 
         private IDictionary<ISyntaxTreeNode, Symbol> _tokenMap = new Dictionary<ISyntaxTreeNode, Symbol>();
 
-        public ParseModule Parse(string? filePath, IEnumerable<Token> tokens, ParseModule headerModule, IList<ParseError> errors)
+        public ParseModule Parse(string? filePath, IEnumerable<Token> tokens, IList<ParseError> errors)
         {
             _filePath = filePath;
             _tokens.Clear();
@@ -36,9 +36,6 @@ namespace MonC
             while (tokenSource.Peek().Type != TokenType.None) {
                 ParseTopLevelStatement(ref tokenSource, outputModule.Functions, outputModule.Enums);
             }
-
-            SemanticAnalyzer analyzer = new SemanticAnalyzer(errors, _tokenMap);
-            analyzer.Analyze(headerModule, outputModule);
 
             return outputModule;
         }

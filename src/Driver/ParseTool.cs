@@ -4,6 +4,7 @@ using System.IO;
 using MonC;
 using MonC.Frontend;
 using MonC.Parsing;
+using MonC.SyntaxTree;
 
 namespace Driver
 {
@@ -18,6 +19,8 @@ namespace Driver
 
         private Job _job;
         private IParseInput _parseInput;
+        private ParseModule _parseModule;
+        private bool _ranSemanticAnalysis;
 
         public ParseTool(Job job, IParseInput parseInput)
         {
@@ -27,12 +30,14 @@ namespace Driver
 
         public static ParseTool Construct(Job job, IParseInput input) => new ParseTool(job, input);
 
-        public ParseModule GetParseModule()
+        public void RunHeaderPass()
         {
+            if (_parseModule != null)
+                throw new InvalidOperationException("RunHeaderPass has already been called");
+
             Parser parser = new Parser();
             List<ParseError> errors = new List<ParseError>();
-            ParseModule module = parser.Parse(_parseInput.GetFileInfo().FullPath, _parseInput.GetTokens(),
-                _job.InteropHeaderModule, errors);
+            _parseModule = parser.Parse(_parseInput.GetFileInfo().FullPath, _parseInput.GetTokens(), errors);
 
             for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
                 ParseError error = errors[i];
@@ -42,15 +47,53 @@ namespace Driver
 
             if (_showAST) {
                 PrintTreeVisitor treeVisitor = new PrintTreeVisitor(Console.Out);
-                for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
-                    module.Functions[i].AcceptTopLevelVisitor(treeVisitor);
+                for (int i = 0, ilen = _parseModule.Functions.Count; i < ilen; ++i) {
+                    _parseModule.Functions[i].AcceptTopLevelVisitor(treeVisitor);
                 }
             }
 
             if (!_forceCodegen)
                 Diagnostics.ThrowIfErrors();
 
-            return module;
+            // Export functions of all modules before any CodeGen tools run
+            for (int i = 0, ilen = _parseModule.Functions.Count; i < ilen; ++i) {
+                FunctionDefinitionNode function = _parseModule.Functions[i];
+                if (function.IsExported) {
+                    _job.HeaderModule.Functions.Add(function);
+                }
+            }
+
+            // Export enums of all modules before any CodeGen tools run
+            for (int i = 0, ilen = _parseModule.Enums.Count; i < ilen; ++i) {
+                EnumNode enumNode = _parseModule.Enums[i];
+                if (enumNode.IsExported) {
+                    _job.HeaderModule.Enums.Add(enumNode);
+                }
+            }
+        }
+
+        public ParseModule GetParseModule()
+        {
+            if (_parseModule == null)
+                throw new InvalidOperationException("RunHeaderPass has not been called");
+
+            if (!_ranSemanticAnalysis) {
+                List<ParseError> errors = new List<ParseError>();
+                _parseModule.RunSemanticAnalysis(_job.HeaderModule, errors);
+
+                for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
+                    ParseError error = errors[i];
+                    Diagnostics.Report(Diagnostics.Severity.Error,
+                        $"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
+                }
+
+                if (!_forceCodegen)
+                    Diagnostics.ThrowIfErrors();
+
+                _ranSemanticAnalysis = true;
+            }
+
+            return _parseModule;
         }
 
         public FileInfo GetFileInfo() => _parseInput.GetFileInfo();

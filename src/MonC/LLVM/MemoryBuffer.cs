@@ -6,7 +6,7 @@ namespace MonC.LLVM
     {
         private CAPI.LLVMMemoryBufferRef _memoryBuffer;
 
-        internal void Reset() => _memoryBuffer = new CAPI.LLVMMemoryBufferRef();
+        internal void Release() => _memoryBuffer = new CAPI.LLVMMemoryBufferRef();
 
         public static implicit operator CAPI.LLVMMemoryBufferRef(MemoryBuffer memoryBuffer) =>
             memoryBuffer._memoryBuffer;

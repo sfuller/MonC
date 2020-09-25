@@ -971,6 +971,9 @@ namespace MonC.LLVM
         }
 
         [DllImport("LLVM-C")]
+        public static extern void LLVMDisposeTemporaryMDNode(LLVMMetadataRef tempNode);
+
+        [DllImport("LLVM-C")]
         public static extern void LLVMMetadataReplaceAllUsesWith(LLVMMetadataRef tempTargetMetadata,
             LLVMMetadataRef replacement);
 
@@ -1584,6 +1587,10 @@ namespace MonC.LLVM
         }
 
 
+        [DllImport("LLVM-C")]
+        public static extern bool LLVMLinkModules2(LLVMModuleRef dest, LLVMModuleRef src);
+
+
         public struct LLVMGenericValueRef
         {
             private IntPtr InternalPtr;
@@ -1636,9 +1643,6 @@ namespace MonC.LLVM
 
         [DllImport("LLVM-C")]
         public static extern void LLVMDisposeExecutionEngine(LLVMExecutionEngineRef ee);
-
-        [DllImport("LLVM-C")]
-        public static extern void LLVMAddModule(LLVMExecutionEngineRef ee, LLVMModuleRef m);
 
         [DllImport("LLVM-C")]
         public static extern bool LLVMFindFunction(LLVMExecutionEngineRef ee, string name, out LLVMValueRef outFn);

@@ -41,6 +41,9 @@ namespace Driver
         [CommandLine("-debugger", "Run virtual machine with an interactive debugger")]
         internal bool _debugger = false;
 
+        [CommandLine("-entry", "Specify entry function for virtual machine (default 'main')")]
+        internal string _entry = "main";
+
         private Phase _targetPhase;
 
         private List<IModuleTool> _moduleFileTools;
@@ -50,7 +53,7 @@ namespace Driver
 
         internal InteropResolver InteropResolver;
 
-        internal ParseModule InteropHeaderModule;
+        internal ParseModule HeaderModule;
 
         [CommandLine("-a", "Add argument to pass to VM invocation", "int")]
         internal List<int> _argsToPass = new List<int>();
@@ -58,7 +61,7 @@ namespace Driver
         [CommandLine("-showtools", "List tools that will be invoked for each file")]
         private bool _showTools = false;
 
-        private List<IModuleArtifact> _moduleArtifacts;
+        private List<IModuleArtifact> _moduleArtifacts = new List<IModuleArtifact>();
 
         private IExecutableTool _executableTool;
 
@@ -285,7 +288,7 @@ namespace Driver
                     BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static);
             }
 
-            InteropHeaderModule = InteropResolver.CreateHeaderModule();
+            HeaderModule = InteropResolver.CreateHeaderModule();
         }
 
         public int Execute()
@@ -309,10 +312,18 @@ namespace Driver
             // This only applies to LLVM which has an unmanaged context
             _toolChain.Initialize();
 
+            // Initialize HeaderModule with interop libraries
             ResolveInteropLibs();
 
+            // Run per-module header pass; resulting in a fully populated HeaderModule
+            foreach (IModuleTool tool in _moduleFileTools) {
+                tool.RunHeaderPass();
+            }
+
             // Produce per-module artifacts
-            _moduleArtifacts = _moduleFileTools.ConvertAll(tool => tool.GetModuleArtifact());
+            foreach (IModuleTool tool in _moduleFileTools) {
+                _moduleArtifacts.Add(tool.GetModuleArtifact());
+            }
 
             // Output assembly or relocatable if requested
             if (_asm) {
@@ -323,9 +334,6 @@ namespace Driver
 
             // Run link-phase and beyond tools
             int ret = _executableTool?.Execute() ?? 0;
-
-            // Dispose per-module artifacts
-            _moduleArtifacts.ForEach(artifact => artifact.Dispose());
 
             return ret;
         }
@@ -340,6 +348,7 @@ namespace Driver
         public void Dispose()
         {
             // This only applies to LLVM which has an unmanaged context
+            _moduleArtifacts.ForEach(artifact => artifact.Dispose());
             _toolChain.Dispose();
         }
     }

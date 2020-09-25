@@ -70,7 +70,7 @@ namespace MonC.LLVM
             bool err = CAPI.LLVMParseIRInContext(_context, memBuf, out CAPI.LLVMModuleRef moduleOut,
                 out string? outMessage);
             // LLVMParseIRInContext always deletes memory buffer in for some reason
-            memBuf.Reset();
+            memBuf.Release();
             if (err) {
                 throw new InvalidOperationException(outMessage);
             }

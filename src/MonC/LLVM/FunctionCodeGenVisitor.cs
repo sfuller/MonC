@@ -27,7 +27,7 @@ namespace MonC.LLVM
 
         internal Metadata SetCurrentDebugLocation(ISyntaxTreeNode node)
         {
-            if (_genContext.DiBuilder != null) {
+            if (_genContext.DebugInfo) {
                 _genContext.TryGetTokenSymbol(node, out Symbol range);
                 Metadata location = _genContext.Context.CreateDebugLocation(range.LLVMLine,
                     _genContext.ColumnInfo ? range.LLVMColumn : 0, _lexicalScope, Metadata.Null);
@@ -111,9 +111,9 @@ namespace MonC.LLVM
             Metadata oldLexicalScope = _lexicalScope;
 
             // Push new lexical block
-            if (_genContext.DiBuilder != null) {
+            if (_genContext.DebugInfo) {
                 _genContext.TryGetTokenSymbol(node, out Symbol range);
-                _lexicalScope = _genContext.DiBuilder!.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
                     range.LLVMLine, _genContext.ColumnInfo ? range.LLVMColumn : 0);
             }
 
@@ -136,10 +136,10 @@ namespace MonC.LLVM
             Metadata dbgLocation = SetCurrentDebugLocation(node);
             _function.VariableValues.TryGetValue(node, out Value varStorage);
 
-            if (_genContext.DiBuilder != null) {
+            if (_genContext.DebugInfo) {
                 _genContext.TryGetTokenSymbol(node, out Symbol varRange);
                 Metadata varType = _genContext.LookupDiType(node.Type);
-                Metadata varMetadata = _genContext.DiBuilder!.CreateAutoVariable(_lexicalScope, node.Name,
+                Metadata varMetadata = _genContext.DiBuilder.CreateAutoVariable(_lexicalScope, node.Name,
                     _genContext.DiFile, varRange.LLVMLine, varType, true, CAPI.LLVMDIFlags.Zero,
                     varType.GetTypeAlignInBits());
                 _genContext.DiBuilder.InsertDeclareAtEnd(varStorage, varMetadata,
@@ -170,9 +170,9 @@ namespace MonC.LLVM
                 return;
 
             Metadata oldLexicalScope = _lexicalScope;
-            if (_genContext.DiBuilder != null) {
+            if (_genContext.DebugInfo) {
                 _genContext.TryGetTokenSymbol(node.Declaration, out Symbol declRange);
-                _lexicalScope = _genContext.DiBuilder!.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
                     declRange.LLVMLine, _genContext.ColumnInfo ? declRange.LLVMColumn : 0);
             }
 
@@ -255,9 +255,9 @@ namespace MonC.LLVM
                 return;
 
             Metadata oldLexicalScope = _lexicalScope;
-            if (_genContext.DiBuilder != null) {
+            if (_genContext.DebugInfo) {
                 _genContext.TryGetTokenSymbol(node.Condition, out Symbol condRange);
-                _lexicalScope = _genContext.DiBuilder!.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
                     condRange.LLVMLine, _genContext.ColumnInfo ? condRange.LLVMColumn : 0);
             }
 
@@ -321,9 +321,9 @@ namespace MonC.LLVM
                 return;
 
             Metadata oldLexicalScope = _lexicalScope;
-            if (_genContext.DiBuilder != null) {
+            if (_genContext.DebugInfo) {
                 _genContext.TryGetTokenSymbol(node.Condition, out Symbol condRange);
-                _lexicalScope = _genContext.DiBuilder!.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
+                _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
                     condRange.LLVMLine, _genContext.ColumnInfo ? condRange.LLVMColumn : 0);
             }
 

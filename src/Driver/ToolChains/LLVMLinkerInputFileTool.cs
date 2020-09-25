@@ -23,6 +23,11 @@ namespace Driver.ToolChains
             writer.WriteLine("  -LLVMLinkerInputFileTool");
         }
 
+        public void RunHeaderPass()
+        {
+            throw new System.NotImplementedException();
+        }
+
         public IModuleArtifact GetModuleArtifact() => _toolchain.ParseIR(_fileInfo);
     }
 }

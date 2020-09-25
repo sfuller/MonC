@@ -21,12 +21,14 @@ namespace Driver
 
     public interface ICodeGenInput : IInput
     {
+        public void RunHeaderPass();
         public ParseModule GetParseModule();
         public FileInfo GetFileInfo();
     }
 
     public interface IBackendInput : IInput
     {
+        public void RunHeaderPass();
         public IModuleArtifact GetModuleArtifact();
     }
 

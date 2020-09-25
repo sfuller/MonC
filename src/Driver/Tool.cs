@@ -7,6 +7,7 @@ namespace Driver
 
     public interface IModuleTool : ITool
     {
+        public void RunHeaderPass();
         public IModuleArtifact GetModuleArtifact();
     }
 

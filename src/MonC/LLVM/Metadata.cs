@@ -20,5 +20,7 @@
 
         public void ReplaceAllUsesWith(Metadata replacement) =>
             CAPI.LLVMMetadataReplaceAllUsesWith(_metadata, replacement);
+
+        public void DisposeTemporaryMDNode() => CAPI.LLVMDisposeTemporaryMDNode(_metadata);
     }
 }

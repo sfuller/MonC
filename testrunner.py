@@ -4,9 +4,10 @@ import os
 import subprocess
 import sys
 
-TEST_DIR = os.path.normpath(os.path.join(__file__, '..', 'test'))
-FRONTEND_BINARY = os.path.normpath(os.path.join(__file__, '..', 'src', 'Frontend', 'bin', 'Debug', 'netcoreapp3.1', 'Frontend'))
-DRIVER_BINARY = os.path.normpath(os.path.join(__file__, '..', 'src', 'Driver', 'bin', 'Debug', 'netcoreapp3.1', 'Driver'))
+REPOSITORY_DIR = os.path.dirname(__file__)
+TEST_DIR = os.path.normpath(os.path.join(REPOSITORY_DIR, 'test'))
+FRONTEND_BINARY = os.path.normpath(os.path.join(REPOSITORY_DIR, 'src', 'Frontend', 'bin', 'Debug', 'netcoreapp3.1', 'Frontend'))
+DRIVER_BINARY = os.path.normpath(os.path.join(REPOSITORY_DIR, 'src', 'Driver', 'bin', 'Debug', 'netcoreapp3.1', 'Driver'))
 
 
 TERM_COLOR_RED =   '\033[0;31m'
@@ -33,16 +34,32 @@ def main():
         print(f'Using {toolname} to run tests')
 
         test_files = []
+        multi_files = {}
         for dirpath, dirnames, filenames in os.walk(TEST_DIR):
-            for filename in filenames:
-                if os.path.splitext(filename)[1] == '.monc':
-                    test_files.append(os.path.join(dirpath, filename))
+            if os.path.basename(dirpath) != 'multi_module':
+                for filename in filenames:
+                    if os.path.splitext(filename)[1] == '.monc':
+                        test_files.append(os.path.join(dirpath, filename))
+            else:
+                for filename in filenames:
+                    split_filename = os.path.splitext(filename)
+                    if split_filename[1] == '.monc':
+                        split_basename = os.path.splitext(split_filename[0])
+                        filepath = os.path.join(dirpath, filename)
+                        if split_basename[1] in multi_files:
+                            multi_files[split_basename[1]].append(filepath)
+                        else:
+                            multi_files[split_basename[1]] = [filepath]
 
         failed_files = []
 
         for path in test_files:
             if not test(path, tool, extra_args, showall):
                 failed_files.append(path)
+
+        for basename, file_list in multi_files.items():
+            if not test(file_list, tool, extra_args, showall):
+                failed_files.append(file_list)
 
         print('=' * 80)
 
@@ -69,21 +86,27 @@ def test(path, tool, extra_args, showall: bool) -> bool:
 
     result = None
 
-    with open(path) as f:
-        args = [tool, path]
-        args.extend(extra_args)
-        args.extend(sys.argv[1:])
-        try:
-            result = subprocess.run(
-                    args,
-                    encoding='utf-8',
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    timeout=60)
-        except subprocess.TimeoutExpired:
-            pass
+    if not isinstance(path, list):
+        with open(path) as f:
+            args = [tool, path]
+            filename = os.path.basename(path)
+    else:
+        args = [tool]
+        args.extend(path)
+        filename = os.path.basename(path[0])
 
-    filename = os.path.basename(path)
+    args.extend(extra_args)
+    args.extend(sys.argv[1:])
+
+    try:
+        result = subprocess.run(
+            args,
+            encoding='utf-8',
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60)
+    except subprocess.TimeoutExpired:
+        pass
 
     status = False
 

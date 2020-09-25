@@ -1,0 +1,4 @@
+
+int call_me() {
+    return 0;
+}

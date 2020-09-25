@@ -36,8 +36,6 @@ namespace MonC.LLVM
 
         ~ExecutionEngine() => DoDispose();
 
-        public void AddModule(Module m) => CAPI.LLVMAddModule(_executionEngine, m);
-
         public Value FindFunction(string name)
         {
             if (!CAPI.LLVMFindFunction(_executionEngine, name, out CAPI.LLVMValueRef outFnRef))

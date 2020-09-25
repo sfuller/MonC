@@ -24,6 +24,8 @@ namespace Driver.ToolChains
             writer.WriteLine("  -LLVMCodeGenTool");
         }
 
+        public void RunHeaderPass() => _input.RunHeaderPass();
+
         public IModuleArtifact GetModuleArtifact() =>
             _toolchain.CreateModule(_input.GetFileInfo(), _input.GetParseModule());
     }

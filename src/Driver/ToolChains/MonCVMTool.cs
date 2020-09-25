@@ -45,9 +45,9 @@ namespace Driver.ToolChains
             SetUpDebugger(vm);
 
             try {
-                if (!vm.Call((VMModule) _input.GetVMModuleArtifact(), "main", _job._argsToPass,
+                if (!vm.Call((VMModule) _input.GetVMModuleArtifact(), _job._entry, _job._argsToPass,
                     success => HandleExecutionFinished(vm, success))) {
-                    throw Diagnostics.ThrowError("Failed to call main function.");
+                    throw Diagnostics.ThrowError($"Failed to call '{_job._entry}' function.");
                 }
             } catch (MonCFinishedException exception) {
                 return exception.ReturnValue;
@@ -106,7 +106,7 @@ namespace Driver.ToolChains
                 case "reg": {
                     StackFrameInfo frame = vm.GetStackFrame(0);
                     Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}, A: {vm.ReturnValue}");
-                    string? sourcePath;
+                    string sourcePath;
                     int lineNumber;
                     if (debugger.GetSourceLocation(frame, out sourcePath, out lineNumber)) {
                         Console.WriteLine($"File: {sourcePath}, Line: {lineNumber + 1}");
@@ -136,7 +136,7 @@ namespace Driver.ToolChains
                     int breakpointLineNumber;
                     int.TryParse(args[1], out breakpointLineNumber);
                     StackFrameInfo frame = vm.GetStackFrame(0);
-                    string? sourcePath;
+                    string sourcePath;
                     if (!debugger.GetSourceLocation(frame, out sourcePath, out _)) {
                         sourcePath = "";
                     }

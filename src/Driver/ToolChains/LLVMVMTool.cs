@@ -29,9 +29,9 @@ namespace Driver.ToolChains
         public int Execute()
         {
             ExecutionEngine executionEngine = (ExecutionEngine) _input.GetVMModuleArtifact();
-            Value mainFunc = executionEngine.FindFunction("main");
+            Value mainFunc = executionEngine.FindFunction(_job._entry);
             if (!mainFunc.IsValid) {
-                throw Diagnostics.ThrowError("Unable to find main function in VM modules");
+                throw Diagnostics.ThrowError($"Unable to find '{_job._entry}' function in VM modules");
             }
 
             GenericValue[] args = new GenericValue[_job._argsToPass.Count];

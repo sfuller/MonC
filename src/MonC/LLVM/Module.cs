@@ -10,6 +10,13 @@ namespace MonC.LLVM
         public DIBuilder DiBuilder { get; }
         public bool IsValid => _module.IsValid;
 
+        internal void Release()
+        {
+            DiBuilder.Dispose();
+            _module = new CAPI.LLVMModuleRef();
+            _parent.DecrementModule();
+        }
+
         public static implicit operator CAPI.LLVMModuleRef(Module module) => module._module;
 
         internal Module(string name, Context context)
@@ -57,6 +64,13 @@ namespace MonC.LLVM
         public void SetTarget(string triple) => CAPI.LLVMSetTarget(_module, triple);
 
         public Value AddFunction(string name, Type functionTy) => CAPI.LLVMAddFunction(_module, name, functionTy);
+
+        public bool LinkInModule(Module other)
+        {
+            bool error = CAPI.LLVMLinkModules2(_module, other);
+            other.Release();
+            return error;
+        }
 
         public void Dump() => CAPI.LLVMDumpModule(_module);
 

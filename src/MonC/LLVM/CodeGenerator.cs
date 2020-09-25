@@ -20,7 +20,8 @@ namespace MonC.LLVM
         public Module Module { get; }
         public Metadata DiFile { get; }
         public Metadata DiModule { get; }
-        public DIBuilder? DiBuilder { get; }
+        public DIBuilder DiBuilder => Module.DiBuilder;
+        public bool DebugInfo { get; }
         public bool ColumnInfo { get; }
 
         public CodeGeneratorContext(Context context, ParseModule parseModule, string fileName, string dirName,
@@ -41,13 +42,13 @@ namespace MonC.LLVM
                     Metadata.FromValue(Value.ConstInt(Context.Int32Type, 1, false)));
             }
 
-            DiFile = Module.DiBuilder.CreateFile(fileName, dirName);
+            DiFile = DiBuilder.CreateFile(fileName, dirName);
             // Just say that MonC is C89; hopefully debuggers won't care
-            Metadata diCompileUnit = Module.DiBuilder.CreateCompileUnit(CAPI.LLVMDWARFSourceLanguage.C89, DiFile,
+            Metadata diCompileUnit = DiBuilder.CreateCompileUnit(CAPI.LLVMDWARFSourceLanguage.C89, DiFile,
                 "MonC", optimized, "", 0, "", CAPI.LLVMDWARFEmissionKind.Full, 0, false, false, "", "");
-            DiModule = Module.DiBuilder.CreateModule(diCompileUnit, fileName, "", "", "");
+            DiModule = DiBuilder.CreateModule(diCompileUnit, fileName, "", "", "");
 
-            DiBuilder = debugInfo ? Module.DiBuilder : null;
+            DebugInfo = debugInfo;
             ColumnInfo = columnInfo && debugInfo;
         }
 
@@ -68,10 +69,6 @@ namespace MonC.LLVM
 
         public Metadata LookupDiType(TypeSpecifier typeSpecifier)
         {
-            if (DiBuilder == null) {
-                throw new InvalidOperationException("LookupDiType called without a DiBuilder");
-            }
-
             Metadata? returnType = DiBuilder.LookupType(typeSpecifier.Name);
             if (returnType == null) {
                 throw new InvalidOperationException($"undefined type '{typeSpecifier.Name}'");
@@ -112,12 +109,10 @@ namespace MonC.LLVM
                 // Process the static keyword in the same manner as clang
                 FunctionValue.SetLinkage(leaf.IsExported ? CAPI.LLVMLinkage.External : CAPI.LLVMLinkage.Internal);
 
-                if (genContext.DiBuilder != null) {
-                    genContext.TryGetTokenSymbol(leaf, out Symbol range);
-                    DiFwdDecl = genContext.DiBuilder!.CreateReplaceableCompositeType(
-                        CAPI.LLVMDWARFTag.subroutine_type, leaf.Name, genContext.DiFile, genContext.DiFile,
-                        range.LLVMLine, 0, 0, 0, CAPI.LLVMDIFlags.FwdDecl, "");
-                }
+                genContext.TryGetTokenSymbol(leaf, out Symbol range);
+                DiFwdDecl = genContext.DiBuilder.CreateReplaceableCompositeType(
+                    CAPI.LLVMDWARFTag.subroutine_type, leaf.Name, genContext.DiFile, genContext.DiFile,
+                    range.LLVMLine, 0, 0, 0, CAPI.LLVMDIFlags.FwdDecl, "");
             }
 
             public readonly Dictionary<DeclarationNode, Value>
@@ -168,40 +163,47 @@ namespace MonC.LLVM
                     paramValue.SetName(parameter.Name);
                 }
 
-                if (genContext.DiBuilder != null) {
-                    // Create subroutine type debug info
-                    genContext.TryGetTokenSymbol(_leaf, out Symbol range);
-                    Metadata subroutineType = genContext.DiBuilder!.CreateSubroutineType(genContext.DiFile,
-                        Array.ConvertAll(_leaf.Parameters, param => genContext.LookupDiType(param.Type)),
-                        CAPI.LLVMDIFlags.Zero);
-                    Metadata funcLocation = genContext.Context.CreateDebugLocation(range.LLVMLine,
-                        genContext.ColumnInfo ? range.LLVMColumn : 0, DiFwdDecl, Metadata.Null);
+                // Create subroutine type debug info
+                genContext.TryGetTokenSymbol(_leaf, out Symbol range);
+                Metadata subroutineType = genContext.DiBuilder.CreateSubroutineType(genContext.DiFile,
+                    Array.ConvertAll(_leaf.Parameters, param => genContext.LookupDiType(param.Type)),
+                    CAPI.LLVMDIFlags.Zero);
+                Metadata funcLocation = genContext.Context.CreateDebugLocation(range.LLVMLine,
+                    genContext.ColumnInfo ? range.LLVMColumn : 0, DiFwdDecl, Metadata.Null);
 
-                    // Create subroutine debug info and substitute over forward declaration
-                    DiFunctionDef = genContext.DiBuilder!.CreateFunction(genContext.DiFile, _leaf.Name, _leaf.Name,
-                        genContext.DiFile, range.LLVMLine, subroutineType, true, true, range.LLVMLine,
-                        CAPI.LLVMDIFlags.Zero, false);
-                    DiFwdDecl.ReplaceAllUsesWith(DiFunctionDef);
+                // Create subroutine debug info and substitute over forward declaration
+                DiFunctionDef = genContext.DiBuilder.CreateFunction(genContext.DiFile, _leaf.Name, _leaf.Name,
+                    genContext.DiFile, range.LLVMLine, subroutineType, true, true, range.LLVMLine,
+                    CAPI.LLVMDIFlags.Zero, false);
+                DiFwdDecl.ReplaceAllUsesWith(DiFunctionDef);
 
-                    // Create llvm.dbg.declare calls for each parameter's storage
+                // Create llvm.dbg.declare calls for each parameter's storage
+                if (genContext.DebugInfo) {
                     Metadata paramExpression = genContext.DiBuilder.CreateExpression();
                     for (int i = 0, ilen = _leaf.Parameters.Length; i < ilen; ++i) {
                         DeclarationNode parameter = _leaf.Parameters[i];
                         genContext.TryGetTokenSymbol(parameter, out Symbol paramRange);
                         Metadata paramType = genContext.LookupDiType(parameter.Type);
-                        Metadata paramMetadata = genContext.DiBuilder!.CreateParameterVariable(DiFunctionDef,
+                        Metadata paramMetadata = genContext.DiBuilder.CreateParameterVariable(DiFunctionDef,
                             parameter.Name, (uint) i + 1, genContext.DiFile, paramRange.LLVMLine, paramType, true,
                             CAPI.LLVMDIFlags.Zero);
                         VariableValues.TryGetValue(parameter, out Value varStorage);
                         genContext.DiBuilder.InsertDeclareAtEnd(varStorage, paramMetadata, paramExpression,
                             funcLocation, basicBlock);
                     }
-
-                    // Associate debug info nodes with function
-                    FunctionValue.SetFuncSubprogram(DiFunctionDef);
                 }
 
+                // Associate debug info nodes with function
+                FunctionValue.SetFuncSubprogram(DiFunctionDef);
+
                 return basicBlock;
+            }
+
+            public void FinalizeFunction()
+            {
+                if (DiFwdDecl.IsValid && !DiFunctionDef.IsValid) {
+                    DiFwdDecl.DisposeTemporaryMDNode();
+                }
             }
         }
 
@@ -239,6 +241,13 @@ namespace MonC.LLVM
 
             return function;
         }
+
+        public void FinalizeFunctions()
+        {
+            foreach (var function in FunctionTable) {
+                function.Value.FinalizeFunction();
+            }
+        }
     }
 
     public static class CodeGenerator
@@ -274,7 +283,7 @@ namespace MonC.LLVM
                     builder.PositionAtEnd(functionCodeGenVisitor._basicBlock);
                     function.Body.VisitStatements(functionCodeGenVisitor);
 
-                    if (genContext.DiBuilder != null) {
+                    if (genContext.DebugInfo) {
                         // TODO: Use the body end rather than the function end
                         genContext.TryGetTokenSymbol(function, out Symbol range);
                         Metadata location = genContext.Context.CreateDebugLocation(range.End.Line + 1,
@@ -302,6 +311,9 @@ namespace MonC.LLVM
                 }
             }
 
+            // Remove unused metadata nodes for undefined functions
+            genContext.FinalizeFunctions();
+
             // Enum pass
             foreach (EnumNode enumNode in parseModule.Enums) {
                 KeyValuePair<string, int>[] enumerations = enumNode.Enumerations;
@@ -310,19 +322,18 @@ namespace MonC.LLVM
                 for (int i = 0, ilen = enumerations.Length; i < ilen; ++i) {
                     var enumeration = enumerations[i];
                     enumerators[i] =
-                        genContext.Module.DiBuilder.CreateEnumerator(enumeration.Key, enumeration.Value, false);
+                        genContext.DiBuilder.CreateEnumerator(enumeration.Key, enumeration.Value, false);
                 }
 
                 genContext.TryGetTokenSymbol(enumNode, out Symbol range);
-                genContext.Module.DiBuilder.CreateEnumerationType(genContext.DiFile,
+                genContext.DiBuilder.CreateEnumerationType(genContext.DiFile,
                     (enumNode.IsExported ? "export." : "") + $"enum.{fileName}.{range.LLVMLine}", genContext.DiFile,
-                    range.LLVMLine, genContext.Module.DiBuilder.Int32Type.GetTypeSizeInBits(),
-                    genContext.Module.DiBuilder.Int32Type.GetTypeAlignInBits(), enumerators,
-                    genContext.Module.DiBuilder.Int32Type);
+                    range.LLVMLine, genContext.DiBuilder.Int32Type.GetTypeSizeInBits(),
+                    genContext.DiBuilder.Int32Type.GetTypeAlignInBits(), enumerators, genContext.DiBuilder.Int32Type);
             }
 
             // Finalize debug info
-            genContext.Module.DiBuilder.BuilderFinalize();
+            genContext.DiBuilder.BuilderFinalize();
 
             // Run optimization passes on functions and module if a builder is supplied
             if (optBuilder != null) {

@@ -35,15 +35,16 @@ namespace Driver.ToolChains
         {
             List<Module> modules = _input.GetModuleArtifacts().ConvertAll(m => (Module) m);
 
-            ExecutionEngine ee = null;
+            Module mainModule = null;
             foreach (Module module in modules) {
-                if (ee == null)
-                    ee = ExecutionEngine.CreateForModule(module);
-                else
-                    ee.AddModule(module);
+                if (mainModule == null) {
+                    mainModule = module;
+                } else if (mainModule.LinkInModule(module)) {
+                    Diagnostics.Report(Diagnostics.Severity.Error, "Error linking module");
+                }
             }
 
-            return ee;
+            return ExecutionEngine.CreateForModule(mainModule!);
         }
     }
 }

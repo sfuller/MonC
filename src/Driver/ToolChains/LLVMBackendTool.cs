@@ -24,6 +24,8 @@ namespace Driver.ToolChains
             writer.WriteLine("  -LLVMBackendTool");
         }
 
+        public void RunHeaderPass() => _input.RunHeaderPass();
+
         public IModuleArtifact GetModuleArtifact() =>
             new LLVMNativeModule(_toolchain, (Module) _input.GetModuleArtifact());
     }
