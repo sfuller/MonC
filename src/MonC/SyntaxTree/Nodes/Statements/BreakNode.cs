@@ -1,8 +1,8 @@
 namespace MonC.SyntaxTree.Nodes.Statements
 {
-    public class BreakNode : IStatementNode
+    public class BreakNode : StatementNode
     {
-        public void AcceptStatementVisitor(IStatementVisitor visitor)
+        public override void AcceptStatementVisitor(IStatementVisitor visitor)
         {
             visitor.VisitBreak(this);
         }

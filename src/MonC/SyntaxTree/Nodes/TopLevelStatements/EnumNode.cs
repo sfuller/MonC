@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using MonC.SyntaxTree.Nodes;
 
 namespace MonC.SyntaxTree
 {
@@ -16,10 +17,14 @@ namespace MonC.SyntaxTree
             IsExported = isExported;
         }
 
+        public void AcceptSyntaxTreeVisitor(ISyntaxTreeVisitor visitor)
+        {
+            visitor.VisitTopLevelStatement(this);
+        }
+
         public void AcceptTopLevelVisitor(ITopLevelStatementVisitor visitor)
         {
             visitor.VisitEnum(this);
         }
-
     }
 }

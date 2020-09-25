@@ -1,6 +1,6 @@
 namespace MonC.SyntaxTree.Nodes.Statements
 {
-    public class ForNode : IStatementNode
+    public class ForNode : StatementNode
     {
         public DeclarationNode Declaration;
         public IExpressionNode Condition;
@@ -15,7 +15,7 @@ namespace MonC.SyntaxTree.Nodes.Statements
             Body = body;
         }
 
-        public void AcceptStatementVisitor(IStatementVisitor visitor)
+        public override void AcceptStatementVisitor(IStatementVisitor visitor)
         {
             visitor.VisitFor(this);
         }

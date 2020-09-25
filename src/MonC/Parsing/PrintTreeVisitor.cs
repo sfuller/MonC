@@ -167,6 +167,11 @@ namespace MonC.Frontend
             }
         }
 
+        public void VisitTypeSpecifier(TypeSpecifierParseNode node)
+        {
+            Print("Type Specifier (Parse Tree Node)");
+        }
+
         private void VisitSubnode(IStatementNode node)
         {
             ++_currentIndent;

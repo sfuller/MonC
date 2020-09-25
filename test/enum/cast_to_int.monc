@@ -5,7 +5,7 @@ enum Foo {
 }
 
 int main() {
-    return (int)FOO_B == 1;
+    return (int)FOO_B != 1;
 
 }
 

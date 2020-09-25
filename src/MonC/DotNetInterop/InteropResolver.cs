@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using MonC.Parsing;
+using MonC.Parsing.ParseTree.Nodes;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Statements;
+using MonC.TypeSystem;
 using MonC.VM;
+using Type = System.Type;
 
 namespace MonC.DotNetInterop
 {
@@ -188,7 +191,7 @@ namespace MonC.DotNetInterop
         {
             FunctionDefinitionNode def = new FunctionDefinitionNode(
                 name: method.Name,
-                returnType: new TypeSpecifier("int", PointerType.NotAPointer),
+                returnType: new TypeSpecifierParseNode("int", PointerMode.NotAPointer), // TODO
                 parameters: FunctionAttributeToDeclarations(attribute),
                 body: new BodyNode(),
                 isExported: true
@@ -239,7 +242,7 @@ namespace MonC.DotNetInterop
         private static IEnumerable<DeclarationNode> FunctionAttributeToDeclarations(LinkableFunctionAttribute attribute)
         {
             for (int i = 0, ilen = attribute.ArgumentCount; i < ilen; ++i) {
-                yield return new DeclarationNode(new TypeSpecifier("int", PointerType.NotAPointer), "", new VoidExpressionNode());
+                yield return new DeclarationNode(new TypeSpecifierParseNode("int", PointerMode.NotAPointer), "", new VoidExpressionNode()); // TODO: Type specifier
             }
         }
 

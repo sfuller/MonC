@@ -5,71 +5,70 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
 {
     public class StatementChildrenVisitor : IStatementVisitor
     {
-        private readonly IStatementVisitor _statementVisitor;
-        private readonly IExpressionVisitor _expressionVisitor;
+        private readonly ISyntaxTreeVisitor _visitor;
 
-        public StatementChildrenVisitor(IStatementVisitor statementVisitor, IExpressionVisitor expressionVisitor)
+        public StatementChildrenVisitor(ISyntaxTreeVisitor visitor)
         {
-            _statementVisitor = statementVisitor;
-            _expressionVisitor = expressionVisitor;
+            _visitor = visitor;
         }
 
         public void VisitBody(BodyNode node)
         {
-            _statementVisitor.VisitBody(node);
+            _visitor.VisitStatement(node);
             node.VisitStatements(this);
         }
 
         public void VisitDeclaration(DeclarationNode node)
         {
-            _statementVisitor.VisitDeclaration(node);
-            node.Assignment.AcceptExpressionVisitor(_expressionVisitor);
+            _visitor.VisitStatement(node);
+            _visitor.VisitSpecifier(node.Type);
+            _visitor.VisitExpression(node.Assignment);
         }
 
         public void VisitBreak(BreakNode node)
         {
-            _statementVisitor.VisitBreak(node);
+            _visitor.VisitStatement(node);
         }
 
         public void VisitContinue(ContinueNode node)
         {
-            _statementVisitor.VisitContinue(node);
+            _visitor.VisitStatement(node);
         }
 
         public void VisitReturn(ReturnNode node)
         {
-            _statementVisitor.VisitReturn(node);
-            node.RHS.AcceptExpressionVisitor(_expressionVisitor);
+            _visitor.VisitStatement(node);
+            node.RHS.AcceptSyntaxTreeVisitor(_visitor);
         }
 
         public void VisitIfElse(IfElseNode node)
         {
-            _statementVisitor.VisitIfElse(node);
-            node.Condition.AcceptExpressionVisitor(_expressionVisitor);
+            _visitor.VisitStatement(node);
+            node.Condition.AcceptSyntaxTreeVisitor(_visitor);
             VisitBody(node.IfBody);
             VisitBody(node.ElseBody);
         }
 
         public void VisitFor(ForNode node)
         {
-            _statementVisitor.VisitFor(node);
-            node.Declaration.AcceptStatementVisitor(this);
-            node.Condition.AcceptExpressionVisitor(_expressionVisitor);
-            node.Update.AcceptExpressionVisitor(_expressionVisitor);
+            _visitor.VisitStatement(node);
+            VisitDeclaration(node.Declaration);
+            node.Condition.AcceptSyntaxTreeVisitor(_visitor);
+            node.Update.AcceptSyntaxTreeVisitor(_visitor);
             VisitBody(node.Body);
         }
 
         public void VisitWhile(WhileNode node)
         {
-            _statementVisitor.VisitWhile(node);
-            node.Condition.AcceptExpressionVisitor(_expressionVisitor);
+            _visitor.VisitStatement(node);
+            node.Condition.AcceptSyntaxTreeVisitor(_visitor);
             VisitBody(node.Body);
         }
 
         public void VisitExpressionStatement(ExpressionStatementNode node)
         {
-            _statementVisitor.VisitExpressionStatement(node);
-            node.Expression.AcceptExpressionVisitor(_expressionVisitor);
+            _visitor.VisitStatement(node);
+            node.Expression.AcceptSyntaxTreeVisitor(_visitor);
         }
 
     }

@@ -1,8 +1,9 @@
+using MonC.SyntaxTree.Nodes;
+
 namespace MonC
 {
     public interface ISyntaxTreeNode
     {
-        // TODO: Is ISyntaxTreeVisitor being revived?
-        //void AcceptSyntaxTreeVisitor(ISyntaxTreeVisitor visitor);
+        void AcceptSyntaxTreeVisitor(ISyntaxTreeVisitor visitor);
     }
 }

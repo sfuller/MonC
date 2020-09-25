@@ -1,57 +1,52 @@
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Expressions.UnaryOperations;
 
 namespace MonC.SyntaxTree.Util.ChildrenVisitors
 {
-    public class ExpressionChildrenVisitor : IExpressionVisitor
+    public class ExpressionChildrenVisitor : IExpressionVisitor, IUnaryOperationVisitor
     {
-        public IExpressionVisitor Visitor;
+        private readonly ISyntaxTreeVisitor _visitor;
 
-        public ExpressionChildrenVisitor(IExpressionVisitor visitor)
+        public ExpressionChildrenVisitor(ISyntaxTreeVisitor visitor)
         {
-            Visitor = visitor;
-        }
-
-        public ExpressionChildrenVisitor SetVisitor(IExpressionVisitor visitor)
-        {
-            Visitor = visitor;
-            return this;
+            _visitor = visitor;
         }
 
         public void VisitVoid(VoidExpressionNode node)
         {
-            Visitor.VisitVoid(node);
+            _visitor.VisitExpression(node);
         }
 
         public void VisitNumericLiteral(NumericLiteralNode node)
         {
-            Visitor.VisitNumericLiteral(node);
+            _visitor.VisitExpression(node);
         }
 
         public void VisitStringLiteral(StringLiteralNode node)
         {
-            Visitor.VisitStringLiteral(node);
+            _visitor.VisitExpression(node);
         }
 
         public void VisitEnumValue(EnumValueNode node)
         {
-            Visitor.VisitEnumValue(node);
+            _visitor.VisitExpression(node);
         }
 
         public void VisitVariable(VariableNode node)
         {
-            Visitor.VisitVariable(node);
+            _visitor.VisitExpression(node);
         }
 
         public void VisitUnaryOperation(IUnaryOperationNode node)
         {
-            Visitor.VisitUnaryOperation(node);
+            node.AcceptUnaryOperationVisitor(this);
             node.RHS.AcceptExpressionVisitor(this);
         }
 
         public void VisitBinaryOperation(IBinaryOperationNode node)
         {
-            Visitor.VisitBinaryOperation(node);
+            _visitor.VisitExpression(node);
 
             // NOTE: We may want to make this recursion of LHS and RHS optional, in case the outer visitor uses a
             // IBinaryOperationVisitor.
@@ -61,7 +56,7 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
 
         public void VisitFunctionCall(FunctionCallNode node)
         {
-            Visitor.VisitFunctionCall(node);
+            _visitor.VisitExpression(node);
             for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
                 IExpressionNode argument = node.GetArgument(i);
                 argument.AcceptExpressionVisitor(this);
@@ -70,13 +65,29 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
 
         public void VisitAssignment(AssignmentNode node)
         {
-            Visitor.VisitAssignment(node);
+            _visitor.VisitExpression(node);
             node.RHS.AcceptExpressionVisitor(this);
         }
 
         public void VisitUnknown(IExpressionNode node)
         {
-            Visitor.VisitUnknown(node);
+            _visitor.VisitExpression(node);
+        }
+
+        public void VisitNegateUnaryOp(NegateUnaryOpNode node)
+        {
+            _visitor.VisitExpression(node);
+        }
+
+        public void VisitLogicalNotUnaryOp(LogicalNotUnaryOpNode node)
+        {
+            _visitor.VisitExpression(node);
+        }
+
+        public void VisitCastUnaryOp(CastUnaryOpNode node)
+        {
+            _visitor.VisitExpression(node);
+            _visitor.VisitSpecifier(node.ToType);
         }
     }
 }
