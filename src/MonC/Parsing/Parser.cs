@@ -217,50 +217,17 @@ namespace MonC
                 return null;
             }
 
-            List<KeyValuePair<string, int>> enumerations = new List<KeyValuePair<string, int>>();
+            List<EnumDeclarationNode> declarations = ParseCommaSeparatedNodes(ref tokens, ParseEnumDeclaration);
+            tokens.TryNext(TokenType.Syntax, Syntax.CLOSING_BRACKET, out _);
+            return NewNode(new EnumNode(nameToken.Value, declarations, isExported), startToken, tokens.Peek(-1));
+        }
 
-            bool endIsAllowed = true;
-            bool nextEnumerationIsAllowed = true;
-
-            while (true) {
-                Token next = tokens.Peek();
-
-                if (next.Type == TokenType.None) {
-                    tokens.AddError("Unexpected EOF", next);
-                    break;
-                }
-
-                if (next.Type == TokenType.Syntax && next.Value == Syntax.CLOSING_BRACKET) {
-                    if (!endIsAllowed) {
-                        tokens.AddError("Expecting next enumeration", next);
-                    }
-                    tokens.Next();
-                    break;
-                }
-
-                if (!nextEnumerationIsAllowed) {
-                    tokens.AddError($"Expecting {Syntax.CLOSING_BRACKET}", next);
-                    break;
-                }
-
-                Token name;
-                if (!tokens.Next(TokenType.Identifier, out name)) {
-                    break;
-                }
-
-                enumerations.Add(new KeyValuePair<string, int>(name.Value, enumerations.Count));
-
-                next = tokens.Peek();
-                if (next.Type == TokenType.Syntax && next.Value == Syntax.COMMA) {
-                    endIsAllowed = false;
-                    tokens.Next();
-                } else {
-                    endIsAllowed = true;
-                    nextEnumerationIsAllowed = false;
-                }
+        private EnumDeclarationNode? ParseEnumDeclaration(ref TokenSource tokens)
+        {
+            if (!tokens.TryNext(TokenType.Identifier, out Token nameToken)) {
+                return null;
             }
-
-            return NewNode(new EnumNode(nameToken.Value, enumerations, isExported), startToken, tokens.Peek(-1));
+            return new EnumDeclarationNode(nameToken.Value);
         }
 
         private StructNode? ParseStruct(ref TokenSource tokens, bool isExported)
@@ -963,6 +930,29 @@ namespace MonC
                 return;
             }
             tokens.Consume();
+        }
+
+        private delegate T? ParseNodeAction<out T>(ref TokenSource tokens) where T : class;
+
+        private List<T> ParseCommaSeparatedNodes<T>(ref TokenSource tokens, ParseNodeAction<T> nodeAction)
+                where T : class
+        {
+            List<T> nodes = new List<T>();
+
+            while (true) {
+                T? node = nodeAction(ref tokens);
+                if (node == null) {
+                    break;
+                }
+                nodes.Add(node);
+                Token commaToken = tokens.Peek();
+                if (commaToken.Type != TokenType.Syntax || commaToken.Value != Syntax.COMMA) {
+                    break;
+                }
+                tokens.Consume(); // Consume the comma.
+            }
+
+            return nodes;
         }
 
         /// <summary>

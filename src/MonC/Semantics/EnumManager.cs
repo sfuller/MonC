@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using MonC.SyntaxTree;
+using MonC.SyntaxTree.Nodes.Expressions;
 
 namespace MonC.Semantics
 {
@@ -22,12 +23,12 @@ namespace MonC.Semantics
 
         public void RegisterEnum(EnumNode node)
         {
-            foreach (KeyValuePair<string, int> enumeration in node.Enumerations) {
-                if (_map.ContainsKey(enumeration.Key)) {
-                    _errors.Add(new ParseError { Message = $"Duplicate declaration of symbol ${enumeration}" });
+            foreach (EnumDeclarationNode declaration in node.Declarations) {
+                if (_map.ContainsKey(declaration.Name)) {
+                    _errors.Add(new ParseError { Message = $"Duplicate declaration of symbol ${declaration.Name}" });
                     continue;
                 }
-                _map.Add(enumeration.Key, node);
+                _map.Add(declaration.Name, node);
             }
         }
     }

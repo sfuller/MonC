@@ -269,17 +269,19 @@ namespace MonC.DotNetInterop
 
         public void ImportEnum(Type type, LinkableEnumAttribute attribute)
         {
-            string[] names = Enum.GetNames(type);
-            List<KeyValuePair<string, int>> enumerations = new List<KeyValuePair<string, int>>();
+            throw new NotSupportedException("Need to support enum value expressions in MonC first.");
 
-            string prefix = attribute.Prefix ?? "";
-
-            foreach (string name in names) {
-                enumerations.Add(new KeyValuePair<string, int>(prefix + name, (int)Enum.Parse(type, name)));
-            }
-
-            // TODO: New attribute value for enum name, or use type name.
-            _enums.Add(new EnumNode(type.Name, enumerations, isExported: true));
+            // string[] names = Enum.GetNames(type);
+            // List<KeyValuePair<string, int>> enumerations = new List<KeyValuePair<string, int>>();
+            //
+            // string prefix = attribute.Prefix ?? "";
+            //
+            // foreach (string name in names) {
+            //     enumerations.Add(new KeyValuePair<string, int>(prefix + name, (int)Enum.Parse(type, name)));
+            // }
+            //
+            // // TODO: New attribute value for enum name, or use type name.
+            // _enums.Add(new EnumNode(type.Name, enumerations, isExported: true));
         }
 
     }

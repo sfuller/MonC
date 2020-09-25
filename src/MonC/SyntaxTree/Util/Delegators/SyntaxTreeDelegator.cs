@@ -1,4 +1,5 @@
 using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
 
 namespace MonC.SyntaxTree.Util.Delegators
 {
@@ -8,7 +9,8 @@ namespace MonC.SyntaxTree.Util.Delegators
         public IStatementVisitor? StatementVisitor;
         public IExpressionVisitor? ExpressionVisitor;
         public ISpecifierVisitor? SpecifierVisitor;
-        public IStructFunctionAssociationVisitor? StructFunctionAssociationVisitor;
+        public IVisitor<StructFunctionAssociationNode>? StructFunctionAssociationVisitor;
+        public IVisitor<EnumDeclarationNode>? EnumDeclarationVisitor;
 
         public void VisitTopLevelStatement(ITopLevelStatementNode node)
         {
@@ -41,7 +43,14 @@ namespace MonC.SyntaxTree.Util.Delegators
         public void VisitStructFunctionAssociation(StructFunctionAssociationNode node)
         {
             if (StructFunctionAssociationVisitor != null) {
-                StructFunctionAssociationVisitor.VisitStructFunctionAssociation(node);
+                StructFunctionAssociationVisitor.Visit(node);
+            }
+        }
+
+        public void VisitEnumDeclaration(EnumDeclarationNode node)
+        {
+            if (EnumDeclarationVisitor != null) {
+                EnumDeclarationVisitor.Visit(node);
             }
         }
     }

@@ -1,19 +1,19 @@
 using System.Collections.Generic;
-using System.Linq;
 using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Nodes.Expressions;
 
 namespace MonC.SyntaxTree
 {
     public class EnumNode : ITopLevelStatementNode
     {
         public readonly string Name;
-        public readonly KeyValuePair<string, int>[] Enumerations;
+        public readonly List<EnumDeclarationNode> Declarations = new List<EnumDeclarationNode>();
         public readonly bool IsExported;
 
-        public EnumNode(string name, IEnumerable<KeyValuePair<string, int>> enumerations, bool isExported)
+        public EnumNode(string name, IEnumerable<EnumDeclarationNode> declarations, bool isExported)
         {
             Name = name;
-            Enumerations = enumerations.ToArray();
+            Declarations.AddRange(declarations);
             IsExported = isExported;
         }
 
