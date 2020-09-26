@@ -1,0 +1,12 @@
+
+int main() {
+    if ((int)FOO_A != 0) {
+        return 1;
+    }
+
+    if ((int)FOO_B != 1) {
+        return 1;
+    }
+
+    return 0;
+}
