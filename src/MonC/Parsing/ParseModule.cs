@@ -10,7 +10,7 @@ namespace MonC.Parsing
         public readonly List<EnumNode> Enums = new List<EnumNode>();
         public readonly Dictionary<ISyntaxTreeNode, Symbol> TokenMap = new Dictionary<ISyntaxTreeNode, Symbol>();
 
-        public bool AddFunction(FunctionDefinitionNode function)
+        public bool AddUniqueFunction(FunctionDefinitionNode function)
         {
             if (Functions.Exists(n => n.Name == function.Name)) {
                 return false;
@@ -19,7 +19,7 @@ namespace MonC.Parsing
             return true;
         }
 
-        public bool AddEnum(EnumNode enumNode)
+        public bool AddUniqueEnum(EnumNode enumNode)
         {
             HashSet<string> enumerations = new HashSet<string>();
             foreach (var enumeration in enumNode.Enumerations) {
