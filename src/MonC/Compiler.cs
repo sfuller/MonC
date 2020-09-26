@@ -30,7 +30,8 @@ namespace MonC
             }
 
             Parser parser = new Parser();
-            ParseModule outputModule = parser.Parse(filename, tokens, headerModule, errors);
+            ParseModule outputModule = parser.Parse(filename, tokens, errors);
+            outputModule.RunSemanticAnalysis(headerModule, errors);
 
             if (errors.Count > 0) {
                 return null;
