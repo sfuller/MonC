@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using MonC.Parsing;
 using MonC.SyntaxTree;
+using MonC.SyntaxTree.Nodes.Specifiers;
 using MonC.SyntaxTree.Nodes.Statements;
+using MonC.TypeSystem.Types;
 
 namespace MonC.LLVM
 {
@@ -52,34 +54,50 @@ namespace MonC.LLVM
             ColumnInfo = columnInfo && debugInfo;
         }
 
-        public Type LookupType(TypeSpecifier typeSpecifier)
+        public Type LookupType(IType type)
         {
-            Type? returnType = Context.LookupType(typeSpecifier.Name);
-            if (returnType == null) {
-                throw new InvalidOperationException($"undefined type '{typeSpecifier.Name}'");
+            if (type is IPointerType pointerType) {
+                return LookupType(pointerType.DestinationType).PointerType();
             }
 
-            Type useType = returnType.Value;
-            if (typeSpecifier.PointerType != PointerType.NotAPointer) {
-                useType = useType.PointerType();
+            if (type is IValueType valueType) {
+                Type? returnType = Context.LookupType(valueType.Name);
+                if (returnType == null) {
+                    throw new InvalidOperationException($"undefined type '{valueType.Name}'");
+                }
+                return returnType.Value;
             }
 
-            return useType;
+            throw new InvalidOperationException("unhandled IType");
         }
 
-        public Metadata LookupDiType(TypeSpecifier typeSpecifier)
+        public Type LookupType(ITypeSpecifierNode typeSpecifier)
         {
-            Metadata? returnType = DiBuilder.LookupType(typeSpecifier.Name);
-            if (returnType == null) {
-                throw new InvalidOperationException($"undefined type '{typeSpecifier.Name}'");
+            TypeSpecifierNode typeSpecifierNode = (TypeSpecifierNode) typeSpecifier;
+            return LookupType(typeSpecifierNode.Type);
+        }
+
+        public Metadata LookupDiType(IType type)
+        {
+            if (type is IPointerType pointerType) {
+                return DiBuilder.CreatePointerType(LookupDiType(pointerType.DestinationType));
             }
 
-            Metadata useType = returnType.Value;
-            if (typeSpecifier.PointerType != PointerType.NotAPointer) {
-                useType = DiBuilder.CreatePointerType(useType);
+            if (type is IValueType valueType) {
+                Metadata? returnType = DiBuilder.LookupType(valueType.Name);
+                if (returnType == null) {
+                    throw new InvalidOperationException($"undefined type '{valueType.Name}'");
+                }
+                return returnType.Value;
             }
 
-            return useType;
+            throw new InvalidOperationException("unhandled IType");
+        }
+
+        public Metadata LookupDiType(ITypeSpecifierNode typeSpecifier)
+        {
+            TypeSpecifierNode typeSpecifierNode = (TypeSpecifierNode) typeSpecifier;
+            return LookupDiType(typeSpecifierNode.Type);
         }
 
         public bool TryGetTokenSymbol(ISyntaxTreeNode leaf, out Symbol symbol) =>

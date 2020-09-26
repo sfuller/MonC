@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using MonC.Parsing.Semantics;
+using MonC.Semantics;
 using MonC.SyntaxTree;
 
 namespace MonC.Parsing
