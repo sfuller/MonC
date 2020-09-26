@@ -18,6 +18,17 @@ TERM_ERASE_LINE =  '\033[2K'
 TERM_TEXT_FAIL = f'{TERM_COLOR_RED}FAIL{TERM_COLOR_CLEAR}'
 TERM_TEXT_PASS = f'{TERM_COLOR_GREEN}PASS{TERM_COLOR_CLEAR}'
 
+if sys.platform == "win32":
+    # Get ANSI codes working on newish windows consoles
+    import ctypes
+    kernel32 = ctypes.windll.kernel32
+    kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    def is_crash(code):
+        return code & 0x80000000
+else:
+    def is_crash(code):
+        return code < 0 or code == 255
+
 
 def main():
 
@@ -108,7 +119,7 @@ def test(path, showall: bool) -> bool:
             status = not status
 
         # Crashes always fail
-        if result.returncode < 0 or result.returncode == 255:
+        if is_crash(result.returncode):
             status = False
 
     sys.stdout.write('\r')

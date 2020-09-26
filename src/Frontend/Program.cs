@@ -126,7 +126,11 @@ namespace MonC.Frontend
                 for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
                     FunctionDefinitionNode function = module.Functions[i];
                     if (function.IsExported) {
-                        headerModule.Functions.Add(function);
+                        if (!headerModule.AddFunction(function)) {
+                            ParseError error = new ParseError();
+                            error.Message = $"Duplicate function: {function.Name}";
+                            errors.Add(error);
+                        }
                     }
                 }
 
@@ -134,8 +138,21 @@ namespace MonC.Frontend
                 for (int i = 0, ilen = module.Enums.Count; i < ilen; ++i) {
                     EnumNode enumNode = module.Enums[i];
                     if (enumNode.IsExported) {
-                        headerModule.Enums.Add(enumNode);
+                        if (!headerModule.AddEnum(enumNode)) {
+                            ParseError error = new ParseError();
+                            error.Message = $"Duplicate enum: {enumNode.Name}";
+                            errors.Add(error);
+                        }
                     }
+                }
+
+                for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
+                    ParseError error = errors[i];
+                    Console.Error.WriteLine($"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
+                }
+
+                if (errors.Count > 0 && !forceCodegen) {
+                    Environment.Exit(1);
                 }
 
                 parseModules.Add(module);
