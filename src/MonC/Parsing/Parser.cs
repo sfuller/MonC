@@ -23,7 +23,11 @@ namespace MonC
 
         private IDictionary<ISyntaxTreeNode, Symbol> _tokenMap = new Dictionary<ISyntaxTreeNode, Symbol>();
 
-        public ParseModule Parse(string? filePath, IEnumerable<Token> tokens, ParseModule headerModule, IList<ParseError> errors)
+        public ParseModule Parse(
+                string? filePath,
+                IEnumerable<Token> tokens,
+                ParseModule headerModule,
+                IList<ParseError> errors)
         {
             _filePath = filePath;
             _tokens.Clear();
@@ -117,7 +121,8 @@ namespace MonC
                 bool result = Peek(0, type, value, out token);
                 if (!result) {
                     AddError(new ParseError {
-                        Message = $"Expecting token of type {type} with value {value}, got {token.Type} with value {token.Value}",
+                        Message =
+                            $"Expecting token of type {type} with value {value}, got {token.Type} with value {token.Value}",
                         Start = token.Location,
                         End = token.DeriveEndLocation()
                     });
@@ -292,8 +297,6 @@ namespace MonC
 
         private FunctionDefinitionNode? ParseFunction(ref TokenSource tokens, bool isExported)
         {
-            var parameters = new List<DeclarationNode>();
-
             Token retunTypeStart = tokens.Peek();
             TypeSpecifierParseNode? returnType = ParseTypeSpecifier(ref tokens);
             if (returnType == null) {
@@ -308,46 +311,10 @@ namespace MonC
                 return null;
             }
 
-            bool expectingEnd = true;
-            bool expectingComma = false;
-            bool expectingNext = true;
+            List<DeclarationNode> parameters = ParseCommaSeparatedNodes(ref tokens, ParseDeclaration);
+            tokens.Next(TokenType.Syntax, Syntax.CLOSING_PAREN, out _);
 
-            while (true) {
-                if (expectingNext) {
-                    TokenSource declTokens = tokens.Fork();
-                    DeclarationNode? decl = ParseDeclaration(ref declTokens);
-                    if (decl != null) {
-                        tokens.Consume(declTokens);
-                        parameters.Add(decl);
-                        expectingNext = false;
-                        expectingComma = true;
-                        expectingEnd = true;
-                        continue;
-                    }
-                }
-
-                if (expectingComma) {
-                    Token comma = tokens.Peek();
-                    if (comma.Type == TokenType.Syntax && comma.Value == Syntax.COMMA) {
-                        tokens.Consume();
-                        expectingNext = true;
-                        expectingComma = false;
-                        expectingEnd = false;
-                        continue;
-                    }
-                }
-
-                if (expectingEnd) {
-                    Token rightParen = tokens.Peek();
-                    if (rightParen.Type == TokenType.Syntax && rightParen.Value == Syntax.CLOSING_PAREN) {
-                        tokens.Consume();
-                        break;
-                    }
-                }
-
-                tokens.AddError("Unexpected token", tokens.Peek());
-                return null;
-            }
+            bool isDrop = tokens.TryNext(TokenType.Identifier, Syntax.FUNCTION_ATTRIBUTE_DROP, out _);
 
             BodyNode? body = ParseBody(ref tokens);
             if (body == null) {
@@ -355,7 +322,7 @@ namespace MonC
             }
 
             return NewNode(
-                new FunctionDefinitionNode(name.Value, returnType, parameters, body, isExported),
+                new FunctionDefinitionNode(name.Value, returnType, parameters, body, isExported, isDrop),
                 retunTypeStart, tokens.Peek(-1));
         }
 

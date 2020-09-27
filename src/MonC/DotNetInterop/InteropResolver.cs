@@ -194,7 +194,8 @@ namespace MonC.DotNetInterop
                 returnType: new TypeSpecifierParseNode("int", PointerMode.NotAPointer), // TODO
                 parameters: FunctionAttributeToDeclarations(attribute),
                 body: new BodyNode(),
-                isExported: true
+                isExported: true,
+                isDrop: false
             );
 
             Binding binding = new Binding {

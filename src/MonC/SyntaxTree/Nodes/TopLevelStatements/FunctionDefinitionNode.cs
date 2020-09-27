@@ -13,19 +13,22 @@ namespace MonC.SyntaxTree
         public DeclarationNode[] Parameters;
         public BodyNode Body;
         public bool IsExported;
+        public bool IsDrop;
 
         public FunctionDefinitionNode(
                 string name,
                 ITypeSpecifierNode returnType,
                 IEnumerable<DeclarationNode> parameters,
                 BodyNode body,
-                bool isExported)
+                bool isExported,
+                bool isDrop)
         {
             Name = name;
             ReturnType = returnType;
             Parameters = parameters.ToArray();
             Body = body;
             IsExported = isExported;
+            IsDrop = isDrop;
         }
 
         public void AcceptSyntaxTreeVisitor(ISyntaxTreeVisitor visitor)
