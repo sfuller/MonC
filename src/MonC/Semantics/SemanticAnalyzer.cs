@@ -28,6 +28,12 @@ namespace MonC.Semantics
             _typeManager = new TypeManager();
         }
 
+        public static void AnalyzeModule(ParseModule module, ParseModule headerModule, IList<ParseError> errors)
+        {
+            SemanticAnalyzer analyzer = new SemanticAnalyzer(errors, module.TokenMap);
+            analyzer.Analyze(headerModule, module);
+        }
+
         public void Analyze(ParseModule headerModule, ParseModule newModule)
         {
             _functions.Clear();
@@ -40,20 +46,9 @@ namespace MonC.Semantics
             foreach (EnumNode enumNode in headerModule.Enums) {
                 RegisterEnum(enumNode);
             }
-            foreach (EnumNode enumNode in newModule.Enums) {
-                RegisterEnum(enumNode);
-            }
 
             foreach (FunctionDefinitionNode externalFunction in headerModule.Functions) {
                 _functions.Add(externalFunction.Name, externalFunction);
-            }
-            foreach (FunctionDefinitionNode function in newModule.Functions) {
-                if (_functions.TryGetValue(function.Name, out FunctionDefinitionNode existingFunction)) {
-                    if (!ReferenceEquals(function, existingFunction)) {
-                        _errorsToProcess.Add(("Redefinition of function " + function.Name, function));
-                    }
-                }
-                _functions[function.Name] = function;
             }
 
             foreach (FunctionDefinitionNode function in newModule.Functions) {

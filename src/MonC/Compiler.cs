@@ -4,6 +4,7 @@ using MonC.Codegen;
 using MonC.DotNetInterop;
 using MonC.IL;
 using MonC.Parsing;
+using MonC.Semantics;
 using MonC.VM;
 
 namespace MonC
@@ -31,7 +32,7 @@ namespace MonC
 
             Parser parser = new Parser();
             ParseModule outputModule = parser.Parse(filename, tokens, errors);
-            outputModule.RunSemanticAnalysis(headerModule, errors);
+            SemanticAnalyzer.AnalyzeModule(outputModule, headerModule, errors);
 
             if (errors.Count > 0) {
                 return null;
