@@ -23,8 +23,10 @@ namespace MonC.Semantics
         public void RegisterEnum(EnumNode node)
         {
             foreach (KeyValuePair<string, int> enumeration in node.Enumerations) {
-                if (_map.ContainsKey(enumeration.Key)) {
-                    _errors.Add(new ParseError { Message = $"Duplicate declaration of symbol ${enumeration}" });
+                if (_map.TryGetValue(enumeration.Key, out EnumNode existingNode)) {
+                    if (!ReferenceEquals(node, existingNode)) {
+                        _errors.Add(new ParseError {Message = $"Duplicate declaration of symbol ${enumeration}"});
+                    }
                     continue;
                 }
                 _map.Add(enumeration.Key, node);

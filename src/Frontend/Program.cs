@@ -7,6 +7,7 @@ using MonC.Debugging;
 using MonC.DotNetInterop;
 using MonC.IL;
 using MonC.Parsing;
+using MonC.SyntaxTree;
 using MonC.VM;
 
 namespace MonC.Frontend
@@ -80,77 +81,118 @@ namespace MonC.Frontend
 
             foreach (string libraryName in libraryNames) {
                 Assembly lib = Assembly.LoadFile(Path.GetFullPath(libraryName));
-                interopResolver.ImportAssembly(lib, BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static);
+                interopResolver.ImportAssembly(lib,
+                    BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static);
             }
 
-            ParseModule interopHeaderModule = interopResolver.CreateHeaderModule();
+            ParseModule headerModule = interopResolver.CreateHeaderModule();
+            List<ParseModule> parseModules = new List<ParseModule>(positionals.Count);
 
-            string? filename = null;
+            for (int fi = 0, filen = positionals.Count; fi < filen; ++fi) {
+                string filename = positionals[fi];
 
-            if (positionals.Count > 0) {
-                filename = positionals[0];
-            }
+                Lexer lexer = new Lexer();
+                List<Token> tokens = new List<Token>();
 
-            Lexer lexer = new Lexer();
-            List<Token> tokens = new List<Token>();
+                string? input;
 
-            string? input;
-
-            if (isInteractive) {
-                WritePrompt();
-                while ((input = Console.ReadLine()) != null) {
-                    LexLine(input, lexer, tokens, verbose: showLex);
+                if (isInteractive) {
                     WritePrompt();
-                }
-            } else {
-                if (filename == null) {
-                    while ((input = Console.In.ReadLine()) != null) {
+                    while ((input = Console.ReadLine()) != null) {
                         LexLine(input, lexer, tokens, verbose: showLex);
+                        WritePrompt();
                     }
                 } else {
-                    filename = Path.GetFullPath(filename);
-                    using StreamReader reader = new StreamReader(filename);
-                    while ((input = reader.ReadLine()) != null) {
-                        LexLine(input, lexer, tokens, verbose: showLex);
+                    if (filename == null) {
+                        while ((input = Console.In.ReadLine()) != null) {
+                            LexLine(input, lexer, tokens, verbose: showLex);
+                        }
+                    } else {
+                        filename = Path.GetFullPath(filename);
+                        using StreamReader reader = new StreamReader(filename);
+                        while ((input = reader.ReadLine()) != null) {
+                            LexLine(input, lexer, tokens, verbose: showLex);
+                        }
                     }
                 }
-            }
 
-            lexer.FinishLex(tokens);
+                lexer.FinishLex(tokens);
 
-            Parser parser = new Parser();
-            List<ParseError> errors = new List<ParseError>();
-            ParseModule module = parser.Parse(filename, tokens, interopHeaderModule, errors);
+                Parser parser = new Parser();
+                List<ParseError> errors = new List<ParseError>();
+                ParseModule module = parser.Parse(filename, tokens, errors);
 
-            for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
-                ParseError error = errors[i];
-                Console.Error.WriteLine($"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
-            }
-
-            if (showAST) {
-                PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
+                // Export functions of all modules before any CodeGen tools run
                 for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
-                    module.Functions[i].AcceptTopLevelVisitor(treeVisitor);
+                    FunctionDefinitionNode function = module.Functions[i];
+                    if (function.IsExported) {
+                        if (!headerModule.AddUniqueFunction(function)) {
+                            ParseError error = new ParseError();
+                            error.Message = $"Duplicate function: {function.Name}";
+                            errors.Add(error);
+                        }
+                    }
                 }
-            }
 
-            if (errors.Count > 0 && !forceCodegen) {
-                Environment.Exit(1);
-            }
+                // Export enums of all modules before any CodeGen tools run
+                for (int i = 0, ilen = module.Enums.Count; i < ilen; ++i) {
+                    EnumNode enumNode = module.Enums[i];
+                    if (enumNode.IsExported) {
+                        if (!headerModule.AddUniqueEnum(enumNode)) {
+                            ParseError error = new ParseError();
+                            error.Message = $"Duplicate enum: {enumNode.Name}";
+                            errors.Add(error);
+                        }
+                    }
+                }
 
-            CodeGenerator generator = new CodeGenerator();
-            ILModule ilmodule = generator.Generate(module);
-            if (showIL) {
-                ilmodule.WriteListing(Console.Out);
-            }
+                for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
+                    ParseError error = errors[i];
+                    Console.Error.WriteLine($"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
+                }
 
-            if (errors.Count > 0) {
-                Environment.Exit(1);
+                if (errors.Count > 0 && !forceCodegen) {
+                    Environment.Exit(1);
+                }
+
+                parseModules.Add(module);
             }
 
             List<LinkError> linkErrors = new List<LinkError>();
             Linker linker = new Linker(linkErrors);
-            linker.AddModule(ilmodule, export: true);
+
+            foreach (ParseModule module in parseModules) {
+                List<ParseError> errors = new List<ParseError>();
+                module.RunSemanticAnalysis(headerModule, errors);
+
+                for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
+                    ParseError error = errors[i];
+                    Console.Error.WriteLine($"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
+                }
+
+                if (showAST) {
+                    PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
+                    for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
+                        module.Functions[i].AcceptTopLevelVisitor(treeVisitor);
+                    }
+                }
+
+                if (errors.Count > 0 && !forceCodegen) {
+                    Environment.Exit(1);
+                }
+
+                CodeGenerator generator = new CodeGenerator();
+                ILModule ilmodule = generator.Generate(module);
+                if (showIL) {
+                    ilmodule.WriteListing(Console.Out);
+                }
+
+                if (errors.Count > 0) {
+                    Environment.Exit(1);
+                }
+
+                linker.AddModule(ilmodule, export: true);
+            }
 
             foreach (Binding binding in interopResolver.Bindings) {
                 linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation, export: false);
@@ -162,6 +204,7 @@ namespace MonC.Frontend
                 foreach (LinkError error in linkErrors) {
                     Console.Error.WriteLine($"Link error: {error.Message}");
                 }
+
                 Environment.Exit(1);
             }
 
@@ -170,6 +213,7 @@ namespace MonC.Frontend
                 foreach (string error in loadErrors) {
                     Console.Error.WriteLine($"Load error: {error}");
                 }
+
                 Environment.Exit(1);
             }
 
@@ -198,6 +242,7 @@ namespace MonC.Frontend
             if (!success) {
                 Environment.Exit(-1);
             }
+
             Environment.Exit(vm.ReturnValue);
         }
 
@@ -221,7 +266,7 @@ namespace MonC.Frontend
 
         private static void HandleBreak(VirtualMachine vm, Debugger debugger, VMDebugger vmDebugger)
         {
-            while (DebuggerLoop(vm, debugger, vmDebugger)) {}
+            while (DebuggerLoop(vm, debugger, vmDebugger)) { }
         }
 
         private static bool DebuggerLoop(VirtualMachine vm, Debugger debugger, VMDebugger vmDebugger)
@@ -242,16 +287,15 @@ namespace MonC.Frontend
             }
 
             switch (command) {
-                case "reg":
-                    {
-                        StackFrameInfo frame = vm.GetStackFrame(0);
-                        Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}, A: {vm.ReturnValue}");
-                        string? sourcePath;
-                        int lineNumber;
-                        if (debugger.GetSourceLocation(frame, out sourcePath, out lineNumber)) {
-                            Console.WriteLine($"File: {sourcePath}, Line: {lineNumber + 1}");
-                        }
+                case "reg": {
+                    StackFrameInfo frame = vm.GetStackFrame(0);
+                    Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}, A: {vm.ReturnValue}");
+                    string? sourcePath;
+                    int lineNumber;
+                    if (debugger.GetSourceLocation(frame, out sourcePath, out lineNumber)) {
+                        Console.WriteLine($"File: {sourcePath}, Line: {lineNumber + 1}");
                     }
+                }
                     break;
 
                 case "read":
@@ -260,27 +304,30 @@ namespace MonC.Frontend
                         if (i % 4 == 0 && i != 0) {
                             Console.WriteLine();
                         }
+
                         Console.Write(memory.Read(i) + "\t");
                     }
+
                     Console.WriteLine();
                     break;
 
-                case "bp":
-                    {
-                        if (args.Length < 2) {
-                            Console.WriteLine("Not enough args");
-                            break;
-                        }
-                        int breakpointLineNumber;
-                        int.TryParse(args[1], out breakpointLineNumber);
-                        StackFrameInfo frame = vm.GetStackFrame(0);
-                        string? sourcePath;
-                        if (!debugger.GetSourceLocation(frame, out sourcePath, out _)) {
-                            sourcePath = "";
-                        }
-                        Console.WriteLine($"Assuming source file is {sourcePath}");
-                        debugger.SetBreakpoint(sourcePath!, breakpointLineNumber - 1);
+                case "bp": {
+                    if (args.Length < 2) {
+                        Console.WriteLine("Not enough args");
+                        break;
                     }
+
+                    int breakpointLineNumber;
+                    int.TryParse(args[1], out breakpointLineNumber);
+                    StackFrameInfo frame = vm.GetStackFrame(0);
+                    string? sourcePath;
+                    if (!debugger.GetSourceLocation(frame, out sourcePath, out _)) {
+                        sourcePath = "";
+                    }
+
+                    Console.WriteLine($"Assuming source file is {sourcePath}");
+                    debugger.SetBreakpoint(sourcePath!, breakpointLineNumber - 1);
+                }
                     break;
 
                 case "over":

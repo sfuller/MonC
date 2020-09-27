@@ -48,8 +48,10 @@ namespace MonC.Semantics
                 _functions.Add(externalFunction.Name, externalFunction);
             }
             foreach (FunctionDefinitionNode function in newModule.Functions) {
-                if (_functions.ContainsKey(function.Name)) {
-                    _errorsToProcess.Add(("Redefinition of function " + function.Name, function));
+                if (_functions.TryGetValue(function.Name, out FunctionDefinitionNode existingFunction)) {
+                    if (!ReferenceEquals(function, existingFunction)) {
+                        _errorsToProcess.Add(("Redefinition of function " + function.Name, function));
+                    }
                 }
                 _functions[function.Name] = function;
             }
