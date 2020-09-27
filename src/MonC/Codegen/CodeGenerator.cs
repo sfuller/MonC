@@ -42,7 +42,7 @@ namespace MonC.Codegen
             StackLayoutGenerator layoutGenerator = new StackLayoutGenerator();
             layoutGenerator.VisitFunctionDefinition(node);
             FunctionStackLayout layout = layoutGenerator.GetLayout();
-            FunctionBuilder builder = new FunctionBuilder(layout, module.TokenMap);
+            FunctionBuilder builder = new FunctionBuilder(layout, module.SymbolMap);
             FunctionCodeGenVisitor functionCodeGenVisitor = new FunctionCodeGenVisitor(builder, layout, _manager, strings, enums);
             functionCodeGenVisitor.VisitBody(node.Body);
 

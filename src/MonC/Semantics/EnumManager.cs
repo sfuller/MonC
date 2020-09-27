@@ -25,10 +25,12 @@ namespace MonC.Semantics
         {
             foreach (EnumDeclarationNode declaration in node.Declarations) {
                 if (_map.ContainsKey(declaration.Name)) {
+                    // TODO: Fill out more fields of parse error. An error manager class would be nice. Such a class
+                    // could have access to the symbol map and fill out location information based on related nodes.
                     _errors.Add(new ParseError { Message = $"Duplicate declaration of symbol ${declaration.Name}" });
-                    continue;
+                } else {
+                    _map.Add(declaration.Name, node);
                 }
-                _map.Add(declaration.Name, node);
             }
         }
     }

@@ -20,6 +20,7 @@ namespace MonC.DotNetInterop
         private readonly HashSet<Type> _linkableModules = new HashSet<Type>();
         private readonly List<EnumNode> _enums = new List<EnumNode>();
         private readonly List<string> _errors = new List<string>();
+        private readonly Dictionary<ISyntaxTreeNode, Symbol> _tokenMap = new Dictionary<ISyntaxTreeNode, Symbol>();
 
         public InteropResolver(bool includeImplementations = true)
         {
@@ -35,6 +36,9 @@ namespace MonC.DotNetInterop
             ParseModule module = new ParseModule();
             module.Functions.AddRange(_bindings.Values.Select(binding => binding.Prototype));
             module.Enums.AddRange(_enums);
+            foreach (var token in _tokenMap) {
+                module.SymbolMap.Add(token.Key, token.Value);
+            }
             return module;
         }
 
@@ -206,6 +210,11 @@ namespace MonC.DotNetInterop
                 }
             };
             _bindings[method.Name] = binding;
+
+            Symbol symbol = new Symbol();
+            symbol.Node = def;
+            symbol.SourceFile = method.Module.FullyQualifiedName;
+            _tokenMap[def] = symbol;
         }
 
         private static T CreateDelegate<T>(MethodInfo method, object? target) where T : class
@@ -282,7 +291,13 @@ namespace MonC.DotNetInterop
             // }
             //
             // // TODO: New attribute value for enum name, or use type name.
-            // _enums.Add(new EnumNode(type.Name, enumerations, isExported: true));
+            // EnumNode enumNode = new EnumNode(type.Name, enumerations, isExported: true);
+            // _enums.Add(enumNode);
+            //
+            // Symbol symbol = new Symbol();
+            // symbol.Node = enumNode;
+            // symbol.SourceFile = type.Module.FullyQualifiedName;
+            // _tokenMap[enumNode] = symbol;
         }
 
     }

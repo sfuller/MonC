@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using MonC.Parsing;
 using MonC.Parsing.ParseTree.Nodes;
-using MonC.Semantics;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
@@ -21,13 +20,9 @@ namespace MonC
         private readonly List<Token> _tokens = new List<Token>();
         private string? _filePath;
 
-        private IDictionary<ISyntaxTreeNode, Symbol> _tokenMap = new Dictionary<ISyntaxTreeNode, Symbol>();
+        private IDictionary<ISyntaxTreeNode, Symbol> _symbolMap = new Dictionary<ISyntaxTreeNode, Symbol>();
 
-        public ParseModule Parse(
-                string? filePath,
-                IEnumerable<Token> tokens,
-                ParseModule headerModule,
-                IList<ParseError> errors)
+        public ParseModule Parse(string? filePath, IEnumerable<Token> tokens, IList<ParseError> errors)
         {
             _filePath = filePath;
             _tokens.Clear();
@@ -36,16 +31,13 @@ namespace MonC
             TokenSource tokenSource = new TokenSource(_tokens, 0, errors);
 
             ParseModule outputModule = new ParseModule();
-            _tokenMap = outputModule.TokenMap;
+            _symbolMap = outputModule.SymbolMap;
 
             ParseModuleHopper hopper = new ParseModuleHopper(outputModule);
 
             while (tokenSource.Peek().Type != TokenType.None) {
                 ParseTopLevelStatement(ref tokenSource)?.AcceptTopLevelVisitor(hopper);
             }
-
-            SemanticAnalyzer analyzer = new SemanticAnalyzer(errors, _tokenMap);
-            analyzer.Analyze(headerModule, outputModule);
 
             return outputModule;
         }
@@ -993,7 +985,7 @@ namespace MonC
                 End = end
             };
 
-            _tokenMap[node] = symbol;
+            _symbolMap[node] = symbol;
             return node;
         }
 
@@ -1012,7 +1004,7 @@ namespace MonC
         /// </exception>
         private T NewNode<T>(T node, ISyntaxTreeNode startNode, Token endToken) where T : ISyntaxTreeNode
         {
-            if (!_tokenMap.TryGetValue(startNode, out Symbol symbol)) {
+            if (!_symbolMap.TryGetValue(startNode, out Symbol symbol)) {
                 throw new InvalidOperationException($"No symbol associated with {nameof(startNode)}");
             }
             return NewNode(node, symbol.Start, endToken.DeriveEndLocation());
@@ -1036,10 +1028,10 @@ namespace MonC
         /// </exception>
         private T NewNode<T>(T node, ISyntaxTreeNode startNode, ISyntaxTreeNode endNode) where T : ISyntaxTreeNode
         {
-            if (!_tokenMap.TryGetValue(startNode, out Symbol startSymbol)) {
+            if (!_symbolMap.TryGetValue(startNode, out Symbol startSymbol)) {
                 throw new InvalidOperationException($"No symbol associated with {nameof(startNode)}");
             }
-            if (!_tokenMap.TryGetValue(endNode, out Symbol endSymbol)) {
+            if (!_symbolMap.TryGetValue(endNode, out Symbol endSymbol)) {
                 throw new InvalidOperationException($"No symbol associated with {nameof(endNode)}");
             }
             return NewNode(node, startSymbol.Start, endSymbol.End);
@@ -1047,7 +1039,7 @@ namespace MonC
 
         private Symbol GetSymbolForNode(ISyntaxTreeNode node)
         {
-            if (!_tokenMap.TryGetValue(node, out Symbol symbol)) {
+            if (!_symbolMap.TryGetValue(node, out Symbol symbol)) {
                 throw new InvalidOperationException($"No symbol associated with {nameof(node)}");
             }
             return symbol;
