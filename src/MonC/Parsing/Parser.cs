@@ -245,12 +245,13 @@ namespace MonC
                 name = nameToken.Value;
             }
 
-            if (tokens.Peek(0, TokenType.Syntax, Syntax.STRUCT_FUNCTION_ASSOCIATION_STARTER, out _)) {
+            List<IStructFunctionAssociationNode> functionAssociations;
 
+            if (tokens.TryNext(TokenType.Syntax, Syntax.STRUCT_FUNCTION_ASSOCIATION_STARTER, out _)) {
+                functionAssociations = ParseCommaSeparatedNodes(ref tokens, parseStructFunctionAssociation);
+            } else {
+                functionAssociations = new List<IStructFunctionAssociationNode>();
             }
-
-            List<IStructFunctionAssociationNode> functionAssociations =
-                    ParseCommaSeparatedNodes(ref tokens, parseStructFunctionAssociation);
 
             tokens.TryNext(TokenType.Syntax, Syntax.OPENING_BRACKET, out _);
 
