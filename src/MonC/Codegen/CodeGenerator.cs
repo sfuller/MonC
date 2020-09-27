@@ -3,6 +3,7 @@ using System.Linq;
 using MonC.IL;
 using MonC.Parsing;
 using MonC.SyntaxTree;
+using MonC.SyntaxTree.Nodes.Expressions;
 
 namespace MonC.Codegen
 {
@@ -20,11 +21,11 @@ namespace MonC.Codegen
             List<string> strings = new List<string>();
             Dictionary<string, int> enumerations = new Dictionary<string, int>();
 
-            foreach (FunctionDefinitionNode function in module.Functions) {
-                functions.Add(GenerateFunction(module, function, strings));
-            }
-
             ProcessEnums(module, enumerations);
+
+            foreach (FunctionDefinitionNode function in module.Functions) {
+                functions.Add(GenerateFunction(module, function, strings, enumerations));
+            }
 
             return new ILModule {
                 DefinedFunctions = functions.ToArray(),
@@ -36,13 +37,13 @@ namespace MonC.Codegen
 
         }
 
-        private ILFunction GenerateFunction(ParseModule module, FunctionDefinitionNode node, List<string> strings)
+        private ILFunction GenerateFunction(ParseModule module, FunctionDefinitionNode node, List<string> strings, Dictionary<string, int> enums)
         {
             StackLayoutGenerator layoutGenerator = new StackLayoutGenerator();
             layoutGenerator.VisitFunctionDefinition(node);
             FunctionStackLayout layout = layoutGenerator.GetLayout();
             FunctionBuilder builder = new FunctionBuilder(layout, module.SymbolMap);
-            FunctionCodeGenVisitor functionCodeGenVisitor = new FunctionCodeGenVisitor(builder, layout, _manager, strings);
+            FunctionCodeGenVisitor functionCodeGenVisitor = new FunctionCodeGenVisitor(builder, layout, _manager, strings, enums);
             functionCodeGenVisitor.VisitBody(node.Body);
 
             if (builder.InstructionCount == 0 || builder.Instructions[builder.InstructionCount - 1].Op != OpCode.RETURN) {
@@ -56,10 +57,10 @@ namespace MonC.Codegen
         {
             foreach (EnumNode enumNode in module.Enums) {
                 if (enumNode.IsExported) {
-                    KeyValuePair<string, int>[] enumerations = enumNode.Enumerations;
-                    for (int i = 0, ilen = enumerations.Length; i < ilen; ++i) {
-                        var enumeration = enumerations[i];
-                        exportedEnums[enumeration.Key] = enumeration.Value;
+                    List<EnumDeclarationNode> enumDeclarations = enumNode.Declarations;
+                    for (int i = 0, ilen = enumDeclarations.Count; i < ilen; ++i) {
+                        EnumDeclarationNode declaration = enumDeclarations[i];
+                        exportedEnums[declaration.Name] = i;
                     }
                 }
             }

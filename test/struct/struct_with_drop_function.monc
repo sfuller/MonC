@@ -1,0 +1,13 @@
+
+struct Bar : drop=drop_bar {
+    int a;
+    int b;
+}
+
+void drop_bar(Bar& bar) drop {
+}
+
+int main() {
+    return 0;
+}
+

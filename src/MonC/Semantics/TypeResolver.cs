@@ -66,6 +66,10 @@ namespace MonC.Semantics
             ShouldReplace = true;
         }
 
+        public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
+        {
+        }
+
         public void VisitAssignment(AssignmentParseNode node)
         {
         }

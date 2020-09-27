@@ -1,0 +1,13 @@
+
+struct Bar : free=free_bar {
+    int a;
+    int b;
+}
+
+void free_bar(Bar^ bar) {
+}
+
+int main() {
+    return 0;
+}
+

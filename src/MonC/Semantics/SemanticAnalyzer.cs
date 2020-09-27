@@ -35,6 +35,7 @@ namespace MonC.Semantics
             _enumManager = new EnumManager(errors);
             _typeManager = new TypeManager();
 
+            _typeManager.RegisterType(new PrimitiveTypeImpl("void"));
             _typeManager.RegisterType(new PrimitiveTypeImpl("int"));
         }
 
@@ -65,6 +66,7 @@ namespace MonC.Semantics
             AddSymbols(module.SymbolMap);
             RegisterFunctions(module);
             RegisterEnums(module);
+            RegisterStructs(module);
         }
 
         private void AddSymbols(Dictionary<ISyntaxTreeNode, Symbol> symbolMap)
@@ -94,9 +96,16 @@ namespace MonC.Semantics
             }
         }
 
+        private void RegisterStructs(ParseModule module)
+        {
+            foreach (StructNode structNode in module.Structs) {
+                _typeManager.RegisterType(new StructType(structNode));
+            }
+        }
+
         private void ProcessFunction(FunctionDefinitionNode function)
         {
-            new VariableDeclarationProcessor(this).Process(function);
+            new DuplicateVariableDeclarationAnalyzer(this).Process(function);
             new AssignmentAnalyzer(this, _symbolMap).Process(function);
             new TranslateIdentifiersVisitor(_functions, this, _enumManager, _symbolMap).Process(function);
             new TypeResolver(_typeManager, this).Process(function);

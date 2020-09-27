@@ -5,7 +5,7 @@ using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
 
 namespace MonC.SyntaxTree.Util.NoOpVisitors
 {
-    public class NoOpExpressionVisitor : IExpressionVisitor, IBinaryOperationVisitor
+    public class NoOpExpressionVisitor : IExpressionVisitor, IBinaryOperationVisitor, IBasicExpressionVisitor
     {
         public void VisitVoid(VoidExpressionNode node)
         {
@@ -28,6 +28,11 @@ namespace MonC.SyntaxTree.Util.NoOpVisitors
         }
 
         public virtual void VisitVariable(VariableNode node)
+        {
+            VisitDefaultExpression(node);
+        }
+
+        public void VisitBasicExpression(IBasicExpression node)
         {
             VisitDefaultExpression(node);
         }

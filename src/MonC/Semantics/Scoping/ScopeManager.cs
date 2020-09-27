@@ -3,17 +3,28 @@ using MonC.Parsing.ParseTree;
 using MonC.Parsing.ParseTree.Nodes;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
+using MonC.SyntaxTree.Util;
+using MonC.SyntaxTree.Util.Delegators;
+using MonC.SyntaxTree.Util.GenericDelegators;
 using MonC.SyntaxTree.Util.NoOpVisitors;
 
 namespace MonC.Semantics.Scoping
 {
-    public class ScopeManager : NoOpStatementVisitor, ISyntaxTreeVisitor, IScopeHandler, IParseTreeVisitor
+    public class ScopeManager : NoOpStatementVisitor, IScopeHandler, IParseTreeVisitor, IVisitor<IExpressionNode>
     {
         private readonly Dictionary<ISyntaxTreeNode, Scope> _scopes = new Dictionary<ISyntaxTreeNode, Scope>();
 
+        private readonly SyntaxTreeDelegator _delegator = new SyntaxTreeDelegator();
+
+        public ScopeManager()
+        {
+            _delegator.StatementVisitor = this;
+            _delegator.ExpressionVisitor = new GenericExpressionDelegator(this);
+        }
+
         public void ProcessFunction(FunctionDefinitionNode function)
         {
-            WalkScopeVisitor walkScopeVisitor = new WalkScopeVisitor(this, this, Scope.New(function));
+            WalkScopeVisitor walkScopeVisitor = new WalkScopeVisitor(this, _delegator, Scope.New(function));
             walkScopeVisitor.VisitBody(function.Body);
         }
 
@@ -33,28 +44,13 @@ namespace MonC.Semantics.Scoping
             return scope;
         }
 
-        public void VisitTopLevelStatement(ITopLevelStatementNode node)
-        {
-            ApplyScope(node);
-        }
-
-        public void VisitStatement(IStatementNode node)
-        {
-            node.AcceptStatementVisitor(this);
-        }
-
-        public void VisitExpression(IExpressionNode node)
+        public void Visit(IExpressionNode node)
         {
             if (node is IParseTreeNode parseNode) {
                 parseNode.AcceptParseTreeVisitor(this);
             } else {
                 ApplyScope(node);
             }
-        }
-
-        public void VisitSpecifier(ISpecifierNode node)
-        {
-            ApplyScope(node);
         }
 
         protected override void VisitDefaultStatement(IStatementNode node)
@@ -79,11 +75,16 @@ namespace MonC.Semantics.Scoping
             ApplyScope(node);
             for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
                 IExpressionNode argument = node.GetArgument(i);
-                argument.AcceptSyntaxTreeVisitor(this);
+                argument.AcceptSyntaxTreeVisitor(_delegator);
             }
         }
 
         public void VisitTypeSpecifier(TypeSpecifierParseNode node)
+        {
+            ApplyScope(node);
+        }
+
+        public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
         {
             ApplyScope(node);
         }

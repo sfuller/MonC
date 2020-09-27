@@ -198,7 +198,8 @@ namespace MonC.DotNetInterop
                 returnType: new TypeSpecifierParseNode("int", PointerMode.NotAPointer), // TODO
                 parameters: FunctionAttributeToDeclarations(attribute),
                 body: new BodyNode(),
-                isExported: true
+                isExported: true,
+                isDrop: false
             );
 
             Binding binding = new Binding {
@@ -278,23 +279,25 @@ namespace MonC.DotNetInterop
 
         public void ImportEnum(Type type, LinkableEnumAttribute attribute)
         {
-            string[] names = Enum.GetNames(type);
-            List<KeyValuePair<string, int>> enumerations = new List<KeyValuePair<string, int>>();
+            throw new NotSupportedException("Need to support enum value expressions in MonC first.");
 
-            string prefix = attribute.Prefix ?? "";
-
-            foreach (string name in names) {
-                enumerations.Add(new KeyValuePair<string, int>(prefix + name, (int)Enum.Parse(type, name)));
-            }
-
-            // TODO: New attribute value for enum name, or use type name.
-            EnumNode enumNode = new EnumNode(type.Name, enumerations, isExported: true);
-            _enums.Add(enumNode);
-
-            Symbol symbol = new Symbol();
-            symbol.Node = enumNode;
-            symbol.SourceFile = type.Module.FullyQualifiedName;
-            _tokenMap[enumNode] = symbol;
+            // string[] names = Enum.GetNames(type);
+            // List<KeyValuePair<string, int>> enumerations = new List<KeyValuePair<string, int>>();
+            //
+            // string prefix = attribute.Prefix ?? "";
+            //
+            // foreach (string name in names) {
+            //     enumerations.Add(new KeyValuePair<string, int>(prefix + name, (int)Enum.Parse(type, name)));
+            // }
+            //
+            // // TODO: New attribute value for enum name, or use type name.
+            // EnumNode enumNode = new EnumNode(type.Name, enumerations, isExported: true);
+            // _enums.Add(enumNode);
+            //
+            // Symbol symbol = new Symbol();
+            // symbol.Node = enumNode;
+            // symbol.SourceFile = type.Module.FullyQualifiedName;
+            // _tokenMap[enumNode] = symbol;
         }
 
     }

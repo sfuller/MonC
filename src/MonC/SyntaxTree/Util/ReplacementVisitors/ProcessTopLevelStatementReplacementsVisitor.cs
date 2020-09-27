@@ -18,5 +18,10 @@
                 node.Parameters[i] = _processor.ProcessReplacement(node.Parameters[i]);
             }
         }
+
+        public void VisitStruct(StructNode node)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }
