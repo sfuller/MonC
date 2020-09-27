@@ -155,15 +155,14 @@ namespace MonC.Frontend
             List<ParseError> errors = new List<ParseError>();
             SemanticAnalyzer analyzer = new SemanticAnalyzer(errors);
 
-            analyzer.LoadHeaderModule(interopResolver.CreateHeaderModule());
+            analyzer.RegisterModule(interopResolver.CreateHeaderModule());
+
+            foreach (ParseModule module in parseModules) {
+                analyzer.RegisterModule(module);
+            }
 
             foreach (ParseModule module in parseModules) {
                 analyzer.Process(module);
-
-                for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
-                    ParseError error = errors[i];
-                    Console.Error.WriteLine($"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
-                }
 
                 if (showAST) {
                     PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
@@ -171,6 +170,11 @@ namespace MonC.Frontend
                         module.Functions[i].AcceptTopLevelVisitor(treeVisitor);
                     }
                 }
+            }
+
+            for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
+                ParseError error = errors[i];
+                Console.Error.WriteLine($"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
             }
 
             if (errors.Count > 0 && !forceCodegen) {

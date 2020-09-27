@@ -38,14 +38,9 @@ namespace MonC.Semantics
             _typeManager.RegisterType(new PrimitiveTypeImpl("int"));
         }
 
-        public void LoadHeaderModule(ParseModule headerModule)
-        {
-            RegisterModuleContents(headerModule);
-        }
-
         /// <summary>
         /// <para>Analyzes the given  and transforms the parse module's tree from a 'parse' tree into a final syntax
-        /// tree.
+        /// tree. Modules must be registered before they are processed.
         /// </para>
         /// <para>Note on 'parse' tree: MonC's parser doesn't produce a formal parse tree as it doesn't perserve
         /// non-significant information. We use the term 'parse tree' to signify that the tree comes straight from the
@@ -53,8 +48,6 @@ namespace MonC.Semantics
         /// </summary>
         public void Process(ParseModule module)
         {
-            RegisterModuleContents(module);
-
             foreach (FunctionDefinitionNode function in module.Functions) {
                 ProcessFunction(function);
             }
@@ -67,18 +60,18 @@ namespace MonC.Semantics
             _errorsToProcess.Clear();
         }
 
+        public void RegisterModule(ParseModule module)
+        {
+            AddSymbols(module.SymbolMap);
+            RegisterFunctions(module);
+            RegisterEnums(module);
+        }
+
         private void AddSymbols(Dictionary<ISyntaxTreeNode, Symbol> symbolMap)
         {
             foreach (KeyValuePair<ISyntaxTreeNode, Symbol> symbolMapping in symbolMap) {
                 _symbolMap.Add(symbolMapping.Key, symbolMapping.Value);
             }
-        }
-
-        private void RegisterModuleContents(ParseModule module)
-        {
-            AddSymbols(module.SymbolMap);
-            RegisterFunctions(module);
-            RegisterEnums(module);
         }
 
         private void RegisterFunctions(ParseModule module)

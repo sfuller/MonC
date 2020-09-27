@@ -31,8 +31,9 @@ namespace MonC
             SemanticAnalyzer analyzer = new SemanticAnalyzer(errors);
 
             if (headerModule != null) {
-                analyzer.LoadHeaderModule(headerModule);
+                analyzer.RegisterModule(headerModule);
             }
+            analyzer.RegisterModule(outputModule);
             analyzer.Process(outputModule);
 
             if (errors.Count > 0) {
