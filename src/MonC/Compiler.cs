@@ -26,13 +26,14 @@ namespace MonC
             List<Token> tokens = new List<Token>();
             lexer.LexFullModule(source, tokens);
 
-            if (headerModule == null) {
-                headerModule = new ParseModule();
-            }
-
             Parser parser = new Parser();
             ParseModule outputModule = parser.Parse(filename, tokens, errors);
-            SemanticAnalyzer.AnalyzeModule(outputModule, headerModule, errors);
+            SemanticAnalyzer analyzer = new SemanticAnalyzer(errors);
+
+            if (headerModule != null) {
+                analyzer.LoadHeaderModule(headerModule);
+            }
+            analyzer.Process(outputModule);
 
             if (errors.Count > 0) {
                 return null;

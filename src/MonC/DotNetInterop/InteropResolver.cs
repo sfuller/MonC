@@ -37,7 +37,7 @@ namespace MonC.DotNetInterop
             module.Functions.AddRange(_bindings.Values.Select(binding => binding.Prototype));
             module.Enums.AddRange(_enums);
             foreach (var token in _tokenMap) {
-                module.TokenMap.Add(token.Key, token.Value);
+                module.SymbolMap.Add(token.Key, token.Value);
             }
             return module;
         }

@@ -8,7 +8,6 @@ using MonC.DotNetInterop;
 using MonC.IL;
 using MonC.Parsing;
 using MonC.Semantics;
-using MonC.SyntaxTree;
 using MonC.VM;
 
 namespace MonC.Frontend
@@ -78,11 +77,12 @@ namespace MonC.Frontend
                 }
             }
 
-            HeaderModuleBuilder headerModuleBuilder = new HeaderModuleBuilder();
+            InteropResolver interopResolver = new InteropResolver();
+            const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static;
 
             foreach (string libraryName in libraryNames) {
                 Assembly lib = Assembly.LoadFile(Path.GetFullPath(libraryName));
-                headerModuleBuilder.AddDotNetAssembly(lib);
+                interopResolver.ImportAssembly(lib, bindingFlags);
             }
 
             List<ParseModule> parseModules = new List<ParseModule>(positionals.Count);
@@ -102,7 +102,6 @@ namespace MonC.Frontend
                     Environment.Exit(1);
                 }
 
-                headerModuleBuilder.AddModule(module);
                 parseModules.Add(module);
             }
 
@@ -150,24 +149,16 @@ namespace MonC.Frontend
                 ParseTokens(null, tokens);
             }
 
-            List<ParseError> headerErrors = new List<ParseError>();
-            ParseModule headerModule = headerModuleBuilder.CreateHeaderModule(headerErrors);
-
-            for (int i = 0, ilen = headerErrors.Count; i < ilen; ++i) {
-                ParseError error = headerErrors[i];
-                Console.Error.WriteLine($"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
-            }
-
-            if (headerErrors.Count > 0 && !forceCodegen) {
-                Environment.Exit(1);
-            }
-
             List<LinkError> linkErrors = new List<LinkError>();
             Linker linker = new Linker(linkErrors);
 
+            List<ParseError> errors = new List<ParseError>();
+            SemanticAnalyzer analyzer = new SemanticAnalyzer(errors);
+
+            analyzer.LoadHeaderModule(interopResolver.CreateHeaderModule());
+
             foreach (ParseModule module in parseModules) {
-                List<ParseError> errors = new List<ParseError>();
-                SemanticAnalyzer.AnalyzeModule(module, headerModule, errors);
+                analyzer.Process(module);
 
                 for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
                     ParseError error = errors[i];
@@ -180,25 +171,23 @@ namespace MonC.Frontend
                         module.Functions[i].AcceptTopLevelVisitor(treeVisitor);
                     }
                 }
+            }
 
-                if (errors.Count > 0 && !forceCodegen) {
-                    Environment.Exit(1);
-                }
+            if (errors.Count > 0 && !forceCodegen) {
+                Environment.Exit(1);
+            }
 
+            foreach (ParseModule module in parseModules) {
                 CodeGenerator generator = new CodeGenerator();
                 ILModule ilmodule = generator.Generate(module);
                 if (showIL) {
                     ilmodule.WriteListing(Console.Out);
                 }
 
-                if (errors.Count > 0) {
-                    Environment.Exit(1);
-                }
-
                 linker.AddModule(ilmodule, export: true);
             }
 
-            foreach (Binding binding in headerModuleBuilder.InteropResolver.Bindings) {
+            foreach (Binding binding in interopResolver.Bindings) {
                 linker.AddFunctionBinding(binding.Prototype.Name, binding.Implementation, export: false);
             }
 
@@ -213,7 +202,7 @@ namespace MonC.Frontend
             }
 
             List<string> loadErrors = new List<string>();
-            if (!headerModuleBuilder.InteropResolver.PrepareForExecution(vmModule, loadErrors)) {
+            if (!interopResolver.PrepareForExecution(vmModule, loadErrors)) {
                 foreach (string error in loadErrors) {
                     Console.Error.WriteLine($"Load error: {error}");
                 }

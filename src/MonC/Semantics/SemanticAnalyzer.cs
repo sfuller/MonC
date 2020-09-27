@@ -10,48 +10,52 @@ namespace MonC.Semantics
     public class SemanticAnalyzer : IErrorManager
     {
         private readonly IList<ParseError> _errors;
-        private readonly IDictionary<ISyntaxTreeNode, Symbol> _symbolMap;
-        private readonly EnumManager _enumManager;
 
         private readonly Dictionary<string, FunctionDefinitionNode> _functions = new Dictionary<string, FunctionDefinitionNode>();
-
-        private readonly List<(string message, ISyntaxTreeNode node)> _errorsToProcess = new List<(string message, ISyntaxTreeNode node)>();
-
+        private readonly EnumManager _enumManager;
         private readonly TypeManager _typeManager;
 
-        public SemanticAnalyzer(IList<ParseError> errors, IDictionary<ISyntaxTreeNode, Symbol> symbolMap)
+        /// <summary>
+        /// Map to the symbol for each syntax tree node in the analyzed modules and loaded header modules.
+        /// </summary>
+        private readonly Dictionary<ISyntaxTreeNode, Symbol> _symbolMap = new Dictionary<ISyntaxTreeNode, Symbol>();
+
+        /// <summary>
+        /// Error information for the current module being analyzed. This information is processed and cleared at the
+        /// end of <see cref="Process"/>.
+        /// </summary>
+        private readonly List<(string message, ISyntaxTreeNode node)> _errorsToProcess = new List<(string message, ISyntaxTreeNode node)>();
+
+        /// <summary>
+        /// Constructs a SemanticAnalyzer which uses a supplied list to store errors.
+        /// </summary>
+        public SemanticAnalyzer(IList<ParseError> errors)
         {
             _errors = errors;
-            _symbolMap = symbolMap;
             _enumManager = new EnumManager(errors);
-
             _typeManager = new TypeManager();
-        }
-
-        public static void AnalyzeModule(ParseModule module, ParseModule headerModule, IList<ParseError> errors)
-        {
-            SemanticAnalyzer analyzer = new SemanticAnalyzer(errors, module.TokenMap);
-            analyzer.Analyze(headerModule, module);
-        }
-
-        public void Analyze(ParseModule headerModule, ParseModule newModule)
-        {
-            _functions.Clear();
-
-            // TODO: Load types from header module.
 
             _typeManager.RegisterType(new PrimitiveTypeImpl("int"));
+        }
 
+        public void LoadHeaderModule(ParseModule headerModule)
+        {
+            RegisterModuleContents(headerModule);
+        }
 
-            foreach (EnumNode enumNode in headerModule.Enums) {
-                RegisterEnum(enumNode);
-            }
+        /// <summary>
+        /// <para>Analyzes the given  and transforms the parse module's tree from a 'parse' tree into a final syntax
+        /// tree.
+        /// </para>
+        /// <para>Note on 'parse' tree: MonC's parser doesn't produce a formal parse tree as it doesn't perserve
+        /// non-significant information. We use the term 'parse tree' to signify that the tree comes straight from the
+        /// parser and isn't analyzed and annotated.</para>
+        /// </summary>
+        public void Process(ParseModule module)
+        {
+            RegisterModuleContents(module);
 
-            foreach (FunctionDefinitionNode externalFunction in headerModule.Functions) {
-                _functions.Add(externalFunction.Name, externalFunction);
-            }
-
-            foreach (FunctionDefinitionNode function in newModule.Functions) {
+            foreach (FunctionDefinitionNode function in module.Functions) {
                 ProcessFunction(function);
             }
 
@@ -60,12 +64,41 @@ namespace MonC.Semantics
                 _symbolMap.TryGetValue(node, out symbol);
                 _errors.Add(new ParseError {Message = message, Start = symbol.Start, End = symbol.End});
             }
+            _errorsToProcess.Clear();
         }
 
-        private void RegisterEnum(EnumNode enumNode)
+        private void AddSymbols(Dictionary<ISyntaxTreeNode, Symbol> symbolMap)
         {
-            _enumManager.RegisterEnum(enumNode);
-            _typeManager.RegisterType(new PrimitiveTypeImpl(enumNode.Name));
+            foreach (KeyValuePair<ISyntaxTreeNode, Symbol> symbolMapping in symbolMap) {
+                _symbolMap.Add(symbolMapping.Key, symbolMapping.Value);
+            }
+        }
+
+        private void RegisterModuleContents(ParseModule module)
+        {
+            AddSymbols(module.SymbolMap);
+            RegisterFunctions(module);
+            RegisterEnums(module);
+        }
+
+        private void RegisterFunctions(ParseModule module)
+        {
+            foreach (FunctionDefinitionNode function in module.Functions) {
+                if (_functions.ContainsKey(function.Name)) {
+                    // TODO: More information in error.
+                    _errors.Add(new ParseError {Message = "Duplicate function"});
+                } else {
+                    _functions.Add(function.Name, function);
+                }
+            }
+        }
+
+        private void RegisterEnums(ParseModule module)
+        {
+            foreach (EnumNode enumNode in module.Enums) {
+                _enumManager.RegisterEnum(enumNode);
+                _typeManager.RegisterType(new PrimitiveTypeImpl(enumNode.Name));
+            }
         }
 
         private void ProcessFunction(FunctionDefinitionNode function)

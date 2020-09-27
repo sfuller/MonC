@@ -23,7 +23,15 @@ namespace MonC.Semantics
         public void RegisterEnum(EnumNode node)
         {
             foreach (KeyValuePair<string, int> enumeration in node.Enumerations) {
-                _map.Add(enumeration.Key, node);
+                if (_map.ContainsKey(enumeration.Key)) {
+                    // TODO: Fill out more fields of parse error. An error manager class would be nice. Such a class
+                    // could have access to the symbol map and fill out location information based on related nodes.
+                    _errors.Add(new ParseError {
+                        Message = "Duplicate enum declaration name"
+                    });
+                } else {
+                    _map.Add(enumeration.Key, node);
+                }
             }
         }
     }
