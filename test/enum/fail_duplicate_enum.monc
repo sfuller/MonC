@@ -1,0 +1,15 @@
+
+enum Foo {
+    FOO_A,
+    FOO_B
+}
+
+enum Foo2 {
+    FOO_A,
+    FOO_B
+}
+
+int main() {
+    return 0;
+}
+

@@ -58,7 +58,7 @@ def main():
     failed_files = []
 
     for path in test_files:
-        if not test(path, showall):
+        if not test([path], showall):
             failed_files.append(path)
 
     for basename, file_list in multi_files.items():
@@ -83,21 +83,14 @@ def main():
         sys.exit(1)
 
 
-def test(path, showall: bool) -> bool:
-    sys.stdout.write(f'Testing {path}...')
+def test(paths, showall: bool) -> bool:
+    sys.stdout.write(f'Testing {paths}...')
     sys.stdout.flush()
 
     result = None
 
-    if not isinstance(path, list):
-        with open(path) as f:
-            args = [FRONTEND_BINARY, path]
-            filename = os.path.basename(path)
-    else:
-        args = [FRONTEND_BINARY]
-        args.extend(path)
-        filename = os.path.basename(path[0])
-
+    args = [FRONTEND_BINARY]
+    args.extend(paths)
     args.extend(sys.argv[1:])
 
     try:
@@ -115,6 +108,7 @@ def test(path, showall: bool) -> bool:
     if result:
         status = result.returncode == 0
 
+        filename = os.path.basename(paths[0])
         if filename.startswith('fail_'):
             status = not status
 
@@ -130,9 +124,9 @@ def test(path, showall: bool) -> bool:
         print('-' * 80)
 
         if status:
-            print(f'[{TERM_TEXT_PASS}] {path}')
+            print(f'[{TERM_TEXT_PASS}] {paths}')
         else:
-            print(f'[{TERM_TEXT_FAIL}] {path}')
+            print(f'[{TERM_TEXT_FAIL}] {paths}')
 
         print('-' * 80)
 
