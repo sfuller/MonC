@@ -25,5 +25,10 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
             }
             _visitor.VisitStatement(node.Body);
         }
+
+        public void VisitStruct(StructNode node)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

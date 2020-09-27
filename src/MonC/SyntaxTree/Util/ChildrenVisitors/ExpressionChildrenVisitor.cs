@@ -4,7 +4,7 @@ using MonC.SyntaxTree.Nodes.Expressions.UnaryOperations;
 
 namespace MonC.SyntaxTree.Util.ChildrenVisitors
 {
-    public class ExpressionChildrenVisitor : IExpressionVisitor, IUnaryOperationVisitor
+    public class ExpressionChildrenVisitor : IExpressionVisitor, IUnaryOperationVisitor, IBasicExpressionVisitor
     {
         private readonly ISyntaxTreeVisitor _visitor;
 
@@ -36,6 +36,11 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
         public void VisitVariable(VariableNode node)
         {
             _visitor.VisitExpression(node);
+        }
+
+        public void VisitBasicExpression(IBasicExpression node)
+        {
+            node.AcceptBasicExpressionVisitor(this);
         }
 
         public void VisitUnaryOperation(IUnaryOperationNode node)

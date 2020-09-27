@@ -5,7 +5,7 @@ using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Semantics.Pointers
 {
-    public class TransferPointerAnalysisVisitor : IStatementVisitor, IExpressionVisitor
+    public class TransferPointerAnalysisVisitor : IStatementVisitor, IExpressionVisitor, IBasicExpressionVisitor
     {
         private readonly IList<(string message, ISyntaxTreeNode node)> _errors;
         private readonly bool _transferAllowed;
@@ -109,6 +109,11 @@ namespace MonC.Semantics.Pointers
 
         public void VisitBinaryOperation(IBinaryOperationNode node)
         {
+        }
+
+        public void VisitBasicExpression(IBasicExpression node)
+        {
+            node.AcceptBasicExpressionVisitor(this);
         }
 
         public void VisitUnaryOperation(IUnaryOperationNode node)

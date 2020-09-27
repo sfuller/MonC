@@ -4,7 +4,6 @@ using System.IO;
 using MonC;
 using MonC.Frontend;
 using MonC.Parsing;
-using MonC.SyntaxTree;
 
 namespace Driver
 {
@@ -13,9 +12,6 @@ namespace Driver
     {
         [CommandLine("-showast", "Show AST while processing")]
         private bool _showAST = false;
-
-        [CommandLine("-force-codegen", "Continue job even if parsing fails")]
-        private bool _forceCodegen = false;
 
         private Job _job;
         private IParseInput _parseInput;
@@ -52,24 +48,11 @@ namespace Driver
                 }
             }
 
-            if (!_forceCodegen)
+            if (!_job._forceCodegen)
                 Diagnostics.ThrowIfErrors();
 
-            // Export functions of all modules before any CodeGen tools run
-            for (int i = 0, ilen = _parseModule.Functions.Count; i < ilen; ++i) {
-                FunctionDefinitionNode function = _parseModule.Functions[i];
-                if (function.IsExported) {
-                    _job.HeaderModule.Functions.Add(function);
-                }
-            }
-
-            // Export enums of all modules before any CodeGen tools run
-            for (int i = 0, ilen = _parseModule.Enums.Count; i < ilen; ++i) {
-                EnumNode enumNode = _parseModule.Enums[i];
-                if (enumNode.IsExported) {
-                    _job.HeaderModule.Enums.Add(enumNode);
-                }
-            }
+            // Register module members with semantic analyzer
+            _job._semanticAnalyzer.RegisterModule(_parseModule);
         }
 
         public ParseModule GetParseModule()
@@ -78,18 +61,7 @@ namespace Driver
                 throw new InvalidOperationException("RunHeaderPass has not been called");
 
             if (!_ranSemanticAnalysis) {
-                List<ParseError> errors = new List<ParseError>();
-                _parseModule.RunSemanticAnalysis(_job.HeaderModule, errors);
-
-                for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
-                    ParseError error = errors[i];
-                    Diagnostics.Report(Diagnostics.Severity.Error,
-                        $"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
-                }
-
-                if (!_forceCodegen)
-                    Diagnostics.ThrowIfErrors();
-
+                _job._semanticAnalyzer.Process(_parseModule);
                 _ranSemanticAnalysis = true;
             }
 

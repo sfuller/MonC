@@ -6,20 +6,27 @@ using MonC.SyntaxTree.Nodes.Expressions.UnaryOperations;
 using MonC.SyntaxTree.Nodes.Specifiers;
 using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util.ChildrenVisitors;
+using MonC.SyntaxTree.Util.Delegators;
 using MonC.TypeSystem;
 using MonC.TypeSystem.Types;
 
 namespace MonC.Semantics.TypeChecks
 {
-    public class TypeCheckVisitor : ISyntaxTreeVisitor, IStatementVisitor, IExpressionVisitor, ISpecifierVisitor
+    public class TypeCheckVisitor : IStatementVisitor, IExpressionVisitor, ISpecifierVisitor, IBasicExpressionVisitor
     {
         private readonly TypeManager _typeManager;
         private readonly IErrorManager _errors;
+
+        private readonly SyntaxTreeDelegator _delegator = new SyntaxTreeDelegator();
 
         public TypeCheckVisitor(TypeManager typeManager, IErrorManager errors)
         {
             _typeManager = typeManager;
             _errors = errors;
+
+            _delegator.StatementVisitor = this;
+            _delegator.ExpressionVisitor = this;
+            _delegator.SpecifierVisitor = this;
         }
 
         public IType? Type { get; set; }
@@ -31,22 +38,8 @@ namespace MonC.Semantics.TypeChecks
 
         public void Process(FunctionDefinitionNode function)
         {
-            StatementChildrenVisitor statementVisitor = new StatementChildrenVisitor(this);
+            StatementChildrenVisitor statementVisitor = new StatementChildrenVisitor(_delegator);
             function.Body.VisitStatements(statementVisitor);
-        }
-
-        public void VisitTopLevelStatement(ITopLevelStatementNode node)
-        {
-        }
-
-        public void VisitStatement(IStatementNode node)
-        {
-            node.AcceptStatementVisitor(this);
-        }
-
-        public void VisitExpression(IExpressionNode node)
-        {
-            node.AcceptExpressionVisitor(this);
         }
 
         public void VisitSpecifier(ISpecifierNode node)
@@ -134,6 +127,11 @@ namespace MonC.Semantics.TypeChecks
             Type = lhsTypeCheck.Type;
         }
 
+        public void VisitBasicExpression(IBasicExpression node)
+        {
+            node.AcceptBasicExpressionVisitor(this);
+        }
+
         public void VisitUnaryOperation(IUnaryOperationNode node)
         {
             if (node is CastUnaryOpNode castNode) {
@@ -147,12 +145,12 @@ namespace MonC.Semantics.TypeChecks
 
         public void VisitFunctionCall(FunctionCallNode node)
         {
-            node.LHS.ReturnType.AcceptSyntaxTreeVisitor(this);
+            node.LHS.ReturnType.AcceptSyntaxTreeVisitor(_delegator);
         }
 
         public void VisitVariable(VariableNode node)
         {
-            node.Declaration.Type.AcceptSyntaxTreeVisitor(this);
+            node.Declaration.Type.AcceptSyntaxTreeVisitor(_delegator);
         }
 
         public void VisitEnumValue(EnumValueNode node)

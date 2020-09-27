@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using MonC.Semantics;
 using MonC.SyntaxTree;
 
 namespace MonC.Parsing
@@ -8,12 +7,7 @@ namespace MonC.Parsing
     {
         public readonly List<FunctionDefinitionNode> Functions = new List<FunctionDefinitionNode>();
         public readonly List<EnumNode> Enums = new List<EnumNode>();
-        public readonly Dictionary<ISyntaxTreeNode, Symbol> TokenMap = new Dictionary<ISyntaxTreeNode, Symbol>();
-
-        public void RunSemanticAnalysis(ParseModule headerModule, IList<ParseError> errors)
-        {
-            SemanticAnalyzer analyzer = new SemanticAnalyzer(errors, TokenMap);
-            analyzer.Analyze(headerModule, this);
-        }
+        public readonly List<StructNode> Structs = new List<StructNode>();
+        public readonly Dictionary<ISyntaxTreeNode, Symbol> SymbolMap = new Dictionary<ISyntaxTreeNode, Symbol>();
     }
 }

@@ -36,6 +36,11 @@ namespace MonC
 
         public const string HEX_NUMERIC_PREFIX = "0x";
 
+        public const string STRUCT_FUNCTION_ASSOCIATION_STARTER = ":";
+        public const string STRUCT_FUNCTION_ASSOCIATION_SEPARATOR = "=";
+
+        public const string FUNCTION_ATTRIBUTE_DROP = "drop";
+
         // TODO: Needs better name -- 2-character tokens are defined here for use by GetTokensByLength.
         // TODO: It's easy for this to get out of date.. Use reflection, or later on use codegen to generate this.
         private static readonly string[] SYNTAX_VALUES = {

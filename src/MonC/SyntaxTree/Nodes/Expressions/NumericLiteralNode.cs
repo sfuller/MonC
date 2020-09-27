@@ -1,6 +1,6 @@
 namespace MonC.SyntaxTree.Nodes.Expressions
 {
-    public class NumericLiteralNode : ExpressionNode
+    public class NumericLiteralNode : BasicExpression
     {
         public int Value;
 
@@ -9,7 +9,7 @@ namespace MonC.SyntaxTree.Nodes.Expressions
             Value = value;
         }
 
-        public override void AcceptExpressionVisitor(IExpressionVisitor visitor)
+        public override void AcceptBasicExpressionVisitor(IBasicExpressionVisitor visitor)
         {
             visitor.VisitNumericLiteral(this);
         }

@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace MonC.SyntaxTree.Nodes.Expressions
 {
-    public class FunctionCallNode : ExpressionNode
+    public class FunctionCallNode : BasicExpression
     {
         public FunctionDefinitionNode LHS;
         private readonly IExpressionNode[] _arguments;
@@ -16,7 +16,7 @@ namespace MonC.SyntaxTree.Nodes.Expressions
             _arguments = arguments.ToArray();
         }
 
-        public override void AcceptExpressionVisitor(IExpressionVisitor visitor)
+        public override void AcceptBasicExpressionVisitor(IBasicExpressionVisitor visitor)
         {
             visitor.VisitFunctionCall(this);
         }

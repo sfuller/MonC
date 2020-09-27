@@ -9,7 +9,6 @@ TEST_DIR = os.path.normpath(os.path.join(REPOSITORY_DIR, 'test'))
 FRONTEND_BINARY = os.path.normpath(os.path.join(REPOSITORY_DIR, 'src', 'Frontend', 'bin', 'Debug', 'netcoreapp3.1', 'Frontend'))
 DRIVER_BINARY = os.path.normpath(os.path.join(REPOSITORY_DIR, 'src', 'Driver', 'bin', 'Debug', 'netcoreapp3.1', 'Driver'))
 
-
 TERM_COLOR_RED =   '\033[0;31m'
 TERM_COLOR_GREEN = '\033[0;32m'
 TERM_COLOR_CLEAR = '\033[0m'
@@ -18,6 +17,17 @@ TERM_ERASE_LINE =  '\033[2K'
 
 TERM_TEXT_FAIL = f'{TERM_COLOR_RED}FAIL{TERM_COLOR_CLEAR}'
 TERM_TEXT_PASS = f'{TERM_COLOR_GREEN}PASS{TERM_COLOR_CLEAR}'
+
+if sys.platform == "win32":
+    # Get ANSI codes working on newish windows consoles
+    import ctypes
+    kernel32 = ctypes.windll.kernel32
+    kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    def is_crash(code):
+        return code & 0x80000000
+else:
+    def is_crash(code):
+        return code < 0 or code == 255
 
 
 def main():
@@ -54,7 +64,7 @@ def main():
         failed_files = []
 
         for path in test_files:
-            if not test(path, tool, extra_args, showall):
+            if not test([path], tool, extra_args, showall):
                 failed_files.append(path)
 
         for basename, file_list in multi_files.items():
@@ -80,21 +90,14 @@ def main():
         sys.exit(1)
 
 
-def test(path, tool, extra_args, showall: bool) -> bool:
-    sys.stdout.write(f'Testing {path}...')
+def test(paths, tool, extra_args, showall: bool) -> bool:
+    sys.stdout.write(f'Testing {paths}...')
     sys.stdout.flush()
 
     result = None
 
-    if not isinstance(path, list):
-        with open(path) as f:
-            args = [tool, path]
-            filename = os.path.basename(path)
-    else:
-        args = [tool]
-        args.extend(path)
-        filename = os.path.basename(path[0])
-
+    args = [FRONTEND_BINARY]
+    args.extend(paths)
     args.extend(extra_args)
     args.extend(sys.argv[1:])
 
@@ -113,11 +116,12 @@ def test(path, tool, extra_args, showall: bool) -> bool:
     if result:
         status = result.returncode == 0
 
+        filename = os.path.basename(paths[0])
         if filename.startswith('fail_'):
             status = not status
 
         # Crashes always fail
-        if result.returncode < 0 or result.returncode == 255:
+        if is_crash(result.returncode):
             status = False
 
     sys.stdout.write('\r')
@@ -128,9 +132,9 @@ def test(path, tool, extra_args, showall: bool) -> bool:
         print('-' * 80)
 
         if status:
-            print(f'[{TERM_TEXT_PASS}] {path}')
+            print(f'[{TERM_TEXT_PASS}] {paths}')
         else:
-            print(f'[{TERM_TEXT_FAIL}] {path}')
+            print(f'[{TERM_TEXT_FAIL}] {paths}')
 
         print('-' * 80)
 

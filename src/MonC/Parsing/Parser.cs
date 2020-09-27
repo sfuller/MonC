@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using MonC.Parsing;
 using MonC.Parsing.ParseTree.Nodes;
-using MonC.Semantics;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
@@ -21,7 +20,7 @@ namespace MonC
         private readonly List<Token> _tokens = new List<Token>();
         private string? _filePath;
 
-        private IDictionary<ISyntaxTreeNode, Symbol> _tokenMap = new Dictionary<ISyntaxTreeNode, Symbol>();
+        private IDictionary<ISyntaxTreeNode, Symbol> _symbolMap = new Dictionary<ISyntaxTreeNode, Symbol>();
 
         public ParseModule Parse(string? filePath, IEnumerable<Token> tokens, IList<ParseError> errors)
         {
@@ -32,10 +31,12 @@ namespace MonC
             TokenSource tokenSource = new TokenSource(_tokens, 0, errors);
 
             ParseModule outputModule = new ParseModule();
-            _tokenMap = outputModule.TokenMap;
+            _symbolMap = outputModule.SymbolMap;
+
+            ParseModuleHopper hopper = new ParseModuleHopper(outputModule);
 
             while (tokenSource.Peek().Type != TokenType.None) {
-                ParseTopLevelStatement(ref tokenSource, outputModule.Functions, outputModule.Enums);
+                ParseTopLevelStatement(ref tokenSource)?.AcceptTopLevelVisitor(hopper);
             }
 
             return outputModule;
@@ -67,11 +68,6 @@ namespace MonC
             {
                 token = Peek(offset);
                 if (token.Type != type) {
-                    AddError(new ParseError {
-                        Message = $"Expecting token of type {type}, got {token.Type}",
-                        Start = token.Location,
-                        End = token.DeriveEndLocation()
-                    });
                     return false;
                 }
                 return true;
@@ -81,11 +77,6 @@ namespace MonC
             {
                 token = Peek(offset);
                 if (token.Type != type || token.Value != value) {
-                    AddError(new ParseError {
-                        Message = $"Expecting token of type {type} with value {value}, got {token.Type} with value {token.Value}",
-                        Start = token.Location,
-                        End = token.DeriveEndLocation()
-                    });
                     return false;
                 }
                 return true;
@@ -106,6 +97,13 @@ namespace MonC
             public bool Next(TokenType type, out Token token)
             {
                 bool result = Peek(0, type, out token);
+                if (!result) {
+                    AddError(new ParseError {
+                        Message = $"Expecting token of type {type}, got {token.Type}",
+                        Start = token.Location,
+                        End = token.DeriveEndLocation()
+                    });
+                }
                 Consume();
                 return result;
             }
@@ -113,8 +111,34 @@ namespace MonC
             public bool Next(TokenType type, string value, out Token token)
             {
                 bool result = Peek(0, type, value, out token);
+                if (!result) {
+                    AddError(new ParseError {
+                        Message =
+                            $"Expecting token of type {type} with value {value}, got {token.Type} with value {token.Value}",
+                        Start = token.Location,
+                        End = token.DeriveEndLocation()
+                    });
+                }
                 Consume();
                 return result;
+            }
+
+            public bool TryNext(TokenType type, out Token token)
+            {
+                bool matches = Peek(0, type, out token);
+                if (matches) {
+                    Consume();
+                }
+                return matches;
+            }
+
+            public bool TryNext(TokenType type, string value, out Token token)
+            {
+                bool matches = Peek(0, type, value, out token);
+                if (matches) {
+                    Consume();
+                }
+                return matches;
             }
 
             public void AddError(ParseError error)
@@ -156,7 +180,7 @@ namespace MonC
             }
         }
 
-        private void ParseTopLevelStatement(ref TokenSource tokens, IList<FunctionDefinitionNode> functions, IList<EnumNode> enums)
+        private ITopLevelStatementNode? ParseTopLevelStatement(ref TokenSource tokens)
         {
             bool isExported = true;
 
@@ -168,17 +192,17 @@ namespace MonC
             }
 
             if (token.Type == TokenType.Keyword && token.Value == Keyword.ENUM) {
-                EnumNode? enumNode = ParseEnum(ref tokens, isExported);
-                if (enumNode != null) {
-                    enums.Add(enumNode);
-                }
-                return;
+                return ParseEnum(ref tokens, isExported);
             }
 
-            FunctionDefinitionNode? def = ParseFunction(ref tokens, isExported);
-            if (def != null) {
-                functions.Add(def);
+            TokenSource structTokens = tokens.Fork();
+            StructNode? structNode = ParseStruct(ref structTokens, isExported);
+            if (structNode != null) {
+                tokens.Consume(structTokens);
+                return structNode;
             }
+
+            return ParseFunction(ref tokens, isExported);
         }
 
         private EnumNode? ParseEnum(ref TokenSource tokens, bool isExported)
@@ -194,56 +218,77 @@ namespace MonC
                 return null;
             }
 
-            List<KeyValuePair<string, int>> enumerations = new List<KeyValuePair<string, int>>();
+            List<EnumDeclarationNode> declarations = ParseCommaSeparatedNodes(ref tokens, ParseEnumDeclaration);
+            tokens.TryNext(TokenType.Syntax, Syntax.CLOSING_BRACKET, out _);
+            return NewNode(new EnumNode(nameToken.Value, declarations, isExported), startToken, tokens.Peek(-1));
+        }
 
-            bool endIsAllowed = true;
-            bool nextEnumerationIsAllowed = true;
+        private EnumDeclarationNode? ParseEnumDeclaration(ref TokenSource tokens)
+        {
+            if (!tokens.TryNext(TokenType.Identifier, out Token nameToken)) {
+                return null;
+            }
+            return new EnumDeclarationNode(nameToken.Value);
+        }
 
-            while (true) {
-                Token next = tokens.Peek();
-
-                if (next.Type == TokenType.None) {
-                    tokens.AddError("Unexpected EOF", next);
-                    break;
-                }
-
-                if (next.Type == TokenType.Syntax && next.Value == Syntax.CLOSING_BRACKET) {
-                    if (!endIsAllowed) {
-                        tokens.AddError("Expecting next enumeration", next);
-                    }
-                    tokens.Next();
-                    break;
-                }
-
-                if (!nextEnumerationIsAllowed) {
-                    tokens.AddError($"Expecting {Syntax.CLOSING_BRACKET}", next);
-                    break;
-                }
-
-                Token name;
-                if (!tokens.Next(TokenType.Identifier, out name)) {
-                    break;
-                }
-
-                enumerations.Add(new KeyValuePair<string, int>(name.Value, enumerations.Count));
-
-                next = tokens.Peek();
-                if (next.Type == TokenType.Syntax && next.Value == Syntax.COMMA) {
-                    endIsAllowed = false;
-                    tokens.Next();
-                } else {
-                    endIsAllowed = true;
-                    nextEnumerationIsAllowed = false;
-                }
+        private StructNode? ParseStruct(ref TokenSource tokens, bool isExported)
+        {
+            if (!tokens.Next(TokenType.Keyword, Keyword.STRUCT, out Token startToken)) {
+                return null;
             }
 
-            return NewNode(new EnumNode(nameToken.Value, enumerations, isExported), startToken, tokens.Peek(-1));
+            string name = "";
+            if (tokens.TryNext(TokenType.Identifier, out Token nameToken)) {
+                name = nameToken.Value;
+            }
+
+            List<IStructFunctionAssociationNode> functionAssociations;
+
+            if (tokens.TryNext(TokenType.Syntax, Syntax.STRUCT_FUNCTION_ASSOCIATION_STARTER, out _)) {
+                functionAssociations = ParseCommaSeparatedNodes(ref tokens, parseStructFunctionAssociation);
+            } else {
+                functionAssociations = new List<IStructFunctionAssociationNode>();
+            }
+
+            tokens.TryNext(TokenType.Syntax, Syntax.OPENING_BRACKET, out _);
+
+            List<DeclarationNode> declarations = new List<DeclarationNode>();
+
+            while (true) {
+                TokenSource declarationTokens = tokens.Fork();
+                DeclarationNode? declarationNode = ParseDeclaration(ref declarationTokens);
+                if (declarationNode == null) {
+                    break;
+                }
+                tokens.Consume(declarationTokens);
+                declarations.Add(declarationNode);
+                ParseSemiColonForgiving(ref tokens);
+            }
+
+            tokens.TryNext(TokenType.Syntax, Syntax.CLOSING_BRACKET, out _);
+
+            return NewNode(
+                    new StructNode(name, functionAssociations, declarations, isExported),
+                    startToken,
+                    tokens.Peek(-1));
+        }
+
+        private IStructFunctionAssociationNode? parseStructFunctionAssociation(ref TokenSource tokens)
+        {
+            if (!tokens.Next(TokenType.Identifier, out Token associationNameToken)) {
+                return null;
+            }
+
+            if (!tokens.Next(TokenType.Syntax, Syntax.STRUCT_FUNCTION_ASSOCIATION_SEPARATOR, out _)) {
+                return null;
+            }
+
+            tokens.TryNext(TokenType.Identifier, out Token functionNameToken);
+            return new StructFunctionAssociationParseNode(associationNameToken.Value, functionNameToken.Value);
         }
 
         private FunctionDefinitionNode? ParseFunction(ref TokenSource tokens, bool isExported)
         {
-            var parameters = new List<DeclarationNode>();
-
             Token retunTypeStart = tokens.Peek();
             TypeSpecifierParseNode? returnType = ParseTypeSpecifier(ref tokens);
             if (returnType == null) {
@@ -258,46 +303,10 @@ namespace MonC
                 return null;
             }
 
-            bool expectingEnd = true;
-            bool expectingComma = false;
-            bool expectingNext = true;
+            List<DeclarationNode> parameters = ParseCommaSeparatedNodes(ref tokens, ParseDeclaration);
+            tokens.Next(TokenType.Syntax, Syntax.CLOSING_PAREN, out _);
 
-            while (true) {
-                if (expectingNext) {
-                    TokenSource declTokens = tokens.Fork();
-                    DeclarationNode? decl = ParseDeclaration(ref declTokens);
-                    if (decl != null) {
-                        tokens.Consume(declTokens);
-                        parameters.Add(decl);
-                        expectingNext = false;
-                        expectingComma = true;
-                        expectingEnd = true;
-                        continue;
-                    }
-                }
-
-                if (expectingComma) {
-                    Token comma = tokens.Peek();
-                    if (comma.Type == TokenType.Syntax && comma.Value == Syntax.COMMA) {
-                        tokens.Consume();
-                        expectingNext = true;
-                        expectingComma = false;
-                        expectingEnd = false;
-                        continue;
-                    }
-                }
-
-                if (expectingEnd) {
-                    Token rightParen = tokens.Peek();
-                    if (rightParen.Type == TokenType.Syntax && rightParen.Value == Syntax.CLOSING_PAREN) {
-                        tokens.Consume();
-                        break;
-                    }
-                }
-
-                tokens.AddError("Unexpected token", tokens.Peek());
-                return null;
-            }
+            bool isDrop = tokens.TryNext(TokenType.Identifier, Syntax.FUNCTION_ATTRIBUTE_DROP, out _);
 
             BodyNode? body = ParseBody(ref tokens);
             if (body == null) {
@@ -305,7 +314,7 @@ namespace MonC
             }
 
             return NewNode(
-                new FunctionDefinitionNode(name.Value, returnType, parameters, body, isExported),
+                new FunctionDefinitionNode(name.Value, returnType, parameters, body, isExported, isDrop),
                 retunTypeStart, tokens.Peek(-1));
         }
 
@@ -909,6 +918,29 @@ namespace MonC
             tokens.Consume();
         }
 
+        private delegate T? ParseNodeAction<out T>(ref TokenSource tokens) where T : class;
+
+        private List<T> ParseCommaSeparatedNodes<T>(ref TokenSource tokens, ParseNodeAction<T> nodeAction)
+                where T : class
+        {
+            List<T> nodes = new List<T>();
+
+            while (true) {
+                TokenSource nodeTokens = tokens.Fork();
+                T? node = nodeAction(ref nodeTokens);
+                if (node == null) {
+                    break;
+                }
+                nodes.Add(node);
+                tokens.Consume(nodeTokens);
+                if (!tokens.TryNext(TokenType.Syntax, Syntax.COMMA, out _)) {
+                    break;
+                }
+            }
+
+            return nodes;
+        }
+
         /// <summary>
         /// Create a new node instance, generate a symbol based on start and end tokens, and associate the symbol with
         /// the new node instance.
@@ -953,7 +985,7 @@ namespace MonC
                 End = end
             };
 
-            _tokenMap[node] = symbol;
+            _symbolMap[node] = symbol;
             return node;
         }
 
@@ -972,7 +1004,7 @@ namespace MonC
         /// </exception>
         private T NewNode<T>(T node, ISyntaxTreeNode startNode, Token endToken) where T : ISyntaxTreeNode
         {
-            if (!_tokenMap.TryGetValue(startNode, out Symbol symbol)) {
+            if (!_symbolMap.TryGetValue(startNode, out Symbol symbol)) {
                 throw new InvalidOperationException($"No symbol associated with {nameof(startNode)}");
             }
             return NewNode(node, symbol.Start, endToken.DeriveEndLocation());
@@ -996,10 +1028,10 @@ namespace MonC
         /// </exception>
         private T NewNode<T>(T node, ISyntaxTreeNode startNode, ISyntaxTreeNode endNode) where T : ISyntaxTreeNode
         {
-            if (!_tokenMap.TryGetValue(startNode, out Symbol startSymbol)) {
+            if (!_symbolMap.TryGetValue(startNode, out Symbol startSymbol)) {
                 throw new InvalidOperationException($"No symbol associated with {nameof(startNode)}");
             }
-            if (!_tokenMap.TryGetValue(endNode, out Symbol endSymbol)) {
+            if (!_symbolMap.TryGetValue(endNode, out Symbol endSymbol)) {
                 throw new InvalidOperationException($"No symbol associated with {nameof(endNode)}");
             }
             return NewNode(node, startSymbol.Start, endSymbol.End);
@@ -1007,7 +1039,7 @@ namespace MonC
 
         private Symbol GetSymbolForNode(ISyntaxTreeNode node)
         {
-            if (!_tokenMap.TryGetValue(node, out Symbol symbol)) {
+            if (!_symbolMap.TryGetValue(node, out Symbol symbol)) {
                 throw new InvalidOperationException($"No symbol associated with {nameof(node)}");
             }
             return symbol;

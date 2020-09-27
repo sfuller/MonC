@@ -124,7 +124,8 @@ namespace MonC.Semantics
                     new TypeSpecifierParseNode("int", PointerMode.NotAPointer),
                     Array.Empty<DeclarationNode>(),
                     new BodyNode(),
-                    isExported: false
+                    isExported: false,
+                    isDrop: false
                 ),
                 arguments: Enumerable.Range(0, call.ArgumentCount).Select(call.GetArgument));
 
@@ -144,6 +145,10 @@ namespace MonC.Semantics
         }
 
         public void VisitTypeSpecifier(TypeSpecifierParseNode node)
+        {
+        }
+
+        public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
         {
         }
     }

@@ -2,7 +2,7 @@ using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.SyntaxTree.Nodes.Expressions
 {
-    public class AssignmentNode : ExpressionNode
+    public class AssignmentNode : BasicExpression
     {
         public DeclarationNode Declaration;
         public IExpressionNode RHS;
@@ -13,7 +13,7 @@ namespace MonC.SyntaxTree.Nodes.Expressions
             RHS = rhs;
         }
 
-        public override void AcceptExpressionVisitor(IExpressionVisitor visitor)
+        public override void AcceptBasicExpressionVisitor(IBasicExpressionVisitor visitor)
         {
             visitor.VisitAssignment(this);
         }

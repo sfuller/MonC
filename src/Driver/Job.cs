@@ -4,7 +4,7 @@ using System.IO;
 using System.Reflection;
 using MonC;
 using MonC.DotNetInterop;
-using MonC.Parsing;
+using MonC.Semantics;
 
 namespace Driver
 {
@@ -35,6 +35,9 @@ namespace Driver
         [CommandLine("-S", "Output module as instruction listing")]
         private bool _asm = false;
 
+        [CommandLine("-force-codegen", "Continue job even if parsing fails")]
+        internal bool _forceCodegen = false;
+
         [CommandLine("-skip-run", "Do not run virtual machine and output files instead")]
         private bool _skipRun = false;
 
@@ -53,7 +56,7 @@ namespace Driver
 
         internal InteropResolver InteropResolver;
 
-        internal ParseModule HeaderModule;
+        internal SemanticAnalyzer _semanticAnalyzer;
 
         [CommandLine("-a", "Add argument to pass to VM invocation", "int")]
         internal List<int> _argsToPass = new List<int>();
@@ -288,7 +291,7 @@ namespace Driver
                     BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static);
             }
 
-            HeaderModule = InteropResolver.CreateHeaderModule();
+            _semanticAnalyzer.RegisterModule(InteropResolver.CreateHeaderModule());
         }
 
         public int Execute()
@@ -312,7 +315,11 @@ namespace Driver
             // This only applies to LLVM which has an unmanaged context
             _toolChain.Initialize();
 
-            // Initialize HeaderModule with interop libraries
+            // Prepare for semantic analysis
+            List<ParseError> semaErrors = new List<ParseError>();
+            _semanticAnalyzer = new SemanticAnalyzer(semaErrors);
+
+            // Register interop libraries
             ResolveInteropLibs();
 
             // Run per-module header pass; resulting in a fully populated HeaderModule
@@ -323,6 +330,11 @@ namespace Driver
             // Produce per-module artifacts
             foreach (IModuleTool tool in _moduleFileTools) {
                 _moduleArtifacts.Add(tool.GetModuleArtifact());
+            }
+
+            // Stop on semantic analysis errors
+            if (semaErrors.Count > 0 && !_forceCodegen) {
+                return 1;
             }
 
             // Output assembly or relocatable if requested

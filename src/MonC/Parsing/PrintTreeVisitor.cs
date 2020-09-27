@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using MonC.Parsing.ParseTree;
 using MonC.Parsing.ParseTree.Nodes;
@@ -9,18 +10,26 @@ using MonC.SyntaxTree.Nodes.Statements;
 namespace MonC.Frontend
 {
     public class PrintTreeVisitor :
-            ITopLevelStatementVisitor, IStatementVisitor, IExpressionVisitor, IParseTreeVisitor
+            ITopLevelStatementVisitor, IStatementVisitor, IExpressionVisitor, IParseTreeVisitor, IBasicExpressionVisitor
     {
-        private int _currentIndent;
         private TextWriter _writer;
+        private int _currentIndent;
 
-        public PrintTreeVisitor(TextWriter writer) => _writer = writer;
+        public PrintTreeVisitor(TextWriter writer)
+        {
+            _writer = writer;
+        }
 
         public void VisitBinaryOperation(IBinaryOperationNode node)
         {
             Print($"{node.GetType().Name}");
             VisitSubnode(node.LHS);
             VisitSubnode(node.RHS);
+        }
+
+        public void VisitBasicExpression(IBasicExpression node)
+        {
+            node.AcceptBasicExpressionVisitor(this);
         }
 
         public void VisitUnaryOperation(IUnaryOperationNode node)
@@ -56,6 +65,11 @@ namespace MonC.Frontend
         {
             Print($"Function Definition ({node.ReturnType} {node.Name})");
             VisitBody(node.Body);
+        }
+
+        public void VisitStruct(StructNode node)
+        {
+            Print($"Struct ({node.Name})");
         }
 
         public void VisitFunctionCall(FunctionCallNode node)
@@ -170,6 +184,11 @@ namespace MonC.Frontend
         public void VisitTypeSpecifier(TypeSpecifierParseNode node)
         {
             Print("Type Specifier (Parse Tree Node)");
+        }
+
+        public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
+        {
+            throw new NotImplementedException();
         }
 
         private void VisitSubnode(IStatementNode node)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
@@ -6,7 +7,7 @@ using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.LLVM
 {
-    public class FunctionCodeGenVisitor : IStatementVisitor, IExpressionVisitor
+    public class FunctionCodeGenVisitor : IStatementVisitor, IExpressionVisitor, IBasicExpressionVisitor
     {
         internal readonly CodeGeneratorContext _genContext;
         internal readonly CodeGeneratorContext.Function _function;
@@ -15,20 +16,23 @@ namespace MonC.LLVM
         internal Metadata _lexicalScope;
         internal Value _visitedValue;
 
+        private readonly Dictionary<string, int> _enumerations;
+
         internal FunctionCodeGenVisitor(CodeGeneratorContext genContext, CodeGeneratorContext.Function function,
-            Builder builder, BasicBlock basicBlock)
+            Builder builder, BasicBlock basicBlock, Dictionary<string, int> enumerations)
         {
             _genContext = genContext;
             _function = function;
             _builder = builder;
             _basicBlock = basicBlock;
             _lexicalScope = _function.DiFunctionDef;
+            _enumerations = enumerations;
         }
 
         internal Metadata SetCurrentDebugLocation(ISyntaxTreeNode node)
         {
             if (_genContext.DebugInfo) {
-                _genContext.TryGetTokenSymbol(node, out Symbol range);
+                _genContext.TryGetNodeSymbol(node, out Symbol range);
                 Metadata location = _genContext.Context.CreateDebugLocation(range.LLVMLine,
                     _genContext.ColumnInfo ? range.LLVMColumn : 0, _lexicalScope, Metadata.Null);
                 _builder.SetCurrentDebugLocation(location);
@@ -88,6 +92,11 @@ namespace MonC.LLVM
             return _builder.BuildCast(castOp, val, tp);
         }
 
+        public void VisitBasicExpression(IBasicExpression node)
+        {
+            node.AcceptBasicExpressionVisitor(this);
+        }
+
         public void VisitBinaryOperation(IBinaryOperationNode node)
         {
             // Don't insert unreachable code
@@ -112,7 +121,7 @@ namespace MonC.LLVM
 
             // Push new lexical block
             if (_genContext.DebugInfo) {
-                _genContext.TryGetTokenSymbol(node, out Symbol range);
+                _genContext.TryGetNodeSymbol(node, out Symbol range);
                 _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
                     range.LLVMLine, _genContext.ColumnInfo ? range.LLVMColumn : 0);
             }
@@ -137,7 +146,7 @@ namespace MonC.LLVM
             _function.VariableValues.TryGetValue(node, out Value varStorage);
 
             if (_genContext.DebugInfo) {
-                _genContext.TryGetTokenSymbol(node, out Symbol varRange);
+                _genContext.TryGetNodeSymbol(node, out Symbol varRange);
                 Metadata varType = _genContext.LookupDiType(node.Type);
                 Metadata varMetadata = _genContext.DiBuilder.CreateAutoVariable(_lexicalScope, node.Name,
                     _genContext.DiFile, varRange.LLVMLine, varType, true, CAPI.LLVMDIFlags.Zero,
@@ -171,7 +180,7 @@ namespace MonC.LLVM
 
             Metadata oldLexicalScope = _lexicalScope;
             if (_genContext.DebugInfo) {
-                _genContext.TryGetTokenSymbol(node.Declaration, out Symbol declRange);
+                _genContext.TryGetNodeSymbol(node.Declaration, out Symbol declRange);
                 _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
                     declRange.LLVMLine, _genContext.ColumnInfo ? declRange.LLVMColumn : 0);
             }
@@ -256,7 +265,7 @@ namespace MonC.LLVM
 
             Metadata oldLexicalScope = _lexicalScope;
             if (_genContext.DebugInfo) {
-                _genContext.TryGetTokenSymbol(node.Condition, out Symbol condRange);
+                _genContext.TryGetNodeSymbol(node.Condition, out Symbol condRange);
                 _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
                     condRange.LLVMLine, _genContext.ColumnInfo ? condRange.LLVMColumn : 0);
             }
@@ -322,7 +331,7 @@ namespace MonC.LLVM
 
             Metadata oldLexicalScope = _lexicalScope;
             if (_genContext.DebugInfo) {
-                _genContext.TryGetTokenSymbol(node.Condition, out Symbol condRange);
+                _genContext.TryGetNodeSymbol(node.Condition, out Symbol condRange);
                 _lexicalScope = _genContext.DiBuilder.CreateLexicalBlock(_lexicalScope, _genContext.DiFile,
                     condRange.LLVMLine, _genContext.ColumnInfo ? condRange.LLVMColumn : 0);
             }
@@ -440,7 +449,7 @@ namespace MonC.LLVM
 
         public void VisitEnumValue(EnumValueNode node)
         {
-            int value = node.Enum.Enumerations.First(kvp => kvp.Key == node.Name).Value;
+            int value = _enumerations[node.Name];
             _visitedValue = Value.ConstInt(_genContext.Context.Int32Type, (ulong) value, true);
         }
 

@@ -1,0 +1,5 @@
+
+enum Foo {
+    FOO_A,
+    FOO_B
+}

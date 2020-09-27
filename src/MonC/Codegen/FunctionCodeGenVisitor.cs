@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using MonC.IL;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
@@ -9,13 +8,14 @@ using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Codegen
 {
-    public class FunctionCodeGenVisitor : IStatementVisitor, IExpressionVisitor
+    public class FunctionCodeGenVisitor : IStatementVisitor, IExpressionVisitor, IBasicExpressionVisitor
     {
         private readonly FunctionBuilder _functionBuilder;
 
         private readonly FunctionStackLayout _layout;
         private readonly FunctionManager _functionManager;
         private readonly List<string> _strings;
+        private readonly Dictionary<string, int> _enumerations;
 
         private readonly Stack<int> _breaks = new Stack<int>();
         private readonly Stack<int> _continues = new Stack<int>();
@@ -24,13 +24,15 @@ namespace MonC.Codegen
             FunctionBuilder functionBuilder,
             FunctionStackLayout layout,
             FunctionManager functionManager,
-            List<string> strings
+            List<string> strings,
+            Dictionary<string, int> enumerations
         )
         {
             _layout = layout;
             _functionManager = functionManager;
             _strings = strings;
             _functionBuilder = functionBuilder;
+            _enumerations = enumerations;
         }
 
         public int AllocTemporaryStackAddress(int length = 1)
@@ -80,6 +82,11 @@ namespace MonC.Codegen
             AddDebugSymbol(comparisonOperationAddress, node);
         }
 
+        public void VisitBasicExpression(IBasicExpression node)
+        {
+            node.AcceptBasicExpressionVisitor(this);
+        }
+
         public void VisitUnaryOperation(IUnaryOperationNode node)
         {
             UnaryOperationCodeGenVisitor unaryVisitor = new UnaryOperationCodeGenVisitor(_functionBuilder, this);
@@ -97,7 +104,7 @@ namespace MonC.Codegen
 
         public void VisitEnumValue(EnumValueNode node)
         {
-            int value = node.Enum.Enumerations.First(kvp => kvp.Key == node.Name).Value;
+            int value = _enumerations[node.Name];
             AddInstruction(OpCode.LOAD, value);
         }
 
