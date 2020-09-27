@@ -41,5 +41,10 @@ namespace MonC.SyntaxTree.Util.GenericDelegators
         {
             _visitor.Visit(node);
         }
+
+        public void VisitUnknown(ISyntaxTreeNode node)
+        {
+            _visitor.Visit(node);
+        }
     }
 }

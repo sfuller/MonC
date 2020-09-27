@@ -1,34 +1,39 @@
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
-using MonC.SyntaxTree.Util.NoOpVisitors;
 
 namespace MonC.SyntaxTree.Util.Delegators
 {
-    public class ExpressionDelegator : NoOpExpressionVisitor
+    public class ExpressionDelegator : IExpressionVisitor
     {
-        public IExpressionVisitor? TopLevelVisitor;
+        public IBasicExpressionVisitor? BasicVisitor;
         public IBinaryOperationVisitor? BinaryOperationVisitor;
         public IUnaryOperationVisitor? UnaryOperationVisitor;
+        public IVisitor<IExpressionNode>? UnknownVisitor;
 
-        protected override void VisitDefaultExpression(IExpressionNode node)
+        public void VisitBasicExpression(IBasicExpression node)
         {
-            if (TopLevelVisitor != null) {
-                node.AcceptExpressionVisitor(TopLevelVisitor);
+            if (BasicVisitor != null) {
+                node.AcceptBasicExpressionVisitor(BasicVisitor);
             }
         }
 
-        public override void VisitBinaryOperation(IBinaryOperationNode node)
+        public void VisitBinaryOperation(IBinaryOperationNode node)
         {
             if (BinaryOperationVisitor != null) {
                 node.AcceptBinaryOperationVisitor(BinaryOperationVisitor);
             }
         }
 
-        public override void VisitUnaryOperation(IUnaryOperationNode node)
+        public void VisitUnaryOperation(IUnaryOperationNode node)
         {
             if (UnaryOperationVisitor != null) {
                 node.AcceptUnaryOperationVisitor(UnaryOperationVisitor);
             }
+        }
+
+        public void VisitUnknown(IExpressionNode node)
+        {
+            UnknownVisitor?.Visit(node);
         }
     }
 }

@@ -161,5 +161,9 @@ namespace MonC.Semantics
         public void VisitTypeSpecifier(TypeSpecifierParseNode node)
         {
         }
+
+        public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
+        {
+        }
     }
 }

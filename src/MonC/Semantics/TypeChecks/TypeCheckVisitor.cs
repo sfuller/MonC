@@ -12,7 +12,7 @@ using MonC.TypeSystem.Types;
 
 namespace MonC.Semantics.TypeChecks
 {
-    public class TypeCheckVisitor : IStatementVisitor, IExpressionVisitor, ISpecifierVisitor
+    public class TypeCheckVisitor : IStatementVisitor, IExpressionVisitor, ISpecifierVisitor, IBasicExpressionVisitor
     {
         private readonly TypeManager _typeManager;
         private readonly IErrorManager _errors;
@@ -125,6 +125,11 @@ namespace MonC.Semantics.TypeChecks
 
             // TODO: Ensure operator is valid based on type.
             Type = lhsTypeCheck.Type;
+        }
+
+        public void VisitBasicExpression(IBasicExpression node)
+        {
+            node.AcceptBasicExpressionVisitor(this);
         }
 
         public void VisitUnaryOperation(IUnaryOperationNode node)

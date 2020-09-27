@@ -12,6 +12,8 @@ namespace MonC.SyntaxTree.Util.Delegators
         public IVisitor<StructFunctionAssociationNode>? StructFunctionAssociationVisitor;
         public IVisitor<EnumDeclarationNode>? EnumDeclarationVisitor;
 
+        public IVisitor<ISyntaxTreeNode>? UnknownVisitor;
+
         public void VisitTopLevelStatement(ITopLevelStatementNode node)
         {
             if (TopLevelVisitor != null) {
@@ -51,6 +53,13 @@ namespace MonC.SyntaxTree.Util.Delegators
         {
             if (EnumDeclarationVisitor != null) {
                 EnumDeclarationVisitor.Visit(node);
+            }
+        }
+
+        public void VisitUnknown(ISyntaxTreeNode node)
+        {
+            if (UnknownVisitor != null) {
+                UnknownVisitor.Visit(node);
             }
         }
     }

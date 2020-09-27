@@ -6,20 +6,21 @@ using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Statements;
+using MonC.SyntaxTree.Util;
 using MonC.SyntaxTree.Util.ChildrenVisitors;
 using MonC.SyntaxTree.Util.Delegators;
-using MonC.SyntaxTree.Util.NoOpVisitors;
 using MonC.SyntaxTree.Util.ReplacementVisitors;
 
 namespace MonC.Semantics
 {
-    public class AssignmentAnalyzer : NoOpExpressionVisitor, IParseTreeVisitor, IReplacementSource
+    public class AssignmentAnalyzer : IReplacementSource, IVisitor<IBinaryOperationNode>, IVisitor<AssignmentParseNode>
     {
         private readonly IErrorManager _errors;
         private readonly IDictionary<ISyntaxTreeNode, Symbol> _symbolMap;
 
         private readonly ScopeManager _scopeManager = new ScopeManager();
         private readonly SyntaxTreeDelegator _replacementDelegator = new SyntaxTreeDelegator();
+        private readonly ParseTreeDelegator _parseTreeDelegator = new ParseTreeDelegator();
 
         private bool _shouldReplace;
         private ISyntaxTreeNode _newNode = new VoidExpressionNode();
@@ -29,7 +30,14 @@ namespace MonC.Semantics
             _errors = errors;
             _symbolMap = symbolMap;
 
-            _replacementDelegator.ExpressionVisitor = this;
+            ExpressionDelegator expressionDelegator = new ExpressionDelegator();
+            BinaryOperationDelegator binOpDelegator = new BinaryOperationDelegator();
+
+            _replacementDelegator.ExpressionVisitor = expressionDelegator;
+            expressionDelegator.BinaryOperationVisitor = binOpDelegator;
+            binOpDelegator.UnknownVisitor = this;
+
+            _parseTreeDelegator.AssignmentVisitor = this;
         }
 
         public void Process(FunctionDefinitionNode function)
@@ -63,29 +71,14 @@ namespace MonC.Semantics
         bool IReplacementSource.ShouldReplace => _shouldReplace;
         ISyntaxTreeNode IReplacementSource.NewNode => _newNode;
 
-        public override void VisitBinaryOperation(IBinaryOperationNode node)
+        public void Visit(IBinaryOperationNode node)
         {
-            node.AcceptBinaryOperationVisitor(this);
-        }
-
-        public override void VisitUnknown(IExpressionNode node)
-        {
-            TryVisitingParseNode(node);
-        }
-
-        public override void VisitUnknown(IBinaryOperationNode node)
-        {
-            TryVisitingParseNode(node);
-        }
-
-        private void TryVisitingParseNode(ISyntaxTreeNode node)
-        {
-            if (node is IParseTreeNode parseNode) {
-                parseNode.AcceptParseTreeVisitor(this);
+            if (node is IParseTreeNode parseTreeNode) {
+                parseTreeNode.AcceptParseTreeVisitor(_parseTreeDelegator);
             }
         }
 
-        public void VisitAssignment(AssignmentParseNode node)
+        public void Visit(AssignmentParseNode node)
         {
             if (!(node.LHS is IdentifierParseNode identifier)) {
                 _errors.AddError("Expecting identifier", node.LHS);
@@ -111,16 +104,5 @@ namespace MonC.Semantics
             _symbolMap[_newNode] = originalSymbol;
         }
 
-        public void VisitIdentifier(IdentifierParseNode node)
-        {
-        }
-
-        public void VisitFunctionCall(FunctionCallParseNode node)
-        {
-        }
-
-        public void VisitTypeSpecifier(TypeSpecifierParseNode node)
-        {
-        }
     }
 }

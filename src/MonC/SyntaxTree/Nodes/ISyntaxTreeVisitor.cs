@@ -12,5 +12,7 @@ namespace MonC.SyntaxTree.Nodes
 
         void VisitStructFunctionAssociation(StructFunctionAssociationNode node);
         void VisitEnumDeclaration(EnumDeclarationNode node);
+
+        void VisitUnknown(ISyntaxTreeNode node);
     }
 }

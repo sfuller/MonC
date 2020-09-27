@@ -1,6 +1,6 @@
 namespace MonC.SyntaxTree.Nodes.Expressions
 {
-    public class EnumValueNode : ExpressionNode
+    public class EnumValueNode : BasicExpression
     {
         public readonly EnumNode Enum;
         public readonly string Name;
@@ -11,7 +11,7 @@ namespace MonC.SyntaxTree.Nodes.Expressions
             Name = name;
         }
 
-        public override void AcceptExpressionVisitor(IExpressionVisitor visitor)
+        public override void AcceptBasicExpressionVisitor(IBasicExpressionVisitor visitor)
         {
             visitor.VisitEnumValue(this);
         }

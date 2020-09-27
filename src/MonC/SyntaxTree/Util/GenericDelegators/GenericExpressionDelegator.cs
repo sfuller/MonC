@@ -12,27 +12,7 @@ namespace MonC.SyntaxTree.Util.GenericDelegators
             _visitor = visitor;
         }
 
-        public void VisitVoid(VoidExpressionNode node)
-        {
-            _visitor.Visit(node);
-        }
-
-        public void VisitNumericLiteral(NumericLiteralNode node)
-        {
-            _visitor.Visit(node);
-        }
-
-        public void VisitStringLiteral(StringLiteralNode node)
-        {
-            _visitor.Visit(node);
-        }
-
-        public void VisitEnumValue(EnumValueNode node)
-        {
-            _visitor.Visit(node);
-        }
-
-        public void VisitVariable(VariableNode node)
+        public void VisitBasicExpression(IBasicExpression node)
         {
             _visitor.Visit(node);
         }
@@ -43,16 +23,6 @@ namespace MonC.SyntaxTree.Util.GenericDelegators
         }
 
         public void VisitBinaryOperation(IBinaryOperationNode node)
-        {
-            _visitor.Visit(node);
-        }
-
-        public void VisitFunctionCall(FunctionCallNode node)
-        {
-            _visitor.Visit(node);
-        }
-
-        public void VisitAssignment(AssignmentNode node)
         {
             _visitor.Visit(node);
         }

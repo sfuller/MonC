@@ -8,7 +8,7 @@ using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Codegen
 {
-    public class FunctionCodeGenVisitor : IStatementVisitor, IExpressionVisitor
+    public class FunctionCodeGenVisitor : IStatementVisitor, IExpressionVisitor, IBasicExpressionVisitor
     {
         private readonly FunctionBuilder _functionBuilder;
 
@@ -80,6 +80,11 @@ namespace MonC.Codegen
             FreeTemporaryStackAddress();
 
             AddDebugSymbol(comparisonOperationAddress, node);
+        }
+
+        public void VisitBasicExpression(IBasicExpression node)
+        {
+            node.AcceptBasicExpressionVisitor(this);
         }
 
         public void VisitUnaryOperation(IUnaryOperationNode node)

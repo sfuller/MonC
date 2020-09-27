@@ -72,11 +72,6 @@ namespace MonC
             {
                 token = Peek(offset);
                 if (token.Type != type) {
-                    AddError(new ParseError {
-                        Message = $"Expecting token of type {type}, got {token.Type}",
-                        Start = token.Location,
-                        End = token.DeriveEndLocation()
-                    });
                     return false;
                 }
                 return true;
@@ -86,11 +81,6 @@ namespace MonC
             {
                 token = Peek(offset);
                 if (token.Type != type || token.Value != value) {
-                    AddError(new ParseError {
-                        Message = $"Expecting token of type {type} with value {value}, got {token.Type} with value {token.Value}",
-                        Start = token.Location,
-                        End = token.DeriveEndLocation()
-                    });
                     return false;
                 }
                 return true;
@@ -111,6 +101,13 @@ namespace MonC
             public bool Next(TokenType type, out Token token)
             {
                 bool result = Peek(0, type, out token);
+                if (!result) {
+                    AddError(new ParseError {
+                        Message = $"Expecting token of type {type}, got {token.Type}",
+                        Start = token.Location,
+                        End = token.DeriveEndLocation()
+                    });
+                }
                 Consume();
                 return result;
             }
@@ -118,6 +115,13 @@ namespace MonC
             public bool Next(TokenType type, string value, out Token token)
             {
                 bool result = Peek(0, type, value, out token);
+                if (!result) {
+                    AddError(new ParseError {
+                        Message = $"Expecting token of type {type} with value {value}, got {token.Type} with value {token.Value}",
+                        Start = token.Location,
+                        End = token.DeriveEndLocation()
+                    });
+                }
                 Consume();
                 return result;
             }
@@ -241,7 +245,12 @@ namespace MonC
                 name = nameToken.Value;
             }
 
-            // TODO: Support function associations
+            if (tokens.Peek(0, TokenType.Syntax, Syntax.STRUCT_FUNCTION_ASSOCIATION_STARTER, out _)) {
+
+            }
+
+            List<IStructFunctionAssociationNode> functionAssociations =
+                    ParseCommaSeparatedNodes(ref tokens, parseStructFunctionAssociation);
 
             tokens.TryNext(TokenType.Syntax, Syntax.OPENING_BRACKET, out _);
 
@@ -260,7 +269,24 @@ namespace MonC
 
             tokens.TryNext(TokenType.Syntax, Syntax.CLOSING_BRACKET, out _);
 
-            return NewNode(new StructNode(name, declarations, isExported), startToken, tokens.Peek(-1));
+            return NewNode(
+                    new StructNode(name, functionAssociations, declarations, isExported),
+                    startToken,
+                    tokens.Peek(-1));
+        }
+
+        private IStructFunctionAssociationNode? parseStructFunctionAssociation(ref TokenSource tokens)
+        {
+            if (!tokens.Next(TokenType.Identifier, out Token associationNameToken)) {
+                return null;
+            }
+
+            if (!tokens.Next(TokenType.Syntax, Syntax.STRUCT_FUNCTION_ASSOCIATION_SEPARATOR, out _)) {
+                return null;
+            }
+
+            tokens.TryNext(TokenType.Identifier, out Token functionNameToken);
+            return new StructFunctionAssociationParseNode(associationNameToken.Value, functionNameToken.Value);
         }
 
         private FunctionDefinitionNode? ParseFunction(ref TokenSource tokens, bool isExported)
@@ -940,16 +966,16 @@ namespace MonC
             List<T> nodes = new List<T>();
 
             while (true) {
-                T? node = nodeAction(ref tokens);
+                TokenSource nodeTokens = tokens.Fork();
+                T? node = nodeAction(ref nodeTokens);
                 if (node == null) {
                     break;
                 }
                 nodes.Add(node);
-                Token commaToken = tokens.Peek();
-                if (commaToken.Type != TokenType.Syntax || commaToken.Value != Syntax.COMMA) {
+                tokens.Consume(nodeTokens);
+                if (!tokens.TryNext(TokenType.Syntax, Syntax.COMMA, out _)) {
                     break;
                 }
-                tokens.Consume(); // Consume the comma.
             }
 
             return nodes;

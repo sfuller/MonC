@@ -84,6 +84,11 @@ namespace MonC.Semantics.Scoping
             ApplyScope(node);
         }
 
+        public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
+        {
+            ApplyScope(node);
+        }
+
         private void ApplyScope(ISyntaxTreeNode node)
         {
             _scopes[node] = CurrentScope.Copy();
