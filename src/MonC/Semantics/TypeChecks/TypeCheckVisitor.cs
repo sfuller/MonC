@@ -14,13 +14,15 @@ namespace MonC.Semantics.TypeChecks
 {
     public class TypeCheckVisitor : IStatementVisitor, IExpressionVisitor, ISpecifierVisitor, IBasicExpressionVisitor
     {
+        private readonly SemanticContext _context;
         private readonly TypeManager _typeManager;
         private readonly IErrorManager _errors;
 
         private readonly SyntaxTreeDelegator _delegator = new SyntaxTreeDelegator();
 
-        public TypeCheckVisitor(TypeManager typeManager, IErrorManager errors)
+        public TypeCheckVisitor(SemanticContext context, TypeManager typeManager, IErrorManager errors)
         {
+            _context = context;
             _typeManager = typeManager;
             _errors = errors;
 
@@ -33,7 +35,7 @@ namespace MonC.Semantics.TypeChecks
 
         private TypeCheckVisitor MakeSubVisitor()
         {
-            return new TypeCheckVisitor(_typeManager, _errors);
+            return new TypeCheckVisitor(_context, _typeManager, _errors);
         }
 
         public void Process(FunctionDefinitionNode function)
@@ -155,10 +157,13 @@ namespace MonC.Semantics.TypeChecks
 
         public void VisitEnumValue(EnumValueNode node)
         {
-            IType? type = _typeManager.GetType(node.Enum.Name, PointerMode.NotAPointer);
+            if (!_context.EnumInfo.TryGetValue(node.Declaration.Name, out EnumDeclarationInfo info)) {
+                throw new InvalidOperationException("Enumeration declaration name not known by semantic context.");
+            }
+
+            IType? type = _typeManager.GetType(info.Enum.Name, PointerMode.NotAPointer);
             if (type == null) {
-                _errors.AddError($"Enum with name {node.Enum.Name} is not registered with the type system.", node.Enum);
-                return;
+                throw new InvalidOperationException($"Enum with name {info.Enum.Name} is not registered with the type system.");
             }
             Type = type;
         }

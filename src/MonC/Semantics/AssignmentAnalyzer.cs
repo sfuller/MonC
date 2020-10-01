@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using MonC.Parsing.ParseTree;
 using MonC.Parsing.ParseTree.Nodes;
 using MonC.Semantics.Scoping;
@@ -15,7 +14,7 @@ namespace MonC.Semantics
     public class AssignmentAnalyzer : IReplacementSource, IVisitor<IBinaryOperationNode>, IVisitor<AssignmentParseNode>
     {
         private readonly IErrorManager _errors;
-        private readonly IDictionary<ISyntaxTreeNode, Symbol> _symbolMap;
+        private readonly SemanticContext _semanticModule;
 
         private readonly ScopeManager _scopeManager = new ScopeManager();
         private readonly SyntaxTreeDelegator _replacementDelegator = new SyntaxTreeDelegator();
@@ -24,10 +23,10 @@ namespace MonC.Semantics
         private bool _shouldReplace;
         private ISyntaxTreeNode _newNode = new VoidExpressionNode();
 
-        public AssignmentAnalyzer(IErrorManager errors, IDictionary<ISyntaxTreeNode, Symbol> symbolMap)
+        public AssignmentAnalyzer(IErrorManager errors, SemanticContext semanticModule)
         {
             _errors = errors;
-            _symbolMap = symbolMap;
+            _semanticModule = semanticModule;
 
             ExpressionDelegator expressionDelegator = new ExpressionDelegator();
             BinaryOperationDelegator binOpDelegator = new BinaryOperationDelegator();
@@ -85,8 +84,8 @@ namespace MonC.Semantics
 
             // TODO: Need more automated symbol association for new nodes.
             Symbol originalSymbol;
-            _symbolMap.TryGetValue(node, out originalSymbol);
-            _symbolMap[_newNode] = originalSymbol;
+            _semanticModule.SymbolMap.TryGetValue(node, out originalSymbol);
+            _semanticModule.SymbolMap[_newNode] = originalSymbol;
         }
 
     }

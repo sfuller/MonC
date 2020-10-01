@@ -155,10 +155,10 @@ namespace MonC.Frontend
             List<ParseError> errors = new List<ParseError>();
             SemanticAnalyzer analyzer = new SemanticAnalyzer(errors);
 
-            analyzer.RegisterModule(interopResolver.CreateHeaderModule());
+            analyzer.Register(interopResolver.CreateHeaderModule());
 
             foreach (ParseModule module in parseModules) {
-                analyzer.RegisterModule(module);
+                analyzer.Register(module);
             }
 
             foreach (ParseModule module in parseModules) {
@@ -182,8 +182,8 @@ namespace MonC.Frontend
             }
 
             foreach (ParseModule module in parseModules) {
-                CodeGenerator generator = new CodeGenerator();
-                ILModule ilmodule = generator.Generate(module);
+                CodeGenerator generator = new CodeGenerator(module, analyzer.Context);
+                ILModule ilmodule = generator.Generate();
                 if (showIL) {
                     ilmodule.WriteListing(Console.Out);
                 }

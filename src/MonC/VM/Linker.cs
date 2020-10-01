@@ -72,11 +72,6 @@ namespace MonC.VM
             ILModule resultModule = new ILModule {
                 DefinedFunctions = _functionImplementations.ToArray(),
                 ExportedFunctions = _exportedFunctions.ToArray(),
-                ExportedEnumValues = _inputModules
-                        .Where(m => m.Exported)
-                        .Select(m => m.Module)
-                        .SelectMany(m => m.ExportedEnumValues)
-                        .ToArray(),
                 UndefinedFunctionNames = _undefinedFunctionsIndicesByName
                         .OrderBy(k => k.Value)
                         .Select(k => k.Key).ToArray(),

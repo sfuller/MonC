@@ -9,18 +9,18 @@ namespace MonC.Codegen
         public readonly Dictionary<string, int> DefinedFunctions = new Dictionary<string, int>();
         public readonly Dictionary<string, int> UndefinedFunctions = new Dictionary<string, int>();
         public readonly List<KeyValuePair<string, int>> ExportedFunctions = new List<KeyValuePair<string, int>>();
-        
+
         public void RegisterFunction(FunctionDefinitionNode node)
         {
             if (DefinedFunctions.ContainsKey(node.Name)) {
                 return;
             }
-            
+
             int index = FunctionTable.Count;
             DefinedFunctions.Add(node.Name, index);
             FunctionTable.Add(node.Name, index);
             if (node.IsExported) {
-                ExportedFunctions.Add(new KeyValuePair<string, int>(node.Name, index));    
+                ExportedFunctions.Add(new KeyValuePair<string, int>(node.Name, index));
             }
         }
 
@@ -34,6 +34,6 @@ namespace MonC.Codegen
             }
             return index;
         }
-        
+
     }
 }

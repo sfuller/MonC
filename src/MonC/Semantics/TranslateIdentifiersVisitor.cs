@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using MonC.Parsing.ParseTree;
 using MonC.Parsing.ParseTree.Nodes;
@@ -17,25 +16,16 @@ namespace MonC.Semantics
 {
     public class TranslateIdentifiersVisitor : NoOpExpressionVisitor, IParseTreeVisitor, IReplacementSource
     {
-        private readonly Dictionary<string, FunctionDefinitionNode> _functions;
-        private readonly EnumManager _enums;
-
+        private readonly SemanticContext _semanticModule;
         private readonly IErrorManager _errors;
-        private readonly IDictionary<ISyntaxTreeNode, Symbol> _symbolMap;
 
         private readonly ScopeManager _scopeManager = new ScopeManager();
         private readonly SyntaxTreeDelegator _replacementDelegator = new SyntaxTreeDelegator();
 
-        public TranslateIdentifiersVisitor(
-            Dictionary<string, FunctionDefinitionNode> functions,
-            IErrorManager errors,
-            EnumManager enums,
-            IDictionary<ISyntaxTreeNode, Symbol> symbolMap)
+        public TranslateIdentifiersVisitor(SemanticContext semanticModule, IErrorManager errors)
         {
-            _functions = functions;
-            _enums = enums;
+            _semanticModule = semanticModule;
             _errors = errors;
-            _symbolMap = symbolMap;
 
             NewNode = new VoidExpressionNode();
 
@@ -76,9 +66,8 @@ namespace MonC.Semantics
                 return;
             }
 
-            EnumNode? enumNode = _enums.GetEnumeration(node.Name);
-            if (enumNode != null) {
-                NewNode = UpdateSymbolMap(new EnumValueNode(enumNode, node.Name), node);
+            if (_semanticModule.EnumInfo.TryGetValue(node.Name, out EnumDeclarationInfo identifierInfo)) {
+                NewNode = UpdateSymbolMap(new EnumValueNode(identifierInfo.Declaration), node);
                 return;
             }
 
@@ -99,8 +88,7 @@ namespace MonC.Semantics
 
             FunctionCallNode? resultNode = null;
 
-            FunctionDefinitionNode function;
-            if (!_functions.TryGetValue(identifier.Name, out function)) {
+            if (!_semanticModule.Functions.TryGetValue(identifier.Name, out FunctionDefinitionNode function)) {
                 _errors.AddError("Undefined function " + identifier.Name, node);
             } else if (function.Parameters.Length != node.ArgumentCount) {
                 _errors.AddError($"Expected {function.Parameters.Length} argument(s), got {node.ArgumentCount}", node);
@@ -135,8 +123,8 @@ namespace MonC.Semantics
         private IExpressionNode UpdateSymbolMap(IExpressionNode node, IExpressionNode original)
         {
             Symbol originalSymbol;
-            _symbolMap.TryGetValue(original, out originalSymbol);
-            _symbolMap[node] = originalSymbol;
+            _semanticModule.SymbolMap.TryGetValue(original, out originalSymbol);
+            _semanticModule.SymbolMap[node] = originalSymbol;
             return node;
         }
 

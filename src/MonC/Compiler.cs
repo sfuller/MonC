@@ -1,6 +1,6 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using MonC.Codegen;
 using MonC.DotNetInterop;
 using MonC.IL;
 using MonC.Parsing;
@@ -15,7 +15,7 @@ namespace MonC
     /// </summary>
     public class Compiler
     {
-        public ParseModule? Parse(
+        public ParseModule ParseAndAnalyze(
             string source,
             string filename,
             List<ParseError> errors,
@@ -31,18 +31,14 @@ namespace MonC
             SemanticAnalyzer analyzer = new SemanticAnalyzer(errors);
 
             if (headerModule != null) {
-                analyzer.RegisterModule(headerModule);
+                analyzer.Register(headerModule);
             }
-            analyzer.RegisterModule(outputModule);
+            analyzer.Register(outputModule);
             analyzer.Process(outputModule);
-
-            if (errors.Count > 0) {
-                return null;
-            }
             return outputModule;
         }
 
-        public ParseModule? Parse(
+        public ParseModule ParseAndAnalyze(
             string source,
             string filename,
             List<ParseError> errors,
@@ -50,7 +46,7 @@ namespace MonC
         )
         {
             ParseModule module = CreateInputParseModuleFromInteropResolver(resolver);
-            return Parse(source, filename, errors, module);
+            return ParseAndAnalyze(source, filename, errors, module);
         }
 
         public ILModule? Compile(
@@ -60,17 +56,18 @@ namespace MonC
             ParseModule? targetModule = null
         )
         {
-            ParseModule? parsedModule = Parse(source, filename, errors, targetModule);
-            if (parsedModule == null) {
+            ParseModule module = ParseAndAnalyze(source, filename, errors, targetModule);
+            if (errors.Count > 0) {
                 return null;
             }
-            return Compile(parsedModule);
+            return Compile(module);
         }
 
         public ILModule Compile(ParseModule module)
         {
-            CodeGenerator generator = new CodeGenerator();
-            return generator.Generate(module);
+            throw new NotImplementedException();
+            // CodeGenerator generator = new CodeGenerator(module, context);
+            // return generator.Generate();
         }
 
         public VMModule? CompileAndLink(

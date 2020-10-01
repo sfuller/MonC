@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MonC.IL;
+using MonC.Semantics;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
@@ -15,7 +16,7 @@ namespace MonC.Codegen
         private readonly FunctionStackLayout _layout;
         private readonly FunctionManager _functionManager;
         private readonly List<string> _strings;
-        private readonly Dictionary<string, int> _enumerations;
+        private readonly Dictionary<string, EnumDeclarationInfo> _enumDeclarationInfos;
 
         private readonly Stack<int> _breaks = new Stack<int>();
         private readonly Stack<int> _continues = new Stack<int>();
@@ -25,14 +26,14 @@ namespace MonC.Codegen
             FunctionStackLayout layout,
             FunctionManager functionManager,
             List<string> strings,
-            Dictionary<string, int> enumerations
+            Dictionary<string, EnumDeclarationInfo> enumDeclarationInfos
         )
         {
             _layout = layout;
             _functionManager = functionManager;
             _strings = strings;
             _functionBuilder = functionBuilder;
-            _enumerations = enumerations;
+            _enumDeclarationInfos = enumDeclarationInfos;
         }
 
         public int AllocTemporaryStackAddress(int length = 1)
@@ -104,7 +105,7 @@ namespace MonC.Codegen
 
         public void VisitEnumValue(EnumValueNode node)
         {
-            int value = _enumerations[node.Name];
+            int value = _enumDeclarationInfos[node.Declaration.Name].Value;
             AddInstruction(OpCode.LOAD, value);
         }
 

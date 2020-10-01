@@ -4,14 +4,51 @@ using MonC.Parsing.ParseTree.Nodes;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Specifiers;
 using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Frontend
 {
     public class PrintTreeVisitor :
-            ITopLevelStatementVisitor, IStatementVisitor, IExpressionVisitor, IParseTreeVisitor, IBasicExpressionVisitor
+            ISyntaxTreeVisitor, ITopLevelStatementVisitor, IStatementVisitor, IExpressionVisitor, IParseTreeVisitor,
+            IBasicExpressionVisitor, ISpecifierVisitor
     {
         private int _currentIndent;
+
+        public void VisitTopLevelStatement(ITopLevelStatementNode node)
+        {
+            node.AcceptTopLevelVisitor(this);
+        }
+
+        public void VisitStatement(IStatementNode node)
+        {
+            node.AcceptStatementVisitor(this);
+        }
+
+        public void VisitExpression(IExpressionNode node)
+        {
+            node.AcceptExpressionVisitor(this);
+        }
+
+        public void VisitSpecifier(ISpecifierNode node)
+        {
+            node.AcceptSpecifierVisitor(this);
+        }
+
+        public void VisitStructFunctionAssociation(StructFunctionAssociationNode node)
+        {
+            Print($"Struct Function Association (Name = {node.Name})");
+        }
+
+        public void VisitEnumDeclaration(EnumDeclarationNode node)
+        {
+            Print($"Enum Declaration (Name = {node.Name})");
+        }
+
+        public void VisitUnknown(ISyntaxTreeNode node)
+        {
+            Print("(Unknown Syntax Tree Node)");
+        }
 
         public void VisitBinaryOperation(IBinaryOperationNode node)
         {
@@ -150,7 +187,7 @@ namespace MonC.Frontend
 
         public void VisitEnumValue(EnumValueNode node)
         {
-            Print($"EnumValue (Name={node.Name})");
+            Print($"EnumValue (Declaration.Name = {node.Declaration.Name})");
         }
 
         public void VisitAssignment(AssignmentParseNode node)
@@ -181,20 +218,23 @@ namespace MonC.Frontend
 
         public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
         {
-            throw new NotImplementedException();
+            Print($"Struct Function Association (Parse Node) (Name = {node.Name}, FunctionName = {node.FunctionName})");
         }
 
-        private void VisitSubnode(IStatementNode node)
+        public void VisitTypeSpecifier(TypeSpecifierNode node)
         {
-            ++_currentIndent;
-            node.AcceptStatementVisitor(this);
-            --_currentIndent;
+            Print($"Type Specifier (Type = '{node.Type.Represent()}')");
         }
 
-        private void VisitSubnode(IExpressionNode node)
+        public void VisitUnknown(ISpecifierNode node)
+        {
+            Print("(Unknown Specifier Node)");
+        }
+
+        private void VisitSubnode(ISyntaxTreeNode node)
         {
             ++_currentIndent;
-            node.AcceptExpressionVisitor(this);
+            node.AcceptSyntaxTreeVisitor(this);
             --_currentIndent;
         }
 
