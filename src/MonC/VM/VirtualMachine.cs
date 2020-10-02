@@ -223,7 +223,7 @@ namespace MonC.VM
             bool canBreak;
             bool breakRequested = _isStepping;
 
-            if (top.BindingEnumerator != null) {
+            if (top.IsBoundFunction()) {
                 canBreak = InterpretBoundFunctionCall(top);
             } else {
                 // It is always safe to break between instructions.
@@ -241,57 +241,13 @@ namespace MonC.VM
 
         private bool InterpretBoundFunctionCall(StackFrame frame)
         {
-            // Returns true if it is safe to trigger a break after this method returns.
+            VMFunction boundFunction = frame.Module.VMFunctions[frame.Function];
+            boundFunction.Delegate(this, new ArgumentSource(frame.Memory, 0));
 
-            // This method should only be called after checking that a binding enumerator exists on the given frame.
-            IEnumerator<Continuation> bindingEnumerator = frame.BindingEnumerator!;
+            PopFrame();
 
-            if (!bindingEnumerator.MoveNext()) {
-                // Function has finished
-                PopFrame();
-                return true;
-            }
-
-            Continuation continuation = bindingEnumerator.Current;
-
-            if (continuation.Action == ContinuationAction.CALL) {
-                PushCall(continuation.Module, continuation.FunctionIndex, continuation.Arguments);
-                return true;
-            }
-
-            if (continuation.Action == ContinuationAction.RETURN) {
-                _aRegister = continuation.ReturnValue;
-                PopFrame();
-                return true;
-            }
-
-            if (continuation.Action == ContinuationAction.YIELD) {
-                continuation.YieldToken.OnFinished(HandleYieldComplete);
-
-                _isStartingYield = true;
-                _isYielding = true;
-                // Calling start may trigger the OnFinished callback. We check for the callback being completed
-                // instantly by checking _isYielding after calling Start.
-                continuation.YieldToken.Start();
-                _isStartingYield = false;
-                // We are still yielding after calling start, meaning we are safe to terminate the loop.
-                // The VM loop will be started again by HandleYieldComplete.
-                if (_isYielding) {
-                    _isContinuing = false;
-                }
-                return !_isYielding;
-            }
-
-            if (continuation.Action == ContinuationAction.UNWRAP) {
-                StackFrame unwrapFrame = AcquireFrame(0);
-                unwrapFrame.Module = frame.Module;
-                unwrapFrame.Function = frame.Function;
-                unwrapFrame.BindingEnumerator = continuation.ToUnwrap;
-                PushCallStack(unwrapFrame);
-                return true;
-            }
-
-            throw new NotImplementedException();
+            // Return true to signify that we can break.
+            return true;
         }
 
         private bool InterpretInstruction(Instruction ins)
@@ -510,7 +466,7 @@ namespace MonC.VM
                 VMFunction function = module.VMFunctions[functionIndex];
                 argumentMemorySize = function.ArgumentMemorySize;
                 frame = AcquireFrame(function.ArgumentMemorySize);
-                frame.BindingEnumerator = function.Delegate(this, new ArgumentSource(frame.Memory, 0));
+                //frame.BindingEnumerator = function.Delegate(this, new ArgumentSource(frame.Memory, 0));
             } else {
                 ILFunction function = module.ILModule.DefinedFunctions[functionIndex];
                 argumentMemorySize = function.ArgumentMemorySize;
@@ -569,7 +525,6 @@ namespace MonC.VM
             StackFrame frame = _callStack[top];
             _callStack.RemoveAt(top);
 
-            frame.BindingEnumerator = null;
             frame.PC = 0;
             _framePool.Push(frame);
 
