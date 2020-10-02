@@ -138,10 +138,12 @@ namespace MonC.DotNetInterop
             ParameterInfo[] parameters,
             object? target)
         {
-            if (method.ReturnType != typeof(int)) {
+            if (method.ReturnType != typeof(void)) {
                 return false;
             }
-            if (parameters.Length != 1 || parameters[0].ParameterType != typeof(ArgumentSource)) {
+            if (parameters.Length != 2
+                    || parameters[0].ParameterType != typeof(IVMBindingContext)
+                    || parameters[1].ParameterType != typeof(ArgumentSource)) {
                 return false;
             }
 
@@ -159,7 +161,7 @@ namespace MonC.DotNetInterop
         private void AddBinding(MethodInfo method, LinkableFunctionAttribute attribute, VMFunctionDelegate implementation)
         {
             FunctionDefinitionNode def = new FunctionDefinitionNode(
-                name: method.Name,
+                name: attribute.Name ?? method.Name,
                 returnType: new TypeSpecifierParseNode("int", PointerMode.NotAPointer), // TODO
                 parameters: FunctionAttributeToDeclarations(attribute),
                 body: new BodyNode(),

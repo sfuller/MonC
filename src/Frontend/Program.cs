@@ -26,6 +26,7 @@ namespace MonC.Frontend
             List<string> positionals = new List<string>();
             List<int> argsToPass = new List<int>();
             List<string> libraryNames = new List<string>();
+            List<string> librarySearchPaths = new List<string>();
 
             for (int i = 0, ilen = args.Length; i < ilen; ++i) {
                 string arg = args[i].Trim();
@@ -51,6 +52,9 @@ namespace MonC.Frontend
                         break;
                     case "-l":
                         libraryNames.Add(args[++i]);
+                        break;
+                    case "-L":
+                        librarySearchPaths.Add(args[++i]);
                         break;
                     case "--debugger":
                         withDebugger = true;
@@ -81,7 +85,7 @@ namespace MonC.Frontend
             const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static;
 
             foreach (string libraryName in libraryNames) {
-                Assembly lib = Assembly.LoadFile(Path.GetFullPath(libraryName));
+                Assembly lib = LoadAssembly(libraryName, librarySearchPaths);
                 interopResolver.ImportAssembly(lib, bindingFlags);
             }
 
@@ -259,6 +263,17 @@ namespace MonC.Frontend
                     Console.WriteLine(tokens[i]);
                 }
             }
+        }
+
+        private static Assembly LoadAssembly(string name, List<string> searchPaths)
+        {
+            foreach (string path in searchPaths) {
+                try {
+                    return Assembly.LoadFile(Path.GetFullPath(Path.Combine(path, name + ".dll")));
+                } catch (FileNotFoundException) {}
+            }
+
+            return Assembly.Load(name);
         }
 
         private static void HandleBreak(VirtualMachine vm, Debugger debugger, VMDebugger vmDebugger)
