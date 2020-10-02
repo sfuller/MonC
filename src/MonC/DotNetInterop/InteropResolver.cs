@@ -105,10 +105,6 @@ namespace MonC.DotNetInterop
                 return true;
             }
 
-            if (ProcessEnumeratorBinding(attribute, method, parameters, target)) {
-                return true;
-            }
-
             _errors.Add($"Could not import method {method.Name}, please check that it's signature is compatible.");
             return false;
         }
@@ -149,49 +145,18 @@ namespace MonC.DotNetInterop
                 return false;
             }
 
-            VMEnumerableDelegate impl;
+            VMFunctionDelegate impl;
             if (_includeImplementations) {
-                impl = WrapSimpleBinding(method, target);
+                impl = CreateDelegate<VMFunctionDelegate>(method, target);
             } else {
-                impl = NoOpBinding;
+                impl = NoOpBindingInstance;
             }
 
             AddBinding(method, attribute, impl);
             return true;
         }
 
-        private bool ProcessEnumeratorBinding(
-                LinkableFunctionAttribute attribute,
-                MethodInfo method,
-                ParameterInfo[] parameters,
-                object? target)
-        {
-            if (method.ReturnType != typeof(IEnumerator<Continuation>)) {
-                return false;
-            }
-
-            if (parameters.Length != 2) {
-                return false;
-            }
-            if (parameters[0].ParameterType != typeof(IVMBindingContext)) {
-                return false;
-            }
-            if (parameters[1].ParameterType != typeof(ArgumentSource)) {
-                return false;
-            }
-
-            VMEnumerableDelegate impl;
-            if (_includeImplementations) {
-                impl = CreateDelegate<VMEnumerableDelegate>(method, target);
-            } else {
-                impl = NoOpBinding;
-            }
-
-            AddBinding(method, attribute, impl);
-            return true;
-        }
-
-        private void AddBinding(MethodInfo method, LinkableFunctionAttribute attribute, VMEnumerableDelegate implementation)
+        private void AddBinding(MethodInfo method, LinkableFunctionAttribute attribute, VMFunctionDelegate implementation)
         {
             FunctionDefinitionNode def = new FunctionDefinitionNode(
                 name: method.Name,
@@ -237,18 +202,6 @@ namespace MonC.DotNetInterop
             return del;
         }
 
-        private static VMEnumerableDelegate WrapSimpleBinding(MethodInfo info, object? target)
-        {
-            VMFunctionDelegate function = CreateDelegate<VMFunctionDelegate>(info, target);
-            return (context, args) => SimpleBindingEnumerator(function, args);
-        }
-
-        private static IEnumerator<Continuation> SimpleBindingEnumerator(VMFunctionDelegate func, ArgumentSource arguments)
-        {
-            int rv = func(arguments);
-            yield return Continuation.Return(rv);
-        }
-
         private static IEnumerable<DeclarationNode> FunctionAttributeToDeclarations(LinkableFunctionAttribute attribute)
         {
             for (int i = 0, ilen = attribute.ArgumentCount; i < ilen; ++i) {
@@ -256,10 +209,9 @@ namespace MonC.DotNetInterop
             }
         }
 
-        private static IEnumerator<Continuation> NoOpBinding(IVMBindingContext context, ArgumentSource args)
-        {
-            yield break;
-        }
+        private static readonly VMFunctionDelegate NoOpBindingInstance = NoOpBinding;
+
+        private static void NoOpBinding(IVMBindingContext context, ArgumentSource args) { }
 
         /// <summary>
         /// Try to import the given type as an enum.
