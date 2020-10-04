@@ -73,7 +73,13 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
 
         public void VisitAssignment(AssignmentNode node)
         {
-            node.RHS = _processor.ProcessReplacement(node.RHS);
+            node.Rhs = _processor.ProcessReplacement(node.Rhs);
+        }
+
+        public void VisitAccess(AccessNode node)
+        {
+            node.Lhs = _processor.ProcessReplacement(node.Lhs);
+            node.Rhs = _processor.ProcessReplacement(node.Rhs);
         }
 
         public void VisitUnknown(IExpressionNode node)

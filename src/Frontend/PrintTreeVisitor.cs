@@ -78,7 +78,8 @@ namespace MonC.Frontend
 
         public void VisitDeclaration(DeclarationNode node)
         {
-            Print($"Declaration (Type={node.Type}, Name={node.Name})");
+            Print($"Declaration (Name={node.Name})");
+            VisitSubnode(node.Type);
             VisitSubnode(node.Assignment);
         }
 
@@ -112,8 +113,7 @@ namespace MonC.Frontend
 
         public void VisitVariable(VariableNode node)
         {
-            Print("Variable");
-            VisitSubnode(node.Declaration);
+            Print($"Variable (Declaration.Name = {node.Declaration.Name})");
         }
 
         public void VisitIfElse(IfElseNode node)
@@ -171,8 +171,14 @@ namespace MonC.Frontend
         public void VisitAssignment(AssignmentNode node)
         {
             Print("Assignment");
-            VisitSubnode(node.Declaration);
-            VisitSubnode(node.RHS);
+            VisitSubnode(node.Lhs);
+            VisitSubnode(node.Rhs);
+        }
+
+        public void VisitAccess(AccessNode node)
+        {
+            Print($"Access (Rhs.Name = {node.Rhs.Name})");
+            VisitSubnode(node.Lhs);
         }
 
         public void VisitUnknown(IExpressionNode node)
@@ -219,6 +225,17 @@ namespace MonC.Frontend
         public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
         {
             Print($"Struct Function Association (Parse Node) (Name = {node.Name}, FunctionName = {node.FunctionName})");
+        }
+
+        public void VisitDeclarationIdentifier(DeclarationIdentifierParseNode node)
+        {
+            Print($"Declaration Identifier (Parse Node) (Name = {node.Name})");
+        }
+
+        public void VisitAccess(AccessParseNode node)
+        {
+            Print($"Access Operator (Rhs.Name = {node.Rhs.Name})");
+            VisitSubnode(node.Lhs);
         }
 
         public void VisitTypeSpecifier(TypeSpecifierNode node)

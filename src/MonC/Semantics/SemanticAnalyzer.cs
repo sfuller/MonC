@@ -15,6 +15,7 @@ namespace MonC.Semantics
         private readonly SemanticContext _context = new SemanticContext();
 
         private readonly TypeManager _typeManager;
+        private readonly ExpressionTypeManager _expressionTypeManager;
 
         /// <summary>
         /// Error information for the current module being analyzed. This information is processed and cleared at the
@@ -29,6 +30,7 @@ namespace MonC.Semantics
         {
             _errors = errors;
             _typeManager = new TypeManager();
+            _expressionTypeManager = new ExpressionTypeManager(_context, _typeManager, this);
 
             _typeManager.RegisterType(new PrimitiveTypeImpl("void"));
             _typeManager.RegisterType(new PrimitiveTypeImpl("int"));
@@ -140,10 +142,10 @@ namespace MonC.Semantics
         private void ProcessFunction(FunctionDefinitionNode function)
         {
             new DuplicateVariableDeclarationAnalyzer(this).Process(function);
+            new TranslateIdentifiersVisitor(_context, this, _expressionTypeManager).Process(function);
             new AssignmentAnalyzer(this, _context).Process(function);
-            new TranslateIdentifiersVisitor(_context, this).Process(function);
-            new TypeResolver(_typeManager, this).Process(function);
-            new TypeCheckVisitor(_context, _typeManager, this).Process(function);
+            new TypeSpecifierResolver(_typeManager, this).Process(function);
+            new TypeCheckVisitor(_context, _typeManager, this, _expressionTypeManager).Process(function);
         }
 
         void IErrorManager.AddError(string message, ISyntaxTreeNode node)

@@ -2,23 +2,25 @@ using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.SyntaxTree.Nodes.Expressions
 {
-    public class VariableNode : BasicExpression, IAssignableNode
+    public class AccessNode : BasicExpression, IAssignableNode
     {
-        public DeclarationNode Declaration;
+        public IExpressionNode Lhs;
+        public DeclarationNode Rhs;
 
-        public VariableNode(DeclarationNode declaration)
+        public AccessNode(IExpressionNode lhs, DeclarationNode rhs)
         {
-            Declaration = declaration;
+            Lhs = lhs;
+            Rhs = rhs;
         }
 
         public override void AcceptBasicExpressionVisitor(IBasicExpressionVisitor visitor)
         {
-            visitor.VisitVariable(this);
+            visitor.VisitAccess(this);
         }
 
         public void AcceptAssignableVisitor(IAssignableVisitor visitor)
         {
-            visitor.VisitVariable(this);
+            visitor.VisitAccess(this);
         }
     }
 }

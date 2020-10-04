@@ -4,14 +4,14 @@ namespace MonC.TypeSystem.Types.Impl
 {
     public class StructType : IValueType
     {
-        private readonly StructNode _struct;
+        public readonly StructNode Struct;
 
         public StructType(StructNode structNode)
         {
-            _struct = structNode;
+            Struct = structNode;
         }
 
-        public string Name => _struct.Name;
+        public string Name => Struct.Name;
 
         public string Represent()
         {

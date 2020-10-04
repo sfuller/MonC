@@ -89,6 +89,16 @@ namespace MonC.Semantics.Scoping
             ApplyScope(node);
         }
 
+        public void VisitDeclarationIdentifier(DeclarationIdentifierParseNode node)
+        {
+            ApplyScope(node);
+        }
+
+        public void VisitAccess(AccessParseNode node)
+        {
+            ApplyScope(node);
+        }
+
         private void ApplyScope(ISyntaxTreeNode node)
         {
             _scopes[node] = CurrentScope.Copy();

@@ -71,7 +71,13 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
         public void VisitAssignment(AssignmentNode node)
         {
             _visitor.VisitExpression(node);
-            node.RHS.AcceptExpressionVisitor(this);
+            node.Rhs.AcceptExpressionVisitor(this);
+        }
+
+        public void VisitAccess(AccessNode node)
+        {
+            _visitor.VisitExpression(node);
+            node.Lhs.AcceptExpressionVisitor(this);
         }
 
         public void VisitUnknown(IExpressionNode node)

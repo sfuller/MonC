@@ -11,5 +11,6 @@ namespace MonC.SyntaxTree.Nodes.Expressions
 
         void VisitFunctionCall(FunctionCallNode node);
         void VisitAssignment(AssignmentNode node);
+        void VisitAccess(AccessNode node);
     }
 }

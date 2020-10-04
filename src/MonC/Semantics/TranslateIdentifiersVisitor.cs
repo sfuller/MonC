@@ -11,6 +11,8 @@ using MonC.SyntaxTree.Util.Delegators;
 using MonC.SyntaxTree.Util.NoOpVisitors;
 using MonC.SyntaxTree.Util.ReplacementVisitors;
 using MonC.TypeSystem;
+using MonC.TypeSystem.Types;
+using MonC.TypeSystem.Types.Impl;
 
 namespace MonC.Semantics
 {
@@ -18,14 +20,16 @@ namespace MonC.Semantics
     {
         private readonly SemanticContext _semanticModule;
         private readonly IErrorManager _errors;
+        private readonly ExpressionTypeManager _expressionTypeManager;
 
         private readonly ScopeManager _scopeManager = new ScopeManager();
         private readonly SyntaxTreeDelegator _replacementDelegator = new SyntaxTreeDelegator();
 
-        public TranslateIdentifiersVisitor(SemanticContext semanticModule, IErrorManager errors)
+        public TranslateIdentifiersVisitor(SemanticContext semanticModule, IErrorManager errors, ExpressionTypeManager expressionTypeManager)
         {
             _semanticModule = semanticModule;
             _errors = errors;
+            _expressionTypeManager = expressionTypeManager;
 
             NewNode = new VoidExpressionNode();
 
@@ -138,6 +142,30 @@ namespace MonC.Semantics
 
         public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
         {
+        }
+
+        public void VisitDeclarationIdentifier(DeclarationIdentifierParseNode node)
+        {
+
+        }
+
+        public void VisitAccess(AccessParseNode node)
+        {
+            IType type = _expressionTypeManager.GetExpressionType(node.Lhs);
+
+            if (!(type is StructType structType)) {
+                _errors.AddError($"Type '{type.Represent()}' has no accessible members.", node);
+                return;
+            }
+
+            DeclarationNode? declaration = structType.Struct.Members.Find(decl => decl.Name == node.Rhs.Name);
+            if (declaration == null) {
+                _errors.AddError($"No such member {node.Rhs.Name} in struct {structType.Struct.Name}.", node.Rhs);
+                return;
+            }
+
+            NewNode = new AccessNode(node.Lhs, declaration);
+            ShouldReplace = true;
         }
     }
 }

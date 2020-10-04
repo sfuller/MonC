@@ -28,6 +28,7 @@ namespace MonC
         public const string BINOP_LOGICAL_AND = "&&";
         public const string BINOP_LOGICAL_OR = "||";
         public const string BINOP_ASSIGN = "=";
+        public const string BINOP_ACCESS = ".";
 
         public const string POINTER_SHARED = "*";
         public const string POINTER_WEAK = "?";

@@ -1,22 +1,19 @@
-using MonC.SyntaxTree.Nodes.Statements;
-
 namespace MonC.SyntaxTree.Nodes.Expressions
 {
     public class AssignmentNode : BasicExpression
     {
-        public DeclarationNode Declaration;
-        public IExpressionNode RHS;
+        public IAssignableNode Lhs;
+        public IExpressionNode Rhs;
 
-        public AssignmentNode(DeclarationNode declaration, IExpressionNode rhs)
+        public AssignmentNode(IAssignableNode lhs, IExpressionNode rhs)
         {
-            Declaration = declaration;
-            RHS = rhs;
+            Lhs = lhs;
+            Rhs = rhs;
         }
 
         public override void AcceptBasicExpressionVisitor(IBasicExpressionVisitor visitor)
         {
             visitor.VisitAssignment(this);
         }
-
     }
 }

@@ -155,11 +155,15 @@ namespace MonC.Semantics.Pointers
             // and if so, we should free the old value if owned, set ownership = true?
 
             // TODO: Is this sufficient? Are there other types of expressions that could cause ownership transfer?
-            if (node.RHS is VariableNode variableNode) {
+            if (node.Rhs is VariableNode variableNode) {
                 if (variableNode.Declaration == _pointer) {
                     TakeOwnership(node);
                 }
             }
+        }
+
+        public void VisitAccess(AccessNode node)
+        {
         }
 
         public void VisitUnknown(IExpressionNode node)

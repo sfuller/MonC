@@ -10,40 +10,42 @@ namespace MonC.Parsing.ParseTree
         public IVisitor<FunctionCallParseNode>? FunctionCallVisitor;
         public IVisitor<TypeSpecifierParseNode>? TypeSpecifierVisitor;
         public IVisitor<StructFunctionAssociationParseNode>? StructFunctionAssociationVisitor;
+        public IVisitor<DeclarationIdentifierParseNode>? DeclarationIdentifierParseNodeVisitor;
+        public IVisitor<AccessParseNode>? AccessParseNodeVisitor;
 
         public void VisitAssignment(AssignmentParseNode node)
         {
-            if (AssignmentVisitor != null) {
-                AssignmentVisitor.Visit(node);
-            }
+            AssignmentVisitor?.Visit(node);
         }
 
         public void VisitIdentifier(IdentifierParseNode node)
         {
-            if (IdentifierVisitor != null) {
-                IdentifierVisitor.Visit(node);
-            }
+            IdentifierVisitor?.Visit(node);
         }
 
         public void VisitFunctionCall(FunctionCallParseNode node)
         {
-            if (FunctionCallVisitor != null) {
-                FunctionCallVisitor.Visit(node);
-            }
+            FunctionCallVisitor?.Visit(node);
         }
 
         public void VisitTypeSpecifier(TypeSpecifierParseNode node)
         {
-            if (TypeSpecifierVisitor != null) {
-                TypeSpecifierVisitor.Visit(node);
-            }
+            TypeSpecifierVisitor?.Visit(node);
         }
 
         public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
         {
-            if (StructFunctionAssociationVisitor != null) {
-                StructFunctionAssociationVisitor.Visit(node);
-            }
+            StructFunctionAssociationVisitor?.Visit(node);
+        }
+
+        public void VisitDeclarationIdentifier(DeclarationIdentifierParseNode node)
+        {
+            DeclarationIdentifierParseNodeVisitor?.Visit(node);
+        }
+
+        public void VisitAccess(AccessParseNode node)
+        {
+            AccessParseNodeVisitor?.Visit(node);
         }
     }
 }

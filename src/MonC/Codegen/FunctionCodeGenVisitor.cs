@@ -96,11 +96,15 @@ namespace MonC.Codegen
 
         public void VisitAssignment(AssignmentNode node)
         {
-            node.RHS.AcceptExpressionVisitor(this);
-            int variableAddress;
-            _layout.Variables.TryGetValue(node.Declaration, out variableAddress);
-            int addr = AddInstruction(OpCode.WRITE, variableAddress);
-            AddDebugSymbol(addr, node);
+            AssignmentCodeGenVisitor assignmentCodeGenVisitor
+                    = new AssignmentCodeGenVisitor(node, _functionBuilder, _layout, this);
+            node.Lhs.AcceptAssignableVisitor(assignmentCodeGenVisitor);
+        }
+
+        public void VisitAccess(AccessNode node)
+        {
+            // TODO: Put value of struct member into accumulator.
+            throw new NotImplementedException();
         }
 
         public void VisitEnumValue(EnumValueNode node)

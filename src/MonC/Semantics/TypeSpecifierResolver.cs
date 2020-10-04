@@ -11,14 +11,14 @@ using MonC.TypeSystem.Types;
 
 namespace MonC.Semantics
 {
-    public class TypeResolver : ISpecifierVisitor, IParseTreeVisitor, IReplacementSource
+    public class TypeSpecifierResolver : ISpecifierVisitor, IParseTreeVisitor, IReplacementSource
     {
         private readonly TypeManager _typeManager;
         private readonly IErrorManager _errors;
 
         private readonly SyntaxTreeDelegator _replacementDelegator = new SyntaxTreeDelegator();
 
-        public TypeResolver(TypeManager typeManager, IErrorManager errors)
+        public TypeSpecifierResolver(TypeManager typeManager, IErrorManager errors)
         {
             _typeManager = typeManager;
             _errors = errors;
@@ -67,6 +67,14 @@ namespace MonC.Semantics
         }
 
         public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
+        {
+        }
+
+        public void VisitDeclarationIdentifier(DeclarationIdentifierParseNode node)
+        {
+        }
+
+        public void VisitAccess(AccessParseNode node)
         {
         }
 
