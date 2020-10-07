@@ -6,21 +6,13 @@ namespace MonC.Parsing.ParseTree.Nodes
 {
     public class FunctionCallParseNode : IExpressionNode, IParseTreeNode
     {
-        public readonly IExpressionNode LHS;
-        private readonly IExpressionNode[] _arguments;
-
-        public int ArgumentCount => _arguments.Length;
-
-        public IExpressionNode[] GetArguments()
-        {
-            // TODO: This sucks. Since nodes are mutable, we should just make this a list and allow access to it.
-            return new List<IExpressionNode>(_arguments).ToArray();
-        }
+        public IExpressionNode LHS;
+        public readonly List<IExpressionNode> Arguments = new List<IExpressionNode>();
 
         public FunctionCallParseNode(IExpressionNode lhs, IEnumerable<IExpressionNode> arguments)
         {
             LHS = lhs;
-            _arguments = arguments.ToArray();
+            Arguments.AddRange(arguments);
         }
 
         public void AcceptSyntaxTreeVisitor(ISyntaxTreeVisitor visitor)
@@ -38,14 +30,5 @@ namespace MonC.Parsing.ParseTree.Nodes
             visitor.VisitFunctionCall(this);
         }
 
-        public IExpressionNode GetArgument(int index)
-        {
-            return _arguments[index];
-        }
-
-        public void SetArgument(int index, IExpressionNode argument)
-        {
-            _arguments[index] = argument;
-        }
     }
 }

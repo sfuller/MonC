@@ -183,7 +183,11 @@ namespace MonC.Frontend
 
         public void VisitUnknown(IExpressionNode node)
         {
-            Print($"{node.GetType().Name}");
+            if (node is IParseTreeNode parseTreeNode) {
+                parseTreeNode.AcceptParseTreeVisitor(this);
+            } else {
+                Print("(Unknown IExpressionNode)");
+            }
         }
 
         public void VisitEnum(EnumNode node)
@@ -212,8 +216,8 @@ namespace MonC.Frontend
         {
             Print("Function Call (Parse Tree Node)");
             VisitSubnode(node.LHS);
-            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
-                VisitSubnode(node.GetArgument(i));
+            for (int i = 0, ilen = node.Arguments.Count; i < ilen; ++i) {
+                VisitSubnode(node.Arguments[i]);
             }
         }
 

@@ -51,7 +51,10 @@ namespace MonC.Semantics.TypeChecks
 
         public void Process(FunctionDefinitionNode function)
         {
-            StatementChildrenVisitor statementVisitor = new StatementChildrenVisitor(_delegator);
+            SyntaxTreeDelegator childrenDelegator = new SyntaxTreeDelegator();
+            StatementChildrenVisitor statementVisitor = new StatementChildrenVisitor(_delegator, childrenDelegator);
+            childrenDelegator.StatementVisitor = statementVisitor;
+
             function.Body.VisitStatements(statementVisitor);
         }
 

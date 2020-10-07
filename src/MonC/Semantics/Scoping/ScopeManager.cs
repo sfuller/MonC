@@ -73,9 +73,8 @@ namespace MonC.Semantics.Scoping
         public void VisitFunctionCall(FunctionCallParseNode node)
         {
             ApplyScope(node);
-            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
-                IExpressionNode argument = node.GetArgument(i);
-                argument.AcceptSyntaxTreeVisitor(_delegator);
+            for (int i = 0, ilen = node.Arguments.Count; i < ilen; ++i) {
+                node.Arguments[i].AcceptSyntaxTreeVisitor(_delegator);
             }
         }
 

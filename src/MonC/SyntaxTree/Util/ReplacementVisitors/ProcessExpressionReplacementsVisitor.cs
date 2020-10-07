@@ -6,7 +6,8 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
 {
     public class ProcessExpressionReplacementsVisitor : IExpressionVisitor, IUnaryOperationVisitor, IBasicExpressionVisitor
     {
-        public readonly ReplacementProcessor _processor;
+        private readonly ReplacementProcessor _processor;
+        public IVisitor<IExpressionNode>? ExtensionVisitor;
 
         public ProcessExpressionReplacementsVisitor(IReplacementSource replacementSource)
         {
@@ -84,7 +85,7 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
 
         public void VisitUnknown(IExpressionNode node)
         {
-            // TODO: Should we do anything here?
+            ExtensionVisitor?.Visit(node);
         }
     }
 }

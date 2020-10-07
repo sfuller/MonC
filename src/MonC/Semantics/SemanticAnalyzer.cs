@@ -142,7 +142,8 @@ namespace MonC.Semantics
         private void ProcessFunction(FunctionDefinitionNode function)
         {
             new DuplicateVariableDeclarationAnalyzer(this).Process(function);
-            new TranslateIdentifiersVisitor(_context, this, _expressionTypeManager).Process(function);
+            new TranslateIdentifiersVisitor(_context, this).Process(function);
+            new TranslateAccessVisitor(this, _expressionTypeManager).Process(function);
             new AssignmentAnalyzer(this, _context).Process(function);
             new TypeSpecifierResolver(_typeManager, this).Process(function);
             new TypeCheckVisitor(_context, _typeManager, this, _expressionTypeManager).Process(function);

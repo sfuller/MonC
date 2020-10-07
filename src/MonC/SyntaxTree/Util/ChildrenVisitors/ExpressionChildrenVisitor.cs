@@ -7,10 +7,13 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
     public class ExpressionChildrenVisitor : IExpressionVisitor, IUnaryOperationVisitor, IBasicExpressionVisitor
     {
         private readonly ISyntaxTreeVisitor _visitor;
+        private readonly ISyntaxTreeVisitor _childrenVisitor;
+        public IVisitor<IExpressionNode>? ExtensionChildrenVisitor;
 
-        public ExpressionChildrenVisitor(ISyntaxTreeVisitor visitor)
+        public ExpressionChildrenVisitor(ISyntaxTreeVisitor visitor, ISyntaxTreeVisitor childrenVisitor)
         {
             _visitor = visitor;
+            _childrenVisitor = childrenVisitor;
         }
 
         public void VisitVoid(VoidExpressionNode node)
@@ -82,7 +85,7 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
 
         public void VisitUnknown(IExpressionNode node)
         {
-            _visitor.VisitExpression(node);
+            ExtensionChildrenVisitor?.Visit(node);
         }
 
         public void VisitNegateUnaryOp(NegateUnaryOpNode node)
@@ -98,7 +101,7 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
         public void VisitCastUnaryOp(CastUnaryOpNode node)
         {
             _visitor.VisitExpression(node);
-            _visitor.VisitSpecifier(node.ToType);
+            node.ToType.AcceptSyntaxTreeVisitor(_childrenVisitor);
         }
     }
 }

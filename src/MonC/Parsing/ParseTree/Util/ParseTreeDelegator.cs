@@ -1,7 +1,7 @@
 using MonC.Parsing.ParseTree.Nodes;
 using MonC.SyntaxTree.Util;
 
-namespace MonC.Parsing.ParseTree
+namespace MonC.Parsing.ParseTree.Util
 {
     public class ParseTreeDelegator : IParseTreeVisitor
     {
@@ -10,8 +10,8 @@ namespace MonC.Parsing.ParseTree
         public IVisitor<FunctionCallParseNode>? FunctionCallVisitor;
         public IVisitor<TypeSpecifierParseNode>? TypeSpecifierVisitor;
         public IVisitor<StructFunctionAssociationParseNode>? StructFunctionAssociationVisitor;
-        public IVisitor<DeclarationIdentifierParseNode>? DeclarationIdentifierParseNodeVisitor;
-        public IVisitor<AccessParseNode>? AccessParseNodeVisitor;
+        public IVisitor<DeclarationIdentifierParseNode>? DeclarationIdentifierVisitor;
+        public IVisitor<AccessParseNode>? AccessVisitor;
 
         public void VisitAssignment(AssignmentParseNode node)
         {
@@ -40,12 +40,12 @@ namespace MonC.Parsing.ParseTree
 
         public void VisitDeclarationIdentifier(DeclarationIdentifierParseNode node)
         {
-            DeclarationIdentifierParseNodeVisitor?.Visit(node);
+            DeclarationIdentifierVisitor?.Visit(node);
         }
 
         public void VisitAccess(AccessParseNode node)
         {
-            AccessParseNodeVisitor?.Visit(node);
+            AccessVisitor?.Visit(node);
         }
     }
 }

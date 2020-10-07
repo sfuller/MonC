@@ -6,53 +6,51 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
 {
     public class ProcessReplacementsVisitorChain
     {
-        private readonly ExpressionChildrenVisitor _expressionChildrenVisitor;
-        private readonly StatementChildrenVisitor _statementChildrenVisitor;
-        private readonly TopLevelStatementChildrenVisitor _topLevelStatementChildrenVisitor;
+        public readonly ExpressionChildrenVisitor ExpressionChildrenVisitor;
+        public readonly StatementChildrenVisitor StatementChildrenVisitor;
+        public readonly TopLevelStatementChildrenVisitor TopLevelStatementChildrenVisitor;
+
+        public readonly ProcessExpressionReplacementsVisitor ExpressionReplacementsVisitor;
+        public readonly ProcessStatementReplacementsVisitor StatementReplacementsVisitor;
+        public readonly ProcessTopLevelStatementReplacementsVisitor TopLevelStatementReplacementsVisitor;
+
+        public readonly SyntaxTreeDelegator ChildrenVisitor;
+        public readonly SyntaxTreeDelegator ReplacementVisitor;
 
         public ProcessReplacementsVisitorChain(IReplacementSource source)
         {
-            ProcessExpressionReplacementsVisitor expressionReplacementsVisitor =
-                new ProcessExpressionReplacementsVisitor(source);
-            ProcessStatementReplacementsVisitor statementReplacementsVisitor =
-                new ProcessStatementReplacementsVisitor(source);
-            ProcessTopLevelStatementReplacementsVisitor topLevelStatementReplacementsVisitor =
-                new ProcessTopLevelStatementReplacementsVisitor(source);
+            ExpressionReplacementsVisitor = new ProcessExpressionReplacementsVisitor(source);
+            StatementReplacementsVisitor = new ProcessStatementReplacementsVisitor(source);
+            TopLevelStatementReplacementsVisitor = new ProcessTopLevelStatementReplacementsVisitor(source);
 
-            // Configure the expression children visitor to use the expression replacements visitor for expressions.
-            SyntaxTreeDelegator expressionChildrenDelegator = new SyntaxTreeDelegator();
-            expressionChildrenDelegator.ExpressionVisitor = expressionReplacementsVisitor;
-            expressionChildrenDelegator.StatementVisitor = statementReplacementsVisitor;
-            _expressionChildrenVisitor = new ExpressionChildrenVisitor(expressionChildrenDelegator);
+            ReplacementVisitor = new SyntaxTreeDelegator();
+            ReplacementVisitor.ExpressionVisitor = ExpressionReplacementsVisitor;
+            ReplacementVisitor.StatementVisitor = StatementReplacementsVisitor;
+            ReplacementVisitor.TopLevelVisitor = TopLevelStatementReplacementsVisitor;
 
-            // Configure the statement children visitor to use the expression children visitor when encountering expressions.
-            SyntaxTreeDelegator statementChildrenDelegator = new SyntaxTreeDelegator();
-            statementChildrenDelegator.ExpressionVisitor = _expressionChildrenVisitor;
-            statementChildrenDelegator.StatementVisitor = statementReplacementsVisitor;
-            _statementChildrenVisitor = new StatementChildrenVisitor(statementChildrenDelegator);
+            ChildrenVisitor = new SyntaxTreeDelegator();
+            ExpressionChildrenVisitor = new ExpressionChildrenVisitor(ReplacementVisitor, ChildrenVisitor);
+            StatementChildrenVisitor = new StatementChildrenVisitor(ReplacementVisitor, ChildrenVisitor);
+            TopLevelStatementChildrenVisitor = new TopLevelStatementChildrenVisitor(ReplacementVisitor, ChildrenVisitor);
 
-            // Configure the top-level statement children visitor to use the other visitors.
-            SyntaxTreeDelegator topLevelStatementChildrenDelegator = new SyntaxTreeDelegator();
-            topLevelStatementChildrenDelegator.ExpressionVisitor = _expressionChildrenVisitor;
-            topLevelStatementChildrenDelegator.StatementVisitor = _statementChildrenVisitor;
-            topLevelStatementChildrenDelegator.TopLevelVisitor = topLevelStatementReplacementsVisitor;
-            _topLevelStatementChildrenVisitor =
-                new TopLevelStatementChildrenVisitor(topLevelStatementChildrenDelegator);
+            ChildrenVisitor.ExpressionVisitor = ExpressionChildrenVisitor;
+            ChildrenVisitor.StatementVisitor = StatementChildrenVisitor;
+            ChildrenVisitor.TopLevelVisitor = TopLevelStatementChildrenVisitor;
         }
 
         public void ProcessReplacements(ExpressionNode node)
         {
-            node.AcceptExpressionVisitor(_expressionChildrenVisitor);
+            node.AcceptExpressionVisitor(ExpressionChildrenVisitor);
         }
 
         public void ProcessReplacements(StatementNode node)
         {
-            node.AcceptStatementVisitor(_statementChildrenVisitor);
+            node.AcceptStatementVisitor(StatementChildrenVisitor);
         }
 
         public void ProcessReplacements(ITopLevelStatementNode node)
         {
-            node.AcceptTopLevelVisitor(_topLevelStatementChildrenVisitor);
+            node.AcceptTopLevelVisitor(TopLevelStatementChildrenVisitor);
         }
     }
 }

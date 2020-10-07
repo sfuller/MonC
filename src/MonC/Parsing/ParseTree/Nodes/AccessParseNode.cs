@@ -4,8 +4,8 @@ namespace MonC.Parsing.ParseTree.Nodes
 {
     public class AccessParseNode : ExpressionNode, IParseTreeNode
     {
-        public readonly IExpressionNode Lhs;
-        public readonly DeclarationIdentifierParseNode Rhs;
+        public IExpressionNode Lhs;
+        public DeclarationIdentifierParseNode Rhs;
 
         public AccessParseNode(IExpressionNode lhs, DeclarationIdentifierParseNode rhs)
         {
