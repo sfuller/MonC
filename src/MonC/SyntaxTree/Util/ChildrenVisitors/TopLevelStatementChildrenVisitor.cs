@@ -1,5 +1,6 @@
 ﻿using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.SyntaxTree.Util.ChildrenVisitors
 {
@@ -34,7 +35,13 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
 
         public void VisitStruct(StructNode node)
         {
-            throw new System.NotImplementedException();
+            _visitor.VisitTopLevelStatement(node);
+            foreach (IStructFunctionAssociationNode functionAssociationNode in node.FunctionAssociations) {
+                functionAssociationNode.AcceptSyntaxTreeVisitor(_childrenVisitor);
+            }
+            foreach (DeclarationNode member in node.Members) {
+                member.AcceptSyntaxTreeVisitor(_childrenVisitor);
+            }
         }
     }
 }

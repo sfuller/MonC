@@ -94,13 +94,16 @@ namespace MonC.Frontend
 
         public void VisitFunctionDefinition(FunctionDefinitionNode node)
         {
-            Print($"Function Definition ({node.ReturnType} {node.Name})");
+            Print($"Function Definition (Name = {node.Name})");
             VisitBody(node.Body);
         }
 
         public void VisitStruct(StructNode node)
         {
-            Print($"Struct ({node.Name})");
+            Print($"Struct (Name = {node.Name})");
+            foreach (DeclarationNode member in node.Members) {
+                VisitSubnode(member);
+            }
         }
 
         public void VisitFunctionCall(FunctionCallNode node)
@@ -223,7 +226,7 @@ namespace MonC.Frontend
 
         public void VisitTypeSpecifier(TypeSpecifierParseNode node)
         {
-            Print("Type Specifier (Parse Tree Node)");
+            Print($"Type Specifier (Parse Tree Node) (Name = {node.Name}, PointerMode = {node.PointerMode})");
         }
 
         public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
@@ -238,7 +241,7 @@ namespace MonC.Frontend
 
         public void VisitAccess(AccessParseNode node)
         {
-            Print($"Access Operator (Rhs.Name = {node.Rhs.Name})");
+            Print($"Access Operator (Parse Node) (Rhs.Name = {node.Rhs.Name})");
             VisitSubnode(node.Lhs);
         }
 
@@ -249,7 +252,11 @@ namespace MonC.Frontend
 
         public void VisitUnknown(ISpecifierNode node)
         {
-            Print("(Unknown Specifier Node)");
+            if (node is IParseTreeNode parseTreeNode) {
+                parseTreeNode.AcceptParseTreeVisitor(this);
+            } else {
+                Print("(Unknown Specifier Node)");
+            }
         }
 
         private void VisitSubnode(ISyntaxTreeNode node)

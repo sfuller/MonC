@@ -57,8 +57,12 @@ namespace MonC.Semantics
                 AnalyzeEnum(enumNode);
             }
 
+            foreach (StructNode structNode in module.Structs) {
+                AnalyzeStruct(structNode);
+            }
+
             foreach (FunctionDefinitionNode function in module.Functions) {
-                ProcessFunction(function);
+                AnalyzeFunction(function);
             }
 
             foreach ((string message, ISyntaxTreeNode node) in _errorsToProcess) {
@@ -139,13 +143,18 @@ namespace MonC.Semantics
             }
         }
 
-        private void ProcessFunction(FunctionDefinitionNode function)
+        private void AnalyzeStruct(StructNode structNode)
+        {
+            new TypeSpecifierResolver(_typeManager, this).Process(structNode);
+        }
+
+        private void AnalyzeFunction(FunctionDefinitionNode function)
         {
             new DuplicateVariableDeclarationAnalyzer(this).Process(function);
+            new TypeSpecifierResolver(_typeManager, this).Process(function);
             new TranslateIdentifiersVisitor(_context, this).Process(function);
             new TranslateAccessVisitor(this, _expressionTypeManager).Process(function);
             new AssignmentAnalyzer(this, _context).Process(function);
-            new TypeSpecifierResolver(_typeManager, this).Process(function);
             new TypeCheckVisitor(_context, _typeManager, this, _expressionTypeManager).Process(function);
         }
 

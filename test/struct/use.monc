@@ -7,7 +7,7 @@ struct Foo {
 int main() {
     Foo foo;
     foo.a = 1;
-    foo.a = 2;
+    foo.b = 2;
     
     if (foo.a == 1 && foo.b == 2) {
         return 0;

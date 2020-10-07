@@ -8,6 +8,7 @@ using MonC.DotNetInterop;
 using MonC.IL;
 using MonC.Parsing;
 using MonC.Semantics;
+using MonC.SyntaxTree;
 using MonC.VM;
 
 namespace MonC.Frontend
@@ -170,8 +171,11 @@ namespace MonC.Frontend
 
                 if (showAST) {
                     PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
-                    for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
-                        module.Functions[i].AcceptTopLevelVisitor(treeVisitor);
+                    foreach (StructNode structNode in module.Structs) {
+                        structNode.AcceptTopLevelVisitor(treeVisitor);
+                    }
+                    foreach (FunctionDefinitionNode function in module.Functions) {
+                        function.AcceptTopLevelVisitor(treeVisitor);
                     }
                 }
             }

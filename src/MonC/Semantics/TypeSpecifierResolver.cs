@@ -27,10 +27,10 @@ namespace MonC.Semantics
             NewNode = new VoidExpressionNode();
         }
 
-        public void Process(FunctionDefinitionNode function)
+        public void Process(ITopLevelStatementNode topLevelStatement)
         {
             ProcessReplacementsVisitorChain replacementsVisitorChain = new ProcessReplacementsVisitorChain(this);
-            replacementsVisitorChain.ProcessReplacements(function);
+            replacementsVisitorChain.ProcessReplacements(topLevelStatement);
         }
 
         public ISyntaxTreeVisitor ReplacementVisitor => _replacementDelegator;
