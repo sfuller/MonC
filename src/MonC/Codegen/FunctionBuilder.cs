@@ -42,10 +42,10 @@ namespace MonC.Codegen
         public List<Instruction> Instructions => _instructions;
         public int InstructionCount => _instructions.Count;
 
-        public int AddInstruction(OpCode op, int immediate = 0)
+        public int AddInstruction(OpCode op, int immediate = 0, int size = 4)
         {
             int index = _instructions.Count;
-            _instructions.Add(new Instruction(op, immediate));
+            _instructions.Add(new Instruction(op, immediate, size));
             return index;
         }
 
@@ -83,11 +83,15 @@ namespace MonC.Codegen
         public ILFunction Build(FunctionDefinitionNode functionDefinitionNode)
         {
             // Note: Will need to be adjusted when non sizeof(int) sized types are introduced.
-            int argumentMemorySize = functionDefinitionNode.Parameters.Length;
+            int argumentMemorySize = functionDefinitionNode.Parameters.Length * sizeof(int);
+
+            // TODO: Derive result size from return type.
+            int returnValueSize = sizeof(int);
 
             return new ILFunction {
                 ArgumentMemorySize = argumentMemorySize,
-                MaxStackSize = _maxStackWorkOffset,
+                ReturnValueSize = returnValueSize,
+                MaxStackSize = returnValueSize + argumentMemorySize + _maxStackWorkOffset,
                 Code = _instructions.ToArray(),
                 Symbols = _addressToTokenMap,
                 StringInstructions = _stringInstructions.ToArray(),

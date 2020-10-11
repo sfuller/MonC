@@ -9,17 +9,17 @@ namespace MonC.Codegen
     {
         private readonly FunctionBuilder _functionBuilder;
 
-        private int _rhsStackAddress;
+        //private int _rhsStackAddress;
 
         public BinaryOperationCodeGenVisitor(FunctionBuilder functionBuilder)
         {
             _functionBuilder = functionBuilder;
         }
 
-        public void Setup(int rhsStackAddress)
+        public void Setup()
         {
             // Note: LHS value is not in stack, but in current register.
-            _rhsStackAddress = rhsStackAddress;
+            //_rhsStackAddress = rhsStackAddress;
         }
 
         public void VisitCompareLTBinOp(CompareLtBinOpNode node)
@@ -44,50 +44,50 @@ namespace MonC.Codegen
 
         public void VisitCompareEqualityBinOp(CompareEqualityBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.CMPE, _rhsStackAddress);
+            _functionBuilder.AddInstruction(OpCode.CMPE);
         }
 
         public void VisitCompareInequalityBinOp(CompareInequalityBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.CMPE, _rhsStackAddress);
+            _functionBuilder.AddInstruction(OpCode.CMPE);
             _functionBuilder.AddInstruction(OpCode.LNOT);
         }
 
         public void VisitLogicalAndBinOp(LogicalAndBinOpNode node)
         {
             _functionBuilder.AddInstruction(OpCode.BOOL);
-            _functionBuilder.AddInstruction(OpCode.AND, _rhsStackAddress);
+            _functionBuilder.AddInstruction(OpCode.AND);
         }
 
         public void VisitLogicalOrBinOp(LogicalOrBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.OR, _rhsStackAddress);
+            _functionBuilder.AddInstruction(OpCode.OR);
             _functionBuilder.AddInstruction(OpCode.BOOL);
         }
 
         public void VisitAddBinOp(AddBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.ADD, _rhsStackAddress);
+            _functionBuilder.AddInstruction(OpCode.ADD);
         }
 
         public void VisitSubtractBinOp(SubtractBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.SUB, _rhsStackAddress);
+            _functionBuilder.AddInstruction(OpCode.SUB);
         }
 
         public void VisitMultiplyBinOp(MultiplyBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.MUL, _rhsStackAddress);
+            _functionBuilder.AddInstruction(OpCode.MUL);
         }
 
         public void VisitDivideBinOp(DivideBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.DIV, _rhsStackAddress);
+            _functionBuilder.AddInstruction(OpCode.DIV);
         }
 
         public void VisitModuloBinOp(ModuloBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.MOD, _rhsStackAddress);
+            _functionBuilder.AddInstruction(OpCode.MOD);
         }
 
         public void VisitUnknown(IBinaryOperationNode node)
@@ -101,9 +101,9 @@ namespace MonC.Codegen
             bool includeEquals = (node is CompareLteBinOpNode || node is CompareGteBinOpNode) ^ isGreaterThan;
 
             if (includeEquals) {
-                _functionBuilder.AddInstruction(OpCode.CMPLTE, _rhsStackAddress);
+                _functionBuilder.AddInstruction(OpCode.CMPLTE);
             } else {
-                _functionBuilder.AddInstruction(OpCode.CMPLT, _rhsStackAddress);
+                _functionBuilder.AddInstruction(OpCode.CMPLT);
             }
 
             if (isGreaterThan) {

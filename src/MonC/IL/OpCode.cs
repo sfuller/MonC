@@ -9,7 +9,7 @@ namespace MonC.IL
         // Accumulation
         //
 
-        LOAD,
+        //LOAD,
 
 
         //
@@ -18,6 +18,8 @@ namespace MonC.IL
 
         READ,
         WRITE,
+        PUSH,
+        POP,
 
 
         //

@@ -30,7 +30,7 @@ namespace MonC.IL
 
         private void WriteFunction(string name, int index, ILFunction function)
         {
-            _writer.WriteLine($"[{index}] {name}");
+            _writer.WriteLine($"[{index}] {name} (MaxStackSize = {function.MaxStackSize}, ReturnValueSize = {function.ReturnValueSize}, ArgumentMemorySize = {function.ArgumentMemorySize})");
 
             var code = function.Code;
             var symbols = function.Symbols;

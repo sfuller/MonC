@@ -6,6 +6,8 @@ namespace MonC.IL
 {
     public struct ILFunction
     {
+        public int ReturnValueSize;
+
         /// <summary>
         /// The size of the argument stack prepared by the caller.
         /// This is needed so the VM knowns how much memory to copy from the previous stack frame to the current one.

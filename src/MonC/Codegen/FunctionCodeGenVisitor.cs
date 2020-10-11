@@ -46,9 +46,9 @@ namespace MonC.Codegen
             return _functionBuilder.FreeTemporaryStackAddress(length);
         }
 
-        private int AddInstruction(OpCode op, int immediate = 0)
+        private int AddInstruction(OpCode op, int immediate = 0, int size = 4)
         {
-            return _functionBuilder.AddInstruction(op, immediate);
+            return _functionBuilder.AddInstruction(op, immediate, size);
         }
 
         private void AddDebugSymbol(int address, ISyntaxTreeNode associatedNode)
@@ -61,24 +61,24 @@ namespace MonC.Codegen
             bool shouldCoerceSides = node is LogicalAndBinOpNode;
 
             // Evaluate right hand side and put it in the stack.
-            int rhsStackAddress = AllocTemporaryStackAddress();
+            //int rhsStackAddress = AllocTemporaryStackAddress();
             node.RHS.AcceptExpressionVisitor(this);
             if (shouldCoerceSides) {
                 AddInstruction(OpCode.BOOL);
             }
-            AddInstruction(OpCode.WRITE, rhsStackAddress);
+            //AddInstruction(OpCode.WRITE, rhsStackAddress);
 
             // Evaluate left hand side and keep it in the a register
             node.LHS.AcceptExpressionVisitor(this);
 
             int comparisonOperationAddress = _functionBuilder.InstructionCount;
 
-
             BinaryOperationCodeGenVisitor binOpVisitor = new BinaryOperationCodeGenVisitor(_functionBuilder);
-            binOpVisitor.Setup(rhsStackAddress);
+            // binOpVisitor.Setup(rhsStackAddress);
+            binOpVisitor.Setup();
             node.AcceptBinaryOperationVisitor(binOpVisitor);
 
-            FreeTemporaryStackAddress();
+            //FreeTemporaryStackAddress();
 
             AddDebugSymbol(comparisonOperationAddress, node);
         }
@@ -110,7 +110,7 @@ namespace MonC.Codegen
         public void VisitEnumValue(EnumValueNode node)
         {
             int value = _enumDeclarationInfos[node.Declaration.Name].Value;
-            AddInstruction(OpCode.LOAD, value);
+            AddInstruction(OpCode.PUSH, value);
         }
 
         public void VisitBody(BodyNode node)
@@ -170,26 +170,14 @@ namespace MonC.Codegen
 
         public void VisitFunctionCall(FunctionCallNode node)
         {
-            int argumentStackLength = node.ArgumentCount + 1;
-            int argumentStack = AllocTemporaryStackAddress(argumentStackLength);
-
-            // First argument is the index of the function to be called
-            int functionLoadAddr = AddInstruction(OpCode.LOAD, _functionManager.GetFunctionIndex(node.LHS));
-            AddInstruction(OpCode.WRITE, argumentStack);
-
-            _functionBuilder.SetInstructionReferencingFunctionAddress(functionLoadAddr);
-
-            // The rest of the argument stack is the argument values.
-            int argumentStackValuesStart = argumentStack + 1;
-
             for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
                 node.GetArgument(i).AcceptExpressionVisitor(this);
-                AddInstruction(OpCode.WRITE, argumentStackValuesStart + i);
             }
 
-            AddInstruction(OpCode.CALL, argumentStack);
+            int functionLoadAddr = AddInstruction(OpCode.PUSH, _functionManager.GetFunctionIndex(node.LHS));
+            _functionBuilder.SetInstructionReferencingFunctionAddress(functionLoadAddr);
 
-            FreeTemporaryStackAddress(argumentStackLength);
+            AddInstruction(OpCode.CALL);
 
             // Add debug symbol at the first instruction that starts preparing the function to be called.
             AddDebugSymbol(functionLoadAddr, node);
@@ -228,14 +216,14 @@ namespace MonC.Codegen
 
         public void VisitNumericLiteral(NumericLiteralNode node)
         {
-            AddInstruction(OpCode.LOAD, node.Value);
+            AddInstruction(OpCode.PUSH, node.Value);
         }
 
         public void VisitStringLiteral(StringLiteralNode node)
         {
             int index = _strings.Count;
             _strings.Add(node.Value);
-            int addr = AddInstruction(OpCode.LOAD, index);
+            int addr = AddInstruction(OpCode.PUSH, index);
             _functionBuilder.SetStringInstruction(addr);
         }
 
@@ -269,6 +257,10 @@ namespace MonC.Codegen
         public void VisitExpressionStatement(ExpressionStatementNode node)
         {
             node.Expression.AcceptExpressionVisitor(this);
+
+            // Remove Result From Stack
+            // TODO: Determine size from expression result type
+            _functionBuilder.AddInstruction(OpCode.POP);
         }
 
         public void VisitBreak(BreakNode node)

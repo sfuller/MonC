@@ -18,13 +18,14 @@ namespace MonC.Codegen
 
         public void VisitNegateUnaryOp(NegateUnaryOpNode node)
         {
-            int rhsStackAddress = _builder.AllocTemporaryStackAddress();
+            //int rhsStackAddress = _builder.AllocTemporaryStackAddress();
             node.RHS.AcceptExpressionVisitor(_expressionVisitor);
-            int addr = _builder.AddInstruction(OpCode.WRITE, rhsStackAddress);
-            _builder.AddInstruction(OpCode.LOAD, 0);
-            _builder.AddInstruction(OpCode.SUB, rhsStackAddress);
-            _builder.FreeTemporaryStackAddress();
-            _builder.AddDebugSymbol(addr, node);
+            //int addr = _builder.AddInstruction(OpCode.WRITE, rhsStackAddress);
+            //_builder.AddInstruction(OpCode.LOAD, 0);
+            int startAddr = _builder.AddInstruction(OpCode.PUSH, 0);
+            _builder.AddInstruction(OpCode.SUB);
+            //_builder.FreeTemporaryStackAddress();
+            _builder.AddDebugSymbol(startAddr, node);
         }
 
         public void VisitLogicalNotUnaryOp(LogicalNotUnaryOpNode node)

@@ -1,6 +1,4 @@
-﻿using MonC.SyntaxTree.Nodes;
-
-namespace MonC.SyntaxTree.Util.ReplacementVisitors
+﻿namespace MonC.SyntaxTree.Util.ReplacementVisitors
 {
     public class ProcessTopLevelStatementReplacementsVisitor : ITopLevelStatementVisitor
     {
