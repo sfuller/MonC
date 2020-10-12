@@ -22,7 +22,7 @@ namespace MonC.Codegen
             node.RHS.AcceptExpressionVisitor(_expressionVisitor);
             //int addr = _builder.AddInstruction(OpCode.WRITE, rhsStackAddress);
             //_builder.AddInstruction(OpCode.LOAD, 0);
-            int startAddr = _builder.AddInstruction(OpCode.PUSH, 0);
+            int startAddr = _builder.AddInstruction(OpCode.PUSHWORD, 0);
             _builder.AddInstruction(OpCode.SUB);
             //_builder.FreeTemporaryStackAddress();
             _builder.AddDebugSymbol(startAddr, node);

@@ -38,7 +38,7 @@ namespace MonC.IL
             for (int i = 0, ilen = code.Length; i < ilen; ++i) {
                 Instruction instruction = code[i];
 
-                _writer.Write($"  {i,8}:  {instruction.Op} \t{instruction.ImmediateValue}");
+                _writer.Write($"  {i,8}:  {instruction.Op} \t{instruction.ImmediateValue}\t{instruction.SizeValue}");
 
                 Symbol symbol;
                 if (symbols.TryGetValue(i, out symbol)) {

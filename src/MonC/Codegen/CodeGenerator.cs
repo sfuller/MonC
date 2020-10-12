@@ -48,6 +48,7 @@ namespace MonC.Codegen
             FunctionStackLayout layout = layoutGenerator.GetLayout();
             FunctionBuilder builder = new FunctionBuilder(layout, _module.SymbolMap);
             FunctionCodeGenVisitor functionCodeGenVisitor = new FunctionCodeGenVisitor(builder, layout, _manager, strings, _semanticContext.EnumInfo);
+            builder.AddInstruction(OpCode.PUSH, 0, layout.EndAddress);
             functionCodeGenVisitor.VisitBody(node.Body);
 
             if (builder.InstructionCount == 0 || builder.Instructions[builder.InstructionCount - 1].Op != OpCode.RETURN) {

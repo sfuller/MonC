@@ -4,7 +4,6 @@ using MonC.IL;
 using MonC.Semantics;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
-using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
 using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Codegen
@@ -36,51 +35,19 @@ namespace MonC.Codegen
             _enumDeclarationInfos = enumDeclarationInfos;
         }
 
-        public int AllocTemporaryStackAddress(int length = 1)
-        {
-            return _functionBuilder.AllocTemporaryStackAddress(length);
-        }
-
-        public int FreeTemporaryStackAddress(int length = 1)
-        {
-            return _functionBuilder.FreeTemporaryStackAddress(length);
-        }
-
-        private int AddInstruction(OpCode op, int immediate = 0, int size = 4)
-        {
-            return _functionBuilder.AddInstruction(op, immediate, size);
-        }
-
-        private void AddDebugSymbol(int address, ISyntaxTreeNode associatedNode)
-        {
-            _functionBuilder.AddDebugSymbol(address, associatedNode);
-        }
-
         public void VisitBinaryOperation(IBinaryOperationNode node)
         {
-            bool shouldCoerceSides = node is LogicalAndBinOpNode;
-
-            // Evaluate right hand side and put it in the stack.
-            //int rhsStackAddress = AllocTemporaryStackAddress();
             node.RHS.AcceptExpressionVisitor(this);
-            if (shouldCoerceSides) {
-                AddInstruction(OpCode.BOOL);
-            }
-            //AddInstruction(OpCode.WRITE, rhsStackAddress);
-
-            // Evaluate left hand side and keep it in the a register
             node.LHS.AcceptExpressionVisitor(this);
 
             int comparisonOperationAddress = _functionBuilder.InstructionCount;
 
             BinaryOperationCodeGenVisitor binOpVisitor = new BinaryOperationCodeGenVisitor(_functionBuilder);
-            // binOpVisitor.Setup(rhsStackAddress);
             binOpVisitor.Setup();
             node.AcceptBinaryOperationVisitor(binOpVisitor);
 
-            //FreeTemporaryStackAddress();
 
-            AddDebugSymbol(comparisonOperationAddress, node);
+            _functionBuilder.AddDebugSymbol(comparisonOperationAddress, node);
         }
 
         public void VisitBasicExpression(IBasicExpression node)
@@ -110,7 +77,7 @@ namespace MonC.Codegen
         public void VisitEnumValue(EnumValueNode node)
         {
             int value = _enumDeclarationInfos[node.Declaration.Name].Value;
-            AddInstruction(OpCode.PUSH, value);
+            _functionBuilder.AddInstruction(OpCode.PUSHWORD, value);
         }
 
         public void VisitBody(BodyNode node)
@@ -125,8 +92,13 @@ namespace MonC.Codegen
             // If we transition the bytecode format to be more stack based, the ExpressionCodeGenVisitor could return
             // how many values were pushed.
             node.Assignment.AcceptExpressionVisitor(this);
-            int addr = AddInstruction(OpCode.WRITE, _layout.Variables[node]);
-            AddDebugSymbol(addr, node);
+
+            // TODO: USE SIZE OF EXPRESSION TYPE FOR WRITE AND POP INSTRUCTION
+
+            int addr = _functionBuilder.AddInstruction(OpCode.WRITE, _layout.Variables[node]);
+            _functionBuilder.AddInstruction(OpCode.POP);
+
+            _functionBuilder.AddDebugSymbol(addr, node);
         }
 
         public void VisitFor(ForNode node)
@@ -134,7 +106,7 @@ namespace MonC.Codegen
             node.Declaration.AcceptStatementVisitor(this);
 
             // jump straight to condition
-            int initialJumpLocation = AddInstruction(OpCode.NOOP);
+            int initialJumpLocation = _functionBuilder.AddInstruction(OpCode.JUMP);
 
             // Generate body code
             int bodyLocation = _functionBuilder.InstructionCount;
@@ -144,6 +116,7 @@ namespace MonC.Codegen
 
             // Generate update code
             node.Update.AcceptExpressionVisitor(this);
+            _functionBuilder.AddInstruction(OpCode.POP); // TODO: Use size of expression result.
 
             // Generate condition code
             int conditionLocation = _functionBuilder.InstructionCount;
@@ -151,19 +124,19 @@ namespace MonC.Codegen
 
             // Branch to body if condition met.
             int currentLocation = _functionBuilder.InstructionCount;
-            AddInstruction(OpCode.JUMPNZ, bodyLocation - currentLocation - 1);
+            _functionBuilder.AddInstruction(OpCode.JUMPNZ, bodyLocation);
 
-            _functionBuilder.Instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation - initialJumpLocation - 1);
+            _functionBuilder.Instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation);
 
             int breakJumpLocation = _functionBuilder.InstructionCount;
 
             foreach (int breakLocation in _breaks) {
-                _functionBuilder.Instructions[breakLocation] = new Instruction(OpCode.JUMP, breakJumpLocation - breakLocation - 1);
+                _functionBuilder.Instructions[breakLocation] = new Instruction(OpCode.JUMP, breakJumpLocation);
             }
             _breaks.Clear();
 
             foreach (int continueLocation in _continues) {
-                _functionBuilder.Instructions[continueLocation] = new Instruction(OpCode.JUMP, continueJumpLocation - continueLocation - 1);
+                _functionBuilder.Instructions[continueLocation] = new Instruction(OpCode.JUMP, continueJumpLocation);
             }
             _continues.Clear();
         }
@@ -174,40 +147,47 @@ namespace MonC.Codegen
                 node.GetArgument(i).AcceptExpressionVisitor(this);
             }
 
-            int functionLoadAddr = AddInstruction(OpCode.PUSH, _functionManager.GetFunctionIndex(node.LHS));
+            int functionLoadAddr = _functionBuilder.AddInstruction(OpCode.PUSHWORD, _functionManager.GetFunctionIndex(node.LHS));
             _functionBuilder.SetInstructionReferencingFunctionAddress(functionLoadAddr);
 
-            AddInstruction(OpCode.CALL);
+            _functionBuilder.AddInstruction(OpCode.CALL);
+
+            // TODO: GET ACTUAL SIZE OF ARGUMENTS
+            _functionBuilder.FreeStackSpace(sizeof(int) * node.ArgumentCount + sizeof(int)); // Extra word is function index that was pushed.
+
+            // TODO: GET ACTUAL SIZE OF RETURN VALUE
+            _functionBuilder.AllocStackSpace(sizeof(int));
 
             // Add debug symbol at the first instruction that starts preparing the function to be called.
-            AddDebugSymbol(functionLoadAddr, node);
+            _functionBuilder.AddDebugSymbol(functionLoadAddr, node);
         }
 
         public void VisitVariable(VariableNode node)
         {
-            AddInstruction(OpCode.READ, _layout.Variables[node.Declaration]);
+            _functionBuilder.AddInstruction(OpCode.READ, _layout.Variables[node.Declaration]);
         }
 
         public void VisitIfElse(IfElseNode node)
         {
             int startAddress = _functionBuilder.InstructionCount;
-            AddDebugSymbol(startAddress, node.Condition);
+            _functionBuilder.AddDebugSymbol(startAddress, node.Condition);
 
             node.Condition.AcceptExpressionVisitor(this);
 
-            // Make space for the branch instruction we will instert.
-            int branchIndex = AddInstruction(OpCode.NOOP);
+            // Make space for the branch instruction we will instert. We will set values later.
+            int branchIndex = _functionBuilder.AddInstruction(OpCode.JUMPZ);
 
             VisitBody(node.IfBody);
             // Jump to end of if/else after evaluation of if body.
-            int ifEndIndex = AddInstruction(OpCode.NOOP);
+            int ifEndIndex = _functionBuilder.AddInstruction(OpCode.JUMP);
 
+            int bodyIndex = _functionBuilder.InstructionCount;
             VisitBody(node.ElseBody);
 
             int endIndex = _functionBuilder.InstructionCount;
 
-            _functionBuilder.Instructions[branchIndex] = new Instruction(OpCode.JUMPZ, ifEndIndex - branchIndex);
-            _functionBuilder.Instructions[ifEndIndex] =  new Instruction(OpCode.JUMP, endIndex - ifEndIndex - 1);
+            _functionBuilder.Instructions[branchIndex] = new Instruction(OpCode.JUMPZ, bodyIndex);
+            _functionBuilder.Instructions[ifEndIndex] =  new Instruction(OpCode.JUMP, endIndex);
         }
 
         public void VisitVoid(VoidExpressionNode node)
@@ -216,21 +196,21 @@ namespace MonC.Codegen
 
         public void VisitNumericLiteral(NumericLiteralNode node)
         {
-            AddInstruction(OpCode.PUSH, node.Value);
+            _functionBuilder.AddInstruction(OpCode.PUSHWORD, node.Value);
         }
 
         public void VisitStringLiteral(StringLiteralNode node)
         {
             int index = _strings.Count;
             _strings.Add(node.Value);
-            int addr = AddInstruction(OpCode.PUSH, index);
+            int addr = _functionBuilder.AddInstruction(OpCode.PUSHWORD, index);
             _functionBuilder.SetStringInstruction(addr);
         }
 
         public void VisitWhile(WhileNode node)
         {
             // jump straight to condition
-            int initialJumpLocation = AddInstruction(OpCode.NOOP);
+            int initialJumpLocation = _functionBuilder.AddInstruction(OpCode.JUMP);
 
             // Generate body code
             int bodyLocation = _functionBuilder.InstructionCount;
@@ -242,14 +222,14 @@ namespace MonC.Codegen
 
             // Branch to body if condition met.
             int currentLocation = _functionBuilder.InstructionCount;
-            AddInstruction(OpCode.JUMPNZ, bodyLocation - currentLocation - 1);
+            _functionBuilder.AddInstruction(OpCode.JUMPNZ, bodyLocation);
 
-            _functionBuilder.Instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation - initialJumpLocation - 1);
+            _functionBuilder.Instructions[initialJumpLocation] = new Instruction(OpCode.JUMP, conditionLocation);
 
             int breakJumpLocation = _functionBuilder.InstructionCount;
 
             foreach (int breakLocation in _breaks) {
-                _functionBuilder.Instructions[breakLocation] = new Instruction(OpCode.JUMP, breakJumpLocation - breakLocation - 1);
+                _functionBuilder.Instructions[breakLocation] = new Instruction(OpCode.JUMP, breakJumpLocation);
             }
             _breaks.Clear();
         }
@@ -265,23 +245,32 @@ namespace MonC.Codegen
 
         public void VisitBreak(BreakNode node)
         {
-            int breakIndex = AddInstruction(OpCode.NOOP);
+            int breakIndex = _functionBuilder.AddInstruction(OpCode.JUMP);
             _breaks.Push(breakIndex);
-            AddDebugSymbol(breakIndex, node);
+            _functionBuilder.AddDebugSymbol(breakIndex, node);
         }
 
         public void VisitContinue(ContinueNode node)
         {
-            int continueIndex = AddInstruction(OpCode.NOOP);
+            int continueIndex = _functionBuilder.AddInstruction(OpCode.JUMP);
             _continues.Push(continueIndex);
-            AddDebugSymbol(continueIndex, node);
+            _functionBuilder.AddDebugSymbol(continueIndex, node);
         }
 
         public void VisitReturn(ReturnNode node)
         {
             node.RHS.AcceptExpressionVisitor(this);
-            int addr = AddInstruction(OpCode.RETURN);
-            AddDebugSymbol(addr, node);
+
+            // TODO: Use actual size of return type.
+            // Return value is always the beginning of the stack.
+            _functionBuilder.AddInstruction(OpCode.WRITE, 0, sizeof(int));
+
+            // TODO: Is this POP necesary?
+            // Pop the value off of the top of the stack now that we've written it to the return value location.
+            _functionBuilder.AddInstruction(OpCode.POP);
+
+            int addr = _functionBuilder.AddInstruction(OpCode.RETURN);
+            _functionBuilder.AddDebugSymbol(addr, node);
         }
 
         public void VisitUnknown(IExpressionNode node)

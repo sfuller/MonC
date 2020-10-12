@@ -33,7 +33,7 @@ namespace MonC.VM
         public bool Call(
             VMModule module,
             string functionName,
-            byte[] arguments,
+            byte[] argumentData,
             Action<bool>? finished = null)
         {
             if (IsRunning) {
@@ -54,7 +54,7 @@ namespace MonC.VM
                 argumentsSize = module.VMFunctions[functionIndex].ArgumentMemorySize;
             }
 
-            if (arguments.Length != argumentsSize) {
+            if (argumentData.Length != argumentsSize) {
                 // TODO: Should this be an exception? At the very least we need a result code to determine why it failed.
                 return false;
             }
@@ -68,7 +68,7 @@ namespace MonC.VM
             _finishedCallback = finished;
             _cycleCount = 0;
 
-            PushCall(module, functionIndex, arguments);
+            PushCall(module, functionIndex, argumentData);
 
             if (_isStepping) {
                 Break();
@@ -248,6 +248,9 @@ namespace MonC.VM
                 case OpCode.WRITE:
                     InterpretWrite(ins);
                     break;
+                case OpCode.PUSHWORD:
+                    InterpretPushWord(ins);
+                    break;
                 case OpCode.PUSH:
                     InterpretPush(ins);
                     break;
@@ -339,13 +342,16 @@ namespace MonC.VM
             for (int i = 0; i < ins.SizeValue; ++i) {
                 stack.Write(ins.ImmediateValue + i, stack.Read(sourcePointer++));
             }
+        }
 
-            stack.Discard(ins.SizeValue);
+        private void InterpretPushWord(Instruction ins)
+        {
+            PeekCallStack().Memory.PushValInt(ins.ImmediateValue);
         }
 
         private void InterpretPush(Instruction ins)
         {
-            PeekCallStack().Memory.PushValInt(ins.ImmediateValue);
+            PeekCallStack().Memory.Push(ins.SizeValue);
         }
 
         private void InterpretPop()
@@ -369,7 +375,7 @@ namespace MonC.VM
             StackFrame frame = PeekCallStack();
             int a = frame.Memory.PopValInt();
             int b = frame.Memory.PopValInt();
-            frame.Memory.PushValInt((byte)(a == b ? 1 : 0));
+            frame.Memory.PushValInt(a == b ? 1 : 0);
         }
 
         private void InterpretCmpLT()
@@ -377,7 +383,7 @@ namespace MonC.VM
             StackFrame frame = PeekCallStack();
             int a = frame.Memory.PopValInt();
             int b = frame.Memory.PopValInt();
-            frame.Memory.PushVal((byte)(a < b ? 1 : 0));
+            frame.Memory.PushValInt(a < b ? 1 : 0);
         }
 
         private void InterpretCmpLTE()
@@ -385,7 +391,7 @@ namespace MonC.VM
             StackFrame frame = PeekCallStack();
             int a = frame.Memory.PopValInt();
             int b = frame.Memory.PopValInt();
-            frame.Memory.PushVal((byte)(a <= b ? 1 : 0));
+            frame.Memory.PushValInt(a <= b ? 1 : 0);
         }
 
         private void InterpretJump(Instruction ins)
@@ -396,7 +402,7 @@ namespace MonC.VM
         private void InterpretJumpZ(Instruction ins)
         {
             StackFrame frame = PeekCallStack();
-            if (frame.Memory.PopVal() == 0) {
+            if (frame.Memory.PopValInt() == 0) {
                 Jump(ins.ImmediateValue);
             }
         }
@@ -404,7 +410,7 @@ namespace MonC.VM
         private void InterpretJumpNZ(Instruction ins)
         {
             StackFrame frame = PeekCallStack();
-            if (frame.Memory.PopVal() != 0) {
+            if (frame.Memory.PopValInt() != 0) {
                 Jump(ins.ImmediateValue);
             }
         }
@@ -479,9 +485,9 @@ namespace MonC.VM
             stack.PushValInt(a % b);
         }
 
-        private void Jump(int offset)
+        private void Jump(int addr)
         {
-            PeekCallStack().PC += offset;
+            PeekCallStack().PC = addr;
         }
 
         private void PushCall(VMModule module, StackFrameMemory sourceStack)
@@ -531,7 +537,7 @@ namespace MonC.VM
             }
         }
 
-        private void PushCall(VMModule module, int functionIndex, byte[] arguments)
+        private void PushCall(VMModule module, int functionIndex, byte[] argumentData)
         {
             // TODO: Need either better documentation about how bound functions must not re-retrieve arguments from
             // the original argumentSource after a Call Continuation, or we need to use unique argument buffers for each
@@ -543,15 +549,15 @@ namespace MonC.VM
                 out int argumentMemorySize,
                 out int stackSize);
 
-            if (arguments.Length != argumentMemorySize) {
-                throw new ArgumentOutOfRangeException(nameof(arguments), "Function argument size differs.");
+            if (argumentData.Length != argumentMemorySize) {
+                throw new ArgumentOutOfRangeException(nameof(argumentData), "Function argument size differs.");
             }
 
             // Function input + space for function index
             _argumentBuffer.Recreate(stackSize + sizeof(int));
 
-            for (int i = 0, ilen = arguments.Length; i < ilen; ++i) {
-                _argumentBuffer.PushVal(arguments[i]);
+            for (int i = 0, ilen = argumentData.Length; i < ilen; ++i) {
+                _argumentBuffer.PushVal(argumentData[i]);
             }
             _argumentBuffer.PushValInt(functionIndex);
             PushCall(module, _argumentBuffer);

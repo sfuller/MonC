@@ -105,6 +105,9 @@ def test(paths: List[str], showall: bool) -> bool:
     args.extend(annotations.args)
     args.extend(sys.argv[1:])
 
+    stdout = ''
+    stderr = ''
+
     try:
         result = subprocess.run(
             args,
@@ -112,13 +115,16 @@ def test(paths: List[str], showall: bool) -> bool:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             timeout=60)
-    except subprocess.TimeoutExpired:
-        pass
+    except subprocess.TimeoutExpired as e:
+        stdout = e.stdout.decode('utf-8', 'replace') if e.stdout else ''
+        stderr = e.stderr.decode('utf-8', 'replace') if e.stderr else ''
 
     status = False
 
     if result:
         status = result.returncode == 0
+        stdout = result.stdout
+        stderr = result.stderr
 
         filename = os.path.basename(paths[0])
         if filename.startswith('fail_'):
@@ -127,7 +133,7 @@ def test(paths: List[str], showall: bool) -> bool:
         # Crashes always fail
         if is_crash(result.returncode):
             status = False
-        elif annotations.expected_output and not check_output(result.stdout, annotations.expected_output):
+        elif annotations.expected_output and not check_output(stdout, annotations.expected_output):
             status = False
 
     sys.stdout.write('\r')
@@ -144,12 +150,12 @@ def test(paths: List[str], showall: bool) -> bool:
 
         print('-' * 80)
 
+        print(f'stdout: \n{stdout}')
+        print(f'stderr: \n{stderr}')
         if result:
-            print(f'stdout: \n{result.stdout}')
-            print(f'stderr: \n{result.stderr}')
             print(f'rv: {result.returncode}')
         else:
-            print(f'Timed out (TODO: show output here for timed out process)')
+            print(f'Timed out.')
 
         print('')
 
