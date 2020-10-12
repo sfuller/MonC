@@ -503,6 +503,7 @@ namespace MonC.VM
             frame.Module = module;
             frame.Function = functionIndex;
             frame.Memory.CopyFrom(sourceStack, sourceStack.StackPointer - argumentMemorySize, returnValueSize, argumentMemorySize);
+            sourceStack.Discard(argumentMemorySize);
             PushCallStack(frame);
 
             // TODO: PERF: Try to optimize out calls to HandleModuleAdded when we can deduce that the module has already
