@@ -4,7 +4,10 @@ using MonC.IL;
 using MonC.Semantics;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Specifiers;
 using MonC.SyntaxTree.Nodes.Statements;
+using MonC.TypeSystem.Types;
+using MonC.TypeSystem.Types.Impl;
 
 namespace MonC.Codegen
 {
@@ -14,8 +17,11 @@ namespace MonC.Codegen
 
         private readonly FunctionStackLayout _layout;
         private readonly FunctionManager _functionManager;
+        private readonly SemanticModule _module;
+        private readonly SemanticContext _semanticContext;
+        private readonly StructLayoutManager _structLayoutManager;
+        private readonly TypeSizeManager _typeSizeManager;
         private readonly List<string> _strings;
-        private readonly Dictionary<string, EnumDeclarationInfo> _enumDeclarationInfos;
 
         private readonly Stack<int> _breaks = new Stack<int>();
         private readonly Stack<int> _continues = new Stack<int>();
@@ -24,15 +30,21 @@ namespace MonC.Codegen
             FunctionBuilder functionBuilder,
             FunctionStackLayout layout,
             FunctionManager functionManager,
-            List<string> strings,
-            Dictionary<string, EnumDeclarationInfo> enumDeclarationInfos
+            SemanticModule module,
+            SemanticContext semanticContext,
+            StructLayoutManager structLayoutManager,
+            TypeSizeManager typeSizeManager,
+            List<string> strings
         )
         {
+            _functionBuilder = functionBuilder;
             _layout = layout;
             _functionManager = functionManager;
+            _module = module;
+            _semanticContext = semanticContext;
+            _structLayoutManager = structLayoutManager;
+            _typeSizeManager = typeSizeManager;
             _strings = strings;
-            _functionBuilder = functionBuilder;
-            _enumDeclarationInfos = enumDeclarationInfos;
         }
 
         public void VisitBinaryOperation(IBinaryOperationNode node)
@@ -64,19 +76,36 @@ namespace MonC.Codegen
         public void VisitAssignment(AssignmentNode node)
         {
             AssignmentCodeGenVisitor assignmentCodeGenVisitor
-                    = new AssignmentCodeGenVisitor(node, _functionBuilder, _layout, this);
+                    = new AssignmentCodeGenVisitor(_layout, _module, _structLayoutManager);
             node.Lhs.AcceptAssignableVisitor(assignmentCodeGenVisitor);
+
+            node.Rhs.AcceptExpressionVisitor(this);
+
+             int addr = _functionBuilder.AddInstruction(OpCode.WRITE, assignmentCodeGenVisitor.AssignmentWriteLocation);
+             _functionBuilder.AddDebugSymbol(addr, node);
         }
 
         public void VisitAccess(AccessNode node)
         {
-            // TODO: Put value of struct member into accumulator.
-            throw new NotImplementedException();
+            node.Lhs.AcceptExpressionVisitor(this);
+
+            StructType structType = (StructType) _module.ExpressionResultTypes[node.Lhs];
+            StructLayout layout = _structLayoutManager.GetLayout(structType);
+            if (!layout.MemberOffsets.TryGetValue(node.Rhs, out int offset)) {
+                throw new InvalidOperationException();
+            }
+
+            int structSize = _typeSizeManager.GetSize(structType);
+            int fieldSize = _typeSizeManager.GetSize(((TypeSpecifierNode) node.Rhs.Type).Type);
+
+            int trim = structSize - offset - fieldSize;
+            _functionBuilder.AddInstruction(OpCode.POP, 0, trim);
+            _functionBuilder.AddInstruction(OpCode.ACCESS, offset, offset + fieldSize);
         }
 
         public void VisitEnumValue(EnumValueNode node)
         {
-            int value = _enumDeclarationInfos[node.Declaration.Name].Value;
+            int value = _semanticContext.EnumInfo[node.Declaration.Name].Value;
             _functionBuilder.AddInstruction(OpCode.PUSHWORD, value);
         }
 
@@ -164,7 +193,9 @@ namespace MonC.Codegen
 
         public void VisitVariable(VariableNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.READ, _layout.Variables[node.Declaration]);
+            IType type = ((TypeSpecifierNode) node.Declaration.Type).Type;
+            int size = _typeSizeManager.GetSize(type);
+            _functionBuilder.AddInstruction(OpCode.READ, _layout.Variables[node.Declaration], size);
         }
 
         public void VisitIfElse(IfElseNode node)

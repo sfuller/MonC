@@ -55,6 +55,13 @@ namespace MonC.IL
         POP,
 
 
+        /// <summary>
+        /// Pops Size bytes off the stack, and pushes the bytes that occured after the offset specified by the immediate
+        /// value.
+        /// </summary>
+        ACCESS,
+
+
         //
         // Calls
         //

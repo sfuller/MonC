@@ -255,7 +255,10 @@ namespace MonC.VM
                     InterpretPush(ins);
                     break;
                 case OpCode.POP:
-                    InterpretPop();
+                    InterpretPop(ins);
+                    break;
+                case OpCode.ACCESS:
+                    InterpretAccess(ins);
                     break;
                 case OpCode.CALL:
                     InterpretCall();
@@ -354,9 +357,14 @@ namespace MonC.VM
             PeekCallStack().Memory.Push(ins.SizeValue);
         }
 
-        private void InterpretPop()
+        private void InterpretPop(Instruction ins)
         {
-            PeekCallStack().Memory.Discard(sizeof(int));
+            PeekCallStack().Memory.Discard(ins.SizeValue);
+        }
+
+        private void InterpretAccess(Instruction ins)
+        {
+            PeekCallStack().Memory.Access(ins.ImmediateValue, ins.SizeValue);
         }
 
         private void InterpretCall()

@@ -1,36 +1,45 @@
-using MonC.IL;
-using MonC.SyntaxTree.Nodes;
+using System;
+using MonC.Semantics;
 using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.TypeSystem.Types.Impl;
 
 namespace MonC.Codegen
 {
     public class AssignmentCodeGenVisitor : IAssignableVisitor
     {
-        private readonly AssignmentNode _assignment;
-        private readonly FunctionBuilder _functionBuilder;
         private readonly FunctionStackLayout _layout;
-        private readonly IExpressionVisitor _expressionVisitor;
+        private readonly SemanticModule _module;
+        private readonly StructLayoutManager _structLayoutManager;
 
-        public AssignmentCodeGenVisitor(AssignmentNode assignment, FunctionBuilder functionBuilder, FunctionStackLayout layout, IExpressionVisitor expressionVisitor)
+        public int AssignmentWriteLocation { get; private set; }
+
+        public AssignmentCodeGenVisitor(
+            FunctionStackLayout layout,
+                SemanticModule module,
+                StructLayoutManager structLayoutManager)
         {
-            _assignment = assignment;
-            _functionBuilder = functionBuilder;
             _layout = layout;
-            _expressionVisitor = expressionVisitor;
+            _module = module;
+            _structLayoutManager = structLayoutManager;
         }
 
         public void VisitVariable(VariableNode node)
         {
-            _assignment.Rhs.AcceptExpressionVisitor(_expressionVisitor);
-            int variableAddress;
-            _layout.Variables.TryGetValue(node.Declaration, out variableAddress);
-            int addr = _functionBuilder.AddInstruction(OpCode.WRITE, variableAddress);
-            _functionBuilder.AddDebugSymbol(addr, node);
+            AssignmentWriteLocation = _layout.Variables[node.Declaration];
         }
 
         public void VisitAccess(AccessNode node)
         {
-            throw new System.NotImplementedException();
+            IAssignableNode assignableLhs = (IAssignableNode) node.Lhs;
+            assignableLhs.AcceptAssignableVisitor(this);
+
+            StructType structType = (StructType) _module.ExpressionResultTypes[node.Lhs];
+            StructLayout layout = _structLayoutManager.GetLayout(structType);
+            if (!layout.MemberOffsets.TryGetValue(node.Rhs, out int offset)) {
+                throw new InvalidOperationException();
+            }
+
+            AssignmentWriteLocation += offset;
         }
     }
 }

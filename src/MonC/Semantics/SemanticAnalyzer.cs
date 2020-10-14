@@ -3,7 +3,9 @@ using MonC.Parsing;
 using MonC.Semantics.TypeChecks;
 using MonC.TypeSystem;
 using MonC.SyntaxTree;
+using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.TypeSystem.Types;
 using MonC.TypeSystem.Types.Impl;
 
 namespace MonC.Semantics
@@ -15,7 +17,6 @@ namespace MonC.Semantics
         private readonly SemanticContext _context = new SemanticContext();
 
         private readonly TypeManager _typeManager;
-        private readonly ExpressionTypeManager _expressionTypeManager;
 
         /// <summary>
         /// Error information for the current module being analyzed. This information is processed and cleared at the
@@ -30,7 +31,6 @@ namespace MonC.Semantics
         {
             _errors = errors;
             _typeManager = new TypeManager();
-            _expressionTypeManager = new ExpressionTypeManager(_context, _typeManager, this);
 
             _typeManager.RegisterType(new PrimitiveTypeImpl("void"));
             _typeManager.RegisterType(new PrimitiveTypeImpl("int"));
@@ -51,8 +51,12 @@ namespace MonC.Semantics
         /// non-significant information. We use the term 'parse tree' to signify that the tree comes straight from the
         /// parser and isn't analyzed and annotated.</para>
         /// </summary>
-        public void Process(ParseModule module)
+        public SemanticModule Process(ParseModule module)
         {
+            Dictionary<IExpressionNode, IType> expressionResultTypes = new Dictionary<IExpressionNode, IType>();
+            ExpressionTypeManager expressionTypeManager
+                = new ExpressionTypeManager(_context, _typeManager, this, expressionResultTypes);
+
             foreach (EnumNode enumNode in module.Enums) {
                 AnalyzeEnum(enumNode);
             }
@@ -62,7 +66,7 @@ namespace MonC.Semantics
             }
 
             foreach (FunctionDefinitionNode function in module.Functions) {
-                AnalyzeFunction(function);
+                AnalyzeFunction(function, expressionTypeManager);
             }
 
             foreach ((string message, ISyntaxTreeNode node) in _errorsToProcess) {
@@ -71,6 +75,8 @@ namespace MonC.Semantics
                 _errors.Add(new ParseError {Message = message, Start = symbol.Start, End = symbol.End});
             }
             _errorsToProcess.Clear();
+
+            return new SemanticModule(module, expressionResultTypes);
         }
 
         private void RegisterModule(SemanticContext context, ParseModule module)
@@ -148,14 +154,14 @@ namespace MonC.Semantics
             new TypeSpecifierResolver(_typeManager, this).Process(structNode);
         }
 
-        private void AnalyzeFunction(FunctionDefinitionNode function)
+        private void AnalyzeFunction(FunctionDefinitionNode function, ExpressionTypeManager expressionTypeManager)
         {
             new DuplicateVariableDeclarationAnalyzer(this).Process(function);
             new TypeSpecifierResolver(_typeManager, this).Process(function);
             new TranslateIdentifiersVisitor(_context, this).Process(function);
-            new TranslateAccessVisitor(this, _expressionTypeManager).Process(function);
+            new TranslateAccessVisitor(this, expressionTypeManager).Process(function);
             new AssignmentAnalyzer(this, _context).Process(function);
-            new TypeCheckVisitor(_context, _typeManager, this, _expressionTypeManager).Process(function);
+            new TypeCheckVisitor(_context, _typeManager, this, expressionTypeManager).Process(function);
         }
 
         void IErrorManager.AddError(string message, ISyntaxTreeNode node)

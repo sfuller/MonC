@@ -160,6 +160,8 @@ namespace MonC.Frontend
             List<ParseError> errors = new List<ParseError>();
             SemanticAnalyzer analyzer = new SemanticAnalyzer(errors);
 
+            List<SemanticModule> semanticModules = new List<SemanticModule>(parseModules.Count);
+
             analyzer.Register(interopResolver.CreateHeaderModule());
 
             foreach (ParseModule module in parseModules) {
@@ -167,7 +169,7 @@ namespace MonC.Frontend
             }
 
             foreach (ParseModule module in parseModules) {
-                analyzer.Process(module);
+                semanticModules.Add(analyzer.Process(module));
 
                 if (showAst) {
                     PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
@@ -189,7 +191,7 @@ namespace MonC.Frontend
                 Environment.Exit(1);
             }
 
-            foreach (ParseModule module in parseModules) {
+            foreach (SemanticModule module in semanticModules) {
                 CodeGenerator generator = new CodeGenerator(module, analyzer.Context);
                 ILModule ilmodule = generator.Generate();
                 if (showIl) {

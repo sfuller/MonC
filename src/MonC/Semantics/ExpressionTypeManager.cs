@@ -12,27 +12,30 @@ namespace MonC.Semantics
         private readonly TypeManager _typeManager;
         private readonly IErrorManager _errors;
 
-        private Dictionary<IExpressionNode, IType> _typesByExpression = new Dictionary<IExpressionNode, IType>();
+        private readonly Dictionary<IExpressionNode, IType> _expressionResultTypes;
 
-        public ExpressionTypeManager(SemanticContext context, TypeManager typeManager, IErrorManager errors)
+        public ExpressionTypeManager(
+            SemanticContext context, TypeManager typeManager, IErrorManager errors,
+            Dictionary<IExpressionNode, IType> expressionResultTypes)
         {
             _context = context;
             _typeManager = typeManager;
             _errors = errors;
+            _expressionResultTypes = expressionResultTypes;
         }
 
         public void SetExpressionType(IExpressionNode node, IType type)
         {
-            _typesByExpression[node] = type;
+            _expressionResultTypes[node] = type;
         }
 
         public IType GetExpressionType(IExpressionNode node)
         {
-            if (!_typesByExpression.TryGetValue(node, out IType type)) {
+            if (!_expressionResultTypes.TryGetValue(node, out IType type)) {
                 TypeCheckVisitor visitor = new TypeCheckVisitor(_context, _typeManager, _errors, this);
                 node.AcceptExpressionVisitor(visitor);
                 type = visitor.Type;
-                _typesByExpression[node] = type;
+                _expressionResultTypes[node] = type;
             }
             return type;
         }
