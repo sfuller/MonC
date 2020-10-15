@@ -47,7 +47,7 @@ namespace MonC.Codegen
 
         private ILFunction GenerateFunction(FunctionDefinitionNode node, List<string> strings)
         {
-            StackLayoutGenerator layoutGenerator = new StackLayoutGenerator();
+            StackLayoutGenerator layoutGenerator = new StackLayoutGenerator(_typeSizeManager);
             layoutGenerator.VisitFunctionDefinition(node);
             FunctionStackLayout layout = layoutGenerator.GetLayout();
             FunctionBuilder builder = new FunctionBuilder(layout, _module.BaseModule.SymbolMap);
