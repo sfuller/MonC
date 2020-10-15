@@ -1,4 +1,5 @@
 using System;
+using MonC.TypeSystem;
 using MonC.TypeSystem.Types;
 using MonC.TypeSystem.Types.Impl;
 
@@ -16,10 +17,19 @@ namespace MonC.Codegen
         public int GetSize(IType type)
         {
             return type switch {
-                IPrimitiveType primitiveType => sizeof(int),
+                IPrimitiveType primitiveType => GetSize(primitiveType),
                 IPointerType pointerType => sizeof(int),
                 StructType structType => GetSize(structType),
                 _ => throw new NotSupportedException()
+            };
+        }
+
+        private int GetSize(IPrimitiveType type)
+        {
+            return type.Primitive switch {
+                Primitive.Void => 0,
+                Primitive.Int => sizeof(int),
+                _ => throw new ArgumentOutOfRangeException()
             };
         }
 

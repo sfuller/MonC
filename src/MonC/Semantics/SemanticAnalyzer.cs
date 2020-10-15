@@ -32,8 +32,8 @@ namespace MonC.Semantics
             _errors = errors;
             _typeManager = new TypeManager();
 
-            _typeManager.RegisterType(new PrimitiveTypeImpl("void"));
-            _typeManager.RegisterType(new PrimitiveTypeImpl("int"));
+            _typeManager.RegisterType(new PrimitiveTypeImpl(Primitive.Void, "void"));
+            _typeManager.RegisterType(new PrimitiveTypeImpl(Primitive.Int, "int"));
         }
 
         public SemanticContext Context => _context;
@@ -119,7 +119,7 @@ namespace MonC.Semantics
                             Declaration = declarationNode
                         });
                         // TODO: Add error if there is a conflicting type.
-                        _typeManager.RegisterType(new PrimitiveTypeImpl(enumNode.Name));
+                        _typeManager.RegisterType(new PrimitiveTypeImpl(Primitive.Int, enumNode.Name));
                     }
                 }
             }

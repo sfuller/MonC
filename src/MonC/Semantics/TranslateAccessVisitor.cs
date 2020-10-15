@@ -44,8 +44,14 @@ namespace MonC.Semantics
 
         public void Process(FunctionDefinitionNode function)
         {
-            ProcessReplacementsVisitorChain replacementsVisitorChain = new ProcessReplacementsVisitorChain(this);
-            replacementsVisitorChain.ProcessReplacements(function);
+            ProcessReplacementsVisitorChain visitorChain = new ProcessReplacementsVisitorChain(this, isPostOrder: true);
+            ParseTreeChildrenVisitor parseTreeChildrenVisitor
+                = new ParseTreeChildrenVisitor(null, visitorChain.ReplacementVisitor, visitorChain.ChildrenVisitor);
+            ProcessParseTreeReplacementsVisitor parseTreeReplacementsVisitor
+                = new ProcessParseTreeReplacementsVisitor(this);
+            visitorChain.ExpressionChildrenVisitor.ExtensionChildrenVisitor = new ParseTreeVisitorExtension(parseTreeChildrenVisitor);
+            visitorChain.ExpressionReplacementsVisitor.ExtensionVisitor = new ParseTreeVisitorExtension(parseTreeReplacementsVisitor);
+            visitorChain.ProcessReplacements(function);
         }
 
         public override void VisitUnknown(IExpressionNode node)

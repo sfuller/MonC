@@ -95,9 +95,8 @@ namespace MonC.VM
 
         public void Access(int offset, int size)
         {
-            int destPointer = _stackPointer - size;
-            Array.Copy(_data, _stackPointer, _data, destPointer, size - offset);
-            _stackPointer -= size - offset;
+            Array.Copy(_data, _stackPointer - size + offset, _data, _stackPointer - size, size - offset);
+            _stackPointer -= offset;
         }
     }
 }

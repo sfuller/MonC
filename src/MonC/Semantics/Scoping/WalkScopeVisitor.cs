@@ -31,8 +31,8 @@ namespace MonC.Semantics
 
             // Scope can't change inside of expressions, so just use a children visitor for expressions.
             SyntaxTreeDelegator childrenDelegator = new SyntaxTreeDelegator();
-            _expressionChildrenVisitor = new ExpressionChildrenVisitor(innerVisitor, childrenDelegator);
-            _expressionChildrenVisitor.ExtensionChildrenVisitor = new ParseTreeVisitorExtension(new ParseTreeChildrenVisitor(innerVisitor, childrenDelegator));
+            _expressionChildrenVisitor = new ExpressionChildrenVisitor(innerVisitor, null, childrenDelegator);
+            _expressionChildrenVisitor.ExtensionChildrenVisitor = new ParseTreeVisitorExtension(new ParseTreeChildrenVisitor(innerVisitor, null, childrenDelegator));
             childrenDelegator.ExpressionVisitor = _expressionChildrenVisitor;
         }
 

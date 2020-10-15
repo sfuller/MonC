@@ -17,7 +17,7 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
         public readonly SyntaxTreeDelegator ChildrenVisitor;
         public readonly SyntaxTreeDelegator ReplacementVisitor;
 
-        public ProcessReplacementsVisitorChain(IReplacementSource source)
+        public ProcessReplacementsVisitorChain(IReplacementSource source, bool isPostOrder = false)
         {
             ExpressionReplacementsVisitor = new ProcessExpressionReplacementsVisitor(source);
             StatementReplacementsVisitor = new ProcessStatementReplacementsVisitor(source);
@@ -29,7 +29,10 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
             ReplacementVisitor.TopLevelVisitor = TopLevelStatementReplacementsVisitor;
 
             ChildrenVisitor = new SyntaxTreeDelegator();
-            ExpressionChildrenVisitor = new ExpressionChildrenVisitor(ReplacementVisitor, ChildrenVisitor);
+            ExpressionChildrenVisitor = new ExpressionChildrenVisitor(
+                preOrderVisitor: isPostOrder ? null : ReplacementVisitor,
+                postOrderVisitor: isPostOrder ? ReplacementVisitor : null,
+                childrenVisitor: ChildrenVisitor);
             StatementChildrenVisitor = new StatementChildrenVisitor(ReplacementVisitor, ChildrenVisitor);
             TopLevelStatementChildrenVisitor = new TopLevelStatementChildrenVisitor(ReplacementVisitor, ChildrenVisitor);
 

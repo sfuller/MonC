@@ -116,16 +116,13 @@ namespace MonC.Codegen
 
         public void VisitDeclaration(DeclarationNode node)
         {
-            // TODO: Support not doing an assignment when expression is void.
-            // Maybe this could be accomplished by having an ExpressionCodeGenVisitor that return if a value was set.
-            // If we transition the bytecode format to be more stack based, the ExpressionCodeGenVisitor could return
-            // how many values were pushed.
             node.Assignment.AcceptExpressionVisitor(this);
 
-            // TODO: USE SIZE OF EXPRESSION TYPE FOR WRITE AND POP INSTRUCTION
+            IType expressionType = _module.ExpressionResultTypes[node.Assignment];
+            int resultSize = _typeSizeManager.GetSize(expressionType);
 
-            int addr = _functionBuilder.AddInstruction(OpCode.WRITE, _layout.Variables[node]);
-            _functionBuilder.AddInstruction(OpCode.POP);
+            int addr = _functionBuilder.AddInstruction(OpCode.WRITE, _layout.Variables[node], resultSize);
+            _functionBuilder.AddInstruction(OpCode.POP, 0, resultSize);
 
             _functionBuilder.AddDebugSymbol(addr, node);
         }
@@ -268,10 +265,10 @@ namespace MonC.Codegen
         public void VisitExpressionStatement(ExpressionStatementNode node)
         {
             node.Expression.AcceptExpressionVisitor(this);
-
             // Remove Result From Stack
-            // TODO: Determine size from expression result type
-            _functionBuilder.AddInstruction(OpCode.POP);
+            IType expressionType = _module.ExpressionResultTypes[node.Expression];
+            int resultSize = _typeSizeManager.GetSize(expressionType);
+            _functionBuilder.AddInstruction(OpCode.POP, 0, resultSize);
         }
 
         public void VisitBreak(BreakNode node)
@@ -296,7 +293,7 @@ namespace MonC.Codegen
             // Return value is always the beginning of the stack.
             _functionBuilder.AddInstruction(OpCode.WRITE, 0, sizeof(int));
 
-            // TODO: Is this POP necesary?
+            // TODO: Is this POP necesary? The VM doesn't care about extra values on the stack after RETURN.
             // Pop the value off of the top of the stack now that we've written it to the return value location.
             _functionBuilder.AddInstruction(OpCode.POP);
 

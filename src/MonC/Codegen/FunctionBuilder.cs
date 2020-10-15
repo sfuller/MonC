@@ -60,7 +60,7 @@ namespace MonC.Codegen
                     // No stack change
                     break;
                 case OpCode.ACCESS:
-                    FreeStackSpace(size - immediate);
+                    FreeStackSpace(immediate);
                     break;
                 case OpCode.CALL:
                     // Space must be adjusted manually

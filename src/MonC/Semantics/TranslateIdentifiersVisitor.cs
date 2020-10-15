@@ -54,7 +54,7 @@ namespace MonC.Semantics
             // TODO: Helper class to reduce repeating of this setup code.
             ProcessReplacementsVisitorChain visitorChain = new ProcessReplacementsVisitorChain(this);
             ParseTreeChildrenVisitor parseTreeChildrenVisitor
-                = new ParseTreeChildrenVisitor(visitorChain.ReplacementVisitor, visitorChain.ChildrenVisitor);
+                = new ParseTreeChildrenVisitor(visitorChain.ReplacementVisitor, null, visitorChain.ChildrenVisitor);
             ProcessParseTreeReplacementsVisitor parseTreeReplacementsVisitor
                 = new ProcessParseTreeReplacementsVisitor(this);
             visitorChain.ExpressionChildrenVisitor.ExtensionChildrenVisitor = new ParseTreeVisitorExtension(parseTreeChildrenVisitor);
