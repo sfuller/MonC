@@ -15,11 +15,13 @@ CORELIB_DLL_SEARCH_PATH = os.path.normpath(
 
 TERM_COLOR_RED = '\033[0;31m'
 TERM_COLOR_GREEN = '\033[0;32m'
+TERM_COLOR_YELLOW = '\033[0;33m'
 TERM_COLOR_CLEAR = '\033[0m'
 TERM_ERASE_LINE = '\033[2K'
 
 TERM_TEXT_FAIL = f'{TERM_COLOR_RED}FAIL{TERM_COLOR_CLEAR}'
 TERM_TEXT_PASS = f'{TERM_COLOR_GREEN}PASS{TERM_COLOR_CLEAR}'
+TERM_TEXT_PARTIAL_PASS = f'{TERM_COLOR_YELLOW}PARTIAL PASS{TERM_COLOR_CLEAR}'
 
 ANNOTATION_STARTING_TOKEN = '//@'
 TEST_OUTPUT_PREFIX = 'monctest:'
@@ -120,7 +122,8 @@ def main():
     status = len(failed_tests) == 0
 
     if status:
-        print(f' ** {TERM_TEXT_PASS} **')
+        message = TERM_TEXT_PARTIAL_PASS if args.non_passing else TERM_TEXT_PASS
+        print(f' ** {message} **')
     else:
         print(f' ** {TERM_TEXT_FAIL} **')
         print('Failed tests:')
