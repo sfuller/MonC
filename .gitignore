@@ -4,3 +4,6 @@ packages
 bin
 obj
 .vs
+
+# Project specific
+.passing_tests

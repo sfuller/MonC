@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
+import argparse
 import os
 import subprocess
 import sys
-from typing import List
+from typing import List, Dict, Set
 
 REPOSITORY_DIR = os.path.dirname(__file__)
 TEST_DIR = os.path.normpath(os.path.join(REPOSITORY_DIR, 'test'))
@@ -38,51 +39,93 @@ else:
         return code < 0 or code == 255
 
 
+class Arguments(object):
+    def __init__(self):
+        self.show_all = False
+        self.non_passing = False
+
+
+argparser = argparse.ArgumentParser()
+argparser.add_argument('--showall', dest='show_all', action='store_true')
+argparser.add_argument('--nonpassing', dest='non_passing', action='store_true')
+
+
+class Test(object):
+    def __init__(self, name: str):
+        self.name = name
+        self.files: List[str] = []
+
+
 def main():
-    showall = False
-    if '--showall' in sys.argv:
-        showall = True
-        sys.argv.remove('--showall')
+    args = Arguments()
+    # noinspection PyTypeChecker
+    _, args_to_pass = argparser.parse_known_args(namespace=args)
 
-    test_files = []
-    multi_files = {}
+    tests_by_name: Dict[str, Test] = {}
+
     for dirpath, dirnames, filenames in os.walk(TEST_DIR):
-        if os.path.basename(dirpath) != 'multi_module':
-            for filename in filenames:
-                if os.path.splitext(filename)[1] == '.monc':
-                    test_files.append(os.path.join(dirpath, filename))
+        for filename in filenames:
+            parts = filename.split('.')
+
+            if parts[-1] != 'monc':
+                continue
+
+            inner_name: str
+
+            if len(parts) > 2:
+                # Multi-module
+                inner_name = parts[1]
+            else:
+                inner_name = parts[0]
+
+            test_name = os.path.join(os.path.relpath(dirpath, TEST_DIR), inner_name)
+
+            test = tests_by_name.get(test_name)
+            if test is None:
+                test = Test(test_name)
+                tests_by_name[test_name] = test
+
+            test.files.append(os.path.join(dirpath, filename))
+
+    passing_tests_path = os.path.normpath(os.path.join(__file__, '..', '.passing_tests'))
+    passing_tests: Set[str]
+    if os.path.isfile(passing_tests_path):
+        with open(passing_tests_path) as f:
+            passing_tests = set(path for path in f.read().split('\n') if path)
+    else:
+        passing_tests = set()
+
+    # Remove tests that are passing if we've asked to test non-passing tests only.
+    if args.non_passing:
+        for passing_test in passing_tests:
+            del tests_by_name[passing_test]
+
+    failed_tests: List[str] = []
+
+    for test_name, test in tests_by_name.items():
+        if not run_test(test, args, args_to_pass):
+            failed_tests.append(test_name)
         else:
-            for filename in filenames:
-                split_filename = os.path.splitext(filename)
-                if split_filename[1] == '.monc':
-                    split_basename = os.path.splitext(split_filename[0])
-                    filepath = os.path.join(dirpath, filename)
-                    if split_basename[1] in multi_files:
-                        multi_files[split_basename[1]].append(filepath)
-                    else:
-                        multi_files[split_basename[1]] = [filepath]
+            passing_tests.add(test_name)
 
-    failed_files = []
+    passing_tests.difference_update(failed_tests)
 
-    for path in test_files:
-        if not test([path], showall):
-            failed_files.append(path)
-
-    for basename, file_list in multi_files.items():
-        if not test(file_list, showall):
-            failed_files.append(file_list)
+    with open(passing_tests_path, 'w') as f:
+        for passing_test in passing_tests:
+            f.write(passing_test)
+            f.write('\n')
 
     print('=' * 80)
 
-    status = len(failed_files) == 0
+    status = len(failed_tests) == 0
 
     if status:
         print(f' ** {TERM_TEXT_PASS} **')
     else:
         print(f' ** {TERM_TEXT_FAIL} **')
         print('Failed tests:')
-        for path in failed_files:
-            print(path)
+        for test_name in failed_tests:
+            print(test_name)
 
     print('=' * 80)
 
@@ -90,20 +133,20 @@ def main():
         sys.exit(1)
 
 
-def test(paths: List[str], showall: bool) -> bool:
-    sys.stdout.write(f'Testing {paths}...')
+def run_test(test: Test, runner_args: Arguments, args_to_pass: List[str]) -> bool:
+    sys.stdout.write(f'Testing {test.name}...')
     sys.stdout.flush()
 
     result = None
 
     # TODO: Which file contains annotations for multi-file tests?
-    annotations = parse_annotations(paths[0])
+    annotations = parse_annotations(test.files[0])
 
     args = [FRONTEND_BINARY]
-    args.extend(paths)
+    args.extend(test.files)
     args.extend(('-L', CORELIB_DLL_SEARCH_PATH))
     args.extend(annotations.args)
-    args.extend(sys.argv[1:])
+    args.extend(args_to_pass)
 
     stdout = ''
     stderr = ''
@@ -121,13 +164,18 @@ def test(paths: List[str], showall: bool) -> bool:
 
     status = False
 
+    expect_failure = False
+    for file in test.files:
+        if os.path.basename(file).startswith('fail_'):
+            expect_failure = True
+            break
+
     if result:
         status = result.returncode == 0
         stdout = result.stdout
         stderr = result.stderr
 
-        filename = os.path.basename(paths[0])
-        if filename.startswith('fail_'):
+        if expect_failure:
             status = not status
 
         # Crashes always fail
@@ -139,16 +187,21 @@ def test(paths: List[str], showall: bool) -> bool:
     sys.stdout.write('\r')
     sys.stdout.write(TERM_ERASE_LINE)
 
-    if not status or showall:
+    if not status or runner_args.show_all:
         print('')
         print('-' * 80)
 
         if status:
-            print(f'[{TERM_TEXT_PASS}] {paths}')
+            print(f'[{TERM_TEXT_PASS}] {test.name}')
         else:
-            print(f'[{TERM_TEXT_FAIL}] {paths}')
+            print(f'[{TERM_TEXT_FAIL}] {test.name}')
 
         print('-' * 80)
+
+        print(f'invocation:')
+        for arg in args:
+            print('  ' + arg)
+        print('')
 
         print(f'stdout: \n{stdout}')
         print(f'stderr: \n{stderr}')
