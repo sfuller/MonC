@@ -1,0 +1,9 @@
+
+struct Foo : foo=bar {
+    int a;
+}
+
+int main() {
+    return 0;
+}
+
