@@ -6,7 +6,7 @@ RUN echo 'deb http://deb.debian.org/debian testing main' >> /etc/apt/sources.lis
 RUN echo 'APT::Default-Release "stable";' >> /etc/apt/apt.conf.d/00local
 
 RUN apt-get update
-RUN apt-get -t testing install -y python3
+RUN apt-get -t testing install -o APT::Immediate-Configure=false -y python3
 
 WORKDIR /root
 
