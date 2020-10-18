@@ -1,9 +1,11 @@
+using System.Reflection;
 using MonC.Parsing.ParseTree;
 using MonC.Parsing.ParseTree.Nodes;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Specifiers;
+using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util.Delegators;
 using MonC.SyntaxTree.Util.ReplacementVisitors;
 using MonC.TypeSystem;
@@ -31,6 +33,23 @@ namespace MonC.Semantics
         {
             ProcessReplacementsVisitorChain replacementsVisitorChain = new ProcessReplacementsVisitorChain(this);
             replacementsVisitorChain.ProcessReplacements(topLevelStatement);
+        }
+
+        public void ProcessForFunctionSignature(FunctionDefinitionNode node)
+        {
+            foreach (DeclarationNode parameter in node.Parameters) {
+                PrepareToVisit();
+                parameter.Type.AcceptSpecifierVisitor(this);
+                if (ShouldReplace) {
+                    parameter.Type = (ITypeSpecifierNode) NewNode;
+                }
+            }
+
+            PrepareToVisit();
+            node.ReturnType.AcceptSpecifierVisitor(this);
+            if (ShouldReplace) {
+                node.ReturnType = (ITypeSpecifierNode) NewNode;
+            }
         }
 
         public ISyntaxTreeVisitor ReplacementVisitor => _replacementDelegator;

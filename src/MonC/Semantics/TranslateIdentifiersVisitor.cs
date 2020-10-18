@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using MonC.Parsing.ParseTree;
 using MonC.Parsing.ParseTree.Nodes;
 using MonC.Parsing.ParseTree.Util;
@@ -106,6 +107,7 @@ namespace MonC.Semantics
                 _errors.AddError("Undefined function " + identifier.Name, node);
             } else if (function.Parameters.Length != node.Arguments.Count) {
                 _errors.AddError($"Expected {function.Parameters.Length} argument(s), got {node.Arguments.Count}", node);
+                return;
             } else {
                 resultNode = new FunctionCallNode(function, node.Arguments);
             }
@@ -129,7 +131,7 @@ namespace MonC.Semantics
                     isExported: false,
                     isDrop: false
                 ),
-                arguments: call.Arguments);
+                arguments: Enumerable.Empty<IExpressionNode>());
 
             return fakeFunctionCall;
         }

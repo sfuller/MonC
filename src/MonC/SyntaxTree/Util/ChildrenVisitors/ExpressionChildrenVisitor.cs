@@ -88,8 +88,7 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
         {
             VisitPreOrder(node);
 
-            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
-                IExpressionNode argument = node.GetArgument(i);
+            foreach (IExpressionNode argument in node.Arguments) {
                 argument.AcceptExpressionVisitor(this);
             }
 

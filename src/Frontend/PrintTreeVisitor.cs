@@ -108,9 +108,9 @@ namespace MonC.Frontend
 
         public void VisitFunctionCall(FunctionCallNode node)
         {
-            Print($"Function Call (name: {node.LHS.Name}, {node.ArgumentCount} arguments)");
-            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
-                VisitSubnode(node.GetArgument(i));
+            Print($"Function Call (name: {node.LHS.Name}, {node.Arguments.Count} arguments)");
+            foreach (IExpressionNode argument in node.Arguments) {
+                VisitSubnode(argument);
             }
         }
 

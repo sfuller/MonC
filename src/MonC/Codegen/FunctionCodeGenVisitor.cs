@@ -169,8 +169,13 @@ namespace MonC.Codegen
 
         public void VisitFunctionCall(FunctionCallNode node)
         {
-            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
-                node.GetArgument(i).AcceptExpressionVisitor(this);
+            int argumentsSize = 0;
+
+            foreach (IExpressionNode argument in node.Arguments) {
+                IType expressionType = _module.ExpressionResultTypes[argument];
+                argumentsSize += _typeSizeManager.GetSize(expressionType);
+
+                argument.AcceptExpressionVisitor(this);
             }
 
             int functionLoadAddr = _functionBuilder.AddInstruction(OpCode.PUSHWORD, _functionManager.GetFunctionIndex(node.LHS));
@@ -178,11 +183,10 @@ namespace MonC.Codegen
 
             _functionBuilder.AddInstruction(OpCode.CALL);
 
-            // TODO: GET ACTUAL SIZE OF ARGUMENTS
-            _functionBuilder.FreeStackSpace(sizeof(int) * node.ArgumentCount + sizeof(int)); // Extra word is function index that was pushed.
+            _functionBuilder.FreeStackSpace(argumentsSize + sizeof(int)); // Extra word is function index that was pushed.
 
-            // TODO: GET ACTUAL SIZE OF RETURN VALUE
-            _functionBuilder.AllocStackSpace(sizeof(int));
+            IType returnType = ((TypeSpecifierNode) node.LHS.ReturnType).Type;
+            _functionBuilder.AllocStackSpace(_typeSizeManager.GetSize(returnType));
 
             // Add debug symbol at the first instruction that starts preparing the function to be called.
             _functionBuilder.AddDebugSymbol(functionLoadAddr, node);

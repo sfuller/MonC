@@ -85,6 +85,13 @@ namespace MonC.Semantics
             RegisterFunctions(context, module);
             RegisterEnums(context, module);
             RegisterStructs(context, module);
+
+            // Ensure function definition nodes are in a state where they can be referenced during process of
+            // referencing nodes.
+            TypeSpecifierResolver typeSpecifierResolver = new TypeSpecifierResolver(_typeManager, this);
+            foreach (FunctionDefinitionNode function in module.Functions) {
+                typeSpecifierResolver.ProcessForFunctionSignature(function);
+            }
         }
 
         private void AddSymbols(SemanticContext context, Dictionary<ISyntaxTreeNode, Symbol> symbolMap)

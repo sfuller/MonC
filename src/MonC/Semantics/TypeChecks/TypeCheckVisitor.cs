@@ -54,7 +54,7 @@ namespace MonC.Semantics.TypeChecks
             SyntaxTreeDelegator childrenDelegator = new SyntaxTreeDelegator();
             StatementChildrenVisitor statementVisitor = new StatementChildrenVisitor(_delegator, childrenDelegator);
             childrenDelegator.StatementVisitor = statementVisitor;
-
+            childrenDelegator.ExpressionVisitor = this;
             function.Body.VisitStatements(statementVisitor);
         }
 
@@ -152,6 +152,24 @@ namespace MonC.Semantics.TypeChecks
         public void VisitFunctionCall(FunctionCallNode node)
         {
             node.LHS.ReturnType.AcceptSyntaxTreeVisitor(_delegator);
+
+            for (int i = 0, ilen = node.Arguments.Count; i < ilen; ++i) {
+                DeclarationNode parameter = node.LHS.Parameters[i];
+                IExpressionNode argument = node.Arguments[i];
+
+                // TypeSpecifiers should be resolved at this point.
+                TypeSpecifierNode typeSpecifier = (TypeSpecifierNode) parameter.Type;
+                IType parameterType = typeSpecifier.Type;
+                IType argumentType = GetExpressionType(argument);
+
+                if (parameterType != argumentType) {
+                    string message = $"Type mismatch between parameter and positional argument {i}.\n" +
+                                     $"  Parameter: {parameterType.Represent()}\n" +
+                                     $"  Argument: {argumentType.Represent()}";
+                    _errors.AddError(message, node);
+                }
+            }
+
             SetAndCacheType(node, Type);
         }
 

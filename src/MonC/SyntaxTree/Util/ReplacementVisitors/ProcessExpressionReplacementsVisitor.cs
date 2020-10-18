@@ -67,8 +67,8 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
 
         public void VisitFunctionCall(FunctionCallNode node)
         {
-            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
-                node.SetArgument(i, _processor.ProcessReplacement(node.GetArgument(i)));
+            for (int i = 0, ilen = node.Arguments.Count; i < ilen; ++i) {
+                node.Arguments[i] = _processor.ProcessReplacement(node.Arguments[i]);
             }
         }
 

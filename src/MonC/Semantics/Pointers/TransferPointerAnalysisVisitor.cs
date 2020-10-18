@@ -134,8 +134,8 @@ namespace MonC.Semantics.Pointers
 
         public void VisitFunctionCall(FunctionCallNode node)
         {
-            for (int argumentIndex = 0, argumentLength = node.ArgumentCount; argumentIndex < argumentLength; ++argumentIndex) {
-                ISyntaxTreeNode argument = node.GetArgument(argumentIndex);
+            foreach (IExpressionNode argument in node.Arguments) {
+                // TODO: This is broken.
                 if (argument == _pointer) {
                     // Note: If same pointer is passed as multiple parameters, an error will occur.
                     // This conventiently prevents the function from possibly accidentally free-ing twice.
