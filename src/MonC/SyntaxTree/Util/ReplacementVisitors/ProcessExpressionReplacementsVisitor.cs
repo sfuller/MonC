@@ -6,7 +6,8 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
 {
     public class ProcessExpressionReplacementsVisitor : IExpressionVisitor, IUnaryOperationVisitor, IBasicExpressionVisitor
     {
-        public readonly ReplacementProcessor _processor;
+        private readonly ReplacementProcessor _processor;
+        public IVisitor<IExpressionNode>? ExtensionVisitor;
 
         public ProcessExpressionReplacementsVisitor(IReplacementSource replacementSource)
         {
@@ -66,19 +67,25 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
 
         public void VisitFunctionCall(FunctionCallNode node)
         {
-            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
-                node.SetArgument(i, _processor.ProcessReplacement(node.GetArgument(i)));
+            for (int i = 0, ilen = node.Arguments.Count; i < ilen; ++i) {
+                node.Arguments[i] = _processor.ProcessReplacement(node.Arguments[i]);
             }
         }
 
         public void VisitAssignment(AssignmentNode node)
         {
-            node.RHS = _processor.ProcessReplacement(node.RHS);
+            node.Rhs = _processor.ProcessReplacement(node.Rhs);
+        }
+
+        public void VisitAccess(AccessNode node)
+        {
+            node.Lhs = _processor.ProcessReplacement(node.Lhs);
+            node.Rhs = _processor.ProcessReplacement(node.Rhs);
         }
 
         public void VisitUnknown(IExpressionNode node)
         {
-            // TODO: Should we do anything here?
+            ExtensionVisitor?.Visit(node);
         }
     }
 }

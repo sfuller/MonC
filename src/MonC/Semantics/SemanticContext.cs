@@ -11,6 +11,9 @@ namespace MonC.Semantics
         public int Value;
     }
 
+    /// <summary>
+    /// Contains semantic information shared between semantic modules.
+    /// </summary>
     public class SemanticContext
     {
         public readonly Dictionary<string, FunctionDefinitionNode> Functions = new Dictionary<string, FunctionDefinitionNode>();

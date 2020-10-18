@@ -6,6 +6,11 @@ namespace MonC.VM
     public struct VMFunction
     {
         /// <summary>
+        /// How much memory is used as the return value.
+        /// </summary>
+        public int ReturnValueSize;
+
+        /// <summary>
         /// How much memory needs to be used from the caller's argument stack.
         /// </summary>
         public int ArgumentMemorySize;

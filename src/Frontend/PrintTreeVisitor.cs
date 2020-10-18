@@ -78,7 +78,8 @@ namespace MonC.Frontend
 
         public void VisitDeclaration(DeclarationNode node)
         {
-            Print($"Declaration (Type={node.Type}, Name={node.Name})");
+            Print($"Declaration (Name={node.Name})");
+            VisitSubnode(node.Type);
             VisitSubnode(node.Assignment);
         }
 
@@ -93,27 +94,29 @@ namespace MonC.Frontend
 
         public void VisitFunctionDefinition(FunctionDefinitionNode node)
         {
-            Print($"Function Definition ({node.ReturnType} {node.Name})");
+            Print($"Function Definition (Name = {node.Name})");
             VisitBody(node.Body);
         }
 
         public void VisitStruct(StructNode node)
         {
-            Print($"Struct ({node.Name})");
+            Print($"Struct (Name = {node.Name})");
+            foreach (DeclarationNode member in node.Members) {
+                VisitSubnode(member);
+            }
         }
 
         public void VisitFunctionCall(FunctionCallNode node)
         {
-            Print($"Function Call (name: {node.LHS.Name}, {node.ArgumentCount} arguments)");
-            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
-                VisitSubnode(node.GetArgument(i));
+            Print($"Function Call (name: {node.LHS.Name}, {node.Arguments.Count} arguments)");
+            foreach (IExpressionNode argument in node.Arguments) {
+                VisitSubnode(argument);
             }
         }
 
         public void VisitVariable(VariableNode node)
         {
-            Print("Variable");
-            VisitSubnode(node.Declaration);
+            Print($"Variable (Declaration.Name = {node.Declaration.Name})");
         }
 
         public void VisitIfElse(IfElseNode node)
@@ -171,13 +174,23 @@ namespace MonC.Frontend
         public void VisitAssignment(AssignmentNode node)
         {
             Print("Assignment");
-            VisitSubnode(node.Declaration);
-            VisitSubnode(node.RHS);
+            VisitSubnode(node.Lhs);
+            VisitSubnode(node.Rhs);
+        }
+
+        public void VisitAccess(AccessNode node)
+        {
+            Print($"Access (Rhs.Name = {node.Rhs.Name})");
+            VisitSubnode(node.Lhs);
         }
 
         public void VisitUnknown(IExpressionNode node)
         {
-            Print($"{node.GetType().Name}");
+            if (node is IParseTreeNode parseTreeNode) {
+                parseTreeNode.AcceptParseTreeVisitor(this);
+            } else {
+                Print("(Unknown IExpressionNode)");
+            }
         }
 
         public void VisitEnum(EnumNode node)
@@ -206,19 +219,30 @@ namespace MonC.Frontend
         {
             Print("Function Call (Parse Tree Node)");
             VisitSubnode(node.LHS);
-            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
-                VisitSubnode(node.GetArgument(i));
+            for (int i = 0, ilen = node.Arguments.Count; i < ilen; ++i) {
+                VisitSubnode(node.Arguments[i]);
             }
         }
 
         public void VisitTypeSpecifier(TypeSpecifierParseNode node)
         {
-            Print("Type Specifier (Parse Tree Node)");
+            Print($"Type Specifier (Parse Tree Node) (Name = {node.Name}, PointerMode = {node.PointerMode})");
         }
 
         public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
         {
             Print($"Struct Function Association (Parse Node) (Name = {node.Name}, FunctionName = {node.FunctionName})");
+        }
+
+        public void VisitDeclarationIdentifier(DeclarationIdentifierParseNode node)
+        {
+            Print($"Declaration Identifier (Parse Node) (Name = {node.Name})");
+        }
+
+        public void VisitAccess(AccessParseNode node)
+        {
+            Print($"Access Operator (Parse Node) (Rhs.Name = {node.Rhs.Name})");
+            VisitSubnode(node.Lhs);
         }
 
         public void VisitTypeSpecifier(TypeSpecifierNode node)
@@ -228,7 +252,11 @@ namespace MonC.Frontend
 
         public void VisitUnknown(ISpecifierNode node)
         {
-            Print("(Unknown Specifier Node)");
+            if (node is IParseTreeNode parseTreeNode) {
+                parseTreeNode.AcceptParseTreeVisitor(this);
+            } else {
+                Print("(Unknown Specifier Node)");
+            }
         }
 
         private void VisitSubnode(ISyntaxTreeNode node)

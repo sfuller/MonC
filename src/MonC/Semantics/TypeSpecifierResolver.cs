@@ -1,9 +1,11 @@
+using System.Reflection;
 using MonC.Parsing.ParseTree;
 using MonC.Parsing.ParseTree.Nodes;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Specifiers;
+using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util.Delegators;
 using MonC.SyntaxTree.Util.ReplacementVisitors;
 using MonC.TypeSystem;
@@ -11,14 +13,14 @@ using MonC.TypeSystem.Types;
 
 namespace MonC.Semantics
 {
-    public class TypeResolver : ISpecifierVisitor, IParseTreeVisitor, IReplacementSource
+    public class TypeSpecifierResolver : ISpecifierVisitor, IParseTreeVisitor, IReplacementSource
     {
         private readonly TypeManager _typeManager;
         private readonly IErrorManager _errors;
 
         private readonly SyntaxTreeDelegator _replacementDelegator = new SyntaxTreeDelegator();
 
-        public TypeResolver(TypeManager typeManager, IErrorManager errors)
+        public TypeSpecifierResolver(TypeManager typeManager, IErrorManager errors)
         {
             _typeManager = typeManager;
             _errors = errors;
@@ -27,10 +29,27 @@ namespace MonC.Semantics
             NewNode = new VoidExpressionNode();
         }
 
-        public void Process(FunctionDefinitionNode function)
+        public void Process(ITopLevelStatementNode topLevelStatement)
         {
             ProcessReplacementsVisitorChain replacementsVisitorChain = new ProcessReplacementsVisitorChain(this);
-            replacementsVisitorChain.ProcessReplacements(function);
+            replacementsVisitorChain.ProcessReplacements(topLevelStatement);
+        }
+
+        public void ProcessForFunctionSignature(FunctionDefinitionNode node)
+        {
+            foreach (DeclarationNode parameter in node.Parameters) {
+                PrepareToVisit();
+                parameter.Type.AcceptSpecifierVisitor(this);
+                if (ShouldReplace) {
+                    parameter.Type = (ITypeSpecifierNode) NewNode;
+                }
+            }
+
+            PrepareToVisit();
+            node.ReturnType.AcceptSpecifierVisitor(this);
+            if (ShouldReplace) {
+                node.ReturnType = (ITypeSpecifierNode) NewNode;
+            }
         }
 
         public ISyntaxTreeVisitor ReplacementVisitor => _replacementDelegator;
@@ -67,6 +86,14 @@ namespace MonC.Semantics
         }
 
         public void VisitStructFunctionAssociation(StructFunctionAssociationParseNode node)
+        {
+        }
+
+        public void VisitDeclarationIdentifier(DeclarationIdentifierParseNode node)
+        {
+        }
+
+        public void VisitAccess(AccessParseNode node)
         {
         }
 

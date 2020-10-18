@@ -1,8 +1,10 @@
 using System.Collections.Generic;
+using MonC.Parsing.ParseTree.Util;
 using MonC.Semantics.Scoping;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util.ChildrenVisitors;
+using MonC.SyntaxTree.Util.Delegators;
 
 namespace MonC.Semantics
 {
@@ -28,7 +30,10 @@ namespace MonC.Semantics
             _scopes.Push(initialScope);
 
             // Scope can't change inside of expressions, so just use a children visitor for expressions.
-            _expressionChildrenVisitor = new ExpressionChildrenVisitor(innerVisitor);
+            SyntaxTreeDelegator childrenDelegator = new SyntaxTreeDelegator();
+            _expressionChildrenVisitor = new ExpressionChildrenVisitor(innerVisitor, null, childrenDelegator);
+            _expressionChildrenVisitor.ExtensionChildrenVisitor = new ParseTreeVisitorExtension(new ParseTreeChildrenVisitor(innerVisitor, null, childrenDelegator));
+            childrenDelegator.ExpressionVisitor = _expressionChildrenVisitor;
         }
 
         public void VisitBody(BodyNode node)

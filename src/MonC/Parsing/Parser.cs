@@ -570,12 +570,8 @@ namespace MonC
                 Token opToken = tokens.Peek();
                 int precedence = GetTokenPrecedence(opToken);
                 if (precedence > previousPrecedence) {
-                    tokens.Next(); // Eat operator
-                    IExpressionNode? rhs = ParseExpression(ref tokens, precedence);
-                    if (rhs == null) {
-                        return null;
-                    }
-                    lhs = CreateBinOpNodeByOperator(ref tokens, opToken, lhs, rhs);
+                    tokens.Consume(); // Eat operator
+                    lhs = CreateBinOpNodeByOperator(ref tokens, opToken, lhs, precedence);
                     if (lhs == null) {
                         return null;
                     }
@@ -618,25 +614,47 @@ namespace MonC
             return ParseUnaryOperation(ref tokens);
         }
 
-        private IBinaryOperationNode? CreateBinOpNodeByOperator(ref TokenSource tokens, Token token, IExpressionNode lhs, IExpressionNode rhs)
+        private IExpressionNode? CreateBinOpNodeByOperator(
+                ref TokenSource tokens,
+                Token token,
+                IExpressionNode lhs,
+                int precedence)
         {
-            IBinaryOperationNode? rawNode = token.Value switch {
-                Syntax.BINOP_LESS_THAN => new CompareLtBinOpNode(lhs, rhs),
-                Syntax.BINOP_GREATER_THAN => new CompareGtBinOpNode(lhs, rhs),
-                Syntax.BINOP_LESS_THAN_OR_EQUAL_TO => new CompareLteBinOpNode(lhs, rhs),
-                Syntax.BINOP_GREATER_THAN_OR_EQUAL_TO => new CompareGteBinOpNode(lhs, rhs),
-                Syntax.BINOP_EQUALS => new CompareEqualityBinOpNode(lhs, rhs),
-                Syntax.BINOP_NOT_EQUALS => new CompareInequalityBinOpNode(lhs, rhs),
-                Syntax.BINOP_LOGICAL_AND => new LogicalAndBinOpNode(lhs, rhs),
-                Syntax.BINOP_LOGICAL_OR => new LogicalOrBinOpNode(lhs, rhs),
-                Syntax.BINOP_ASSIGN => new AssignmentParseNode(lhs, rhs),
-                Syntax.BINOP_ADD => new AddBinOpNode(lhs, rhs),
-                Syntax.BINOP_SUBTRACT => new SubtractBinOpNode(lhs, rhs),
-                Syntax.BINOP_MULTIPLY => new MultiplyBinOpNode(lhs, rhs),
-                Syntax.BINOP_DIVIDE => new DivideBinOpNode(lhs, rhs),
-                Syntax.BINOP_MODULO => new ModuloBinOpNode(lhs, rhs),
-                _ => null
-            };
+            IExpressionNode? rawNode;
+            ISyntaxTreeNode rhs;
+
+            if (token.Value == Syntax.BINOP_ACCESS) {
+                DeclarationIdentifierParseNode? identifier = ParseDeclarationIdentifier(ref tokens);
+                if (identifier == null) {
+                    return null;
+                }
+                rhs = identifier;
+                rawNode = new AccessParseNode(lhs, identifier);
+            } else {
+                IExpressionNode? rhsExpression = ParseExpression(ref tokens, precedence);
+                if (rhsExpression == null) {
+                    return null;
+                }
+                rhs = rhsExpression;
+
+                rawNode = token.Value switch {
+                    Syntax.BINOP_LESS_THAN => new CompareLtBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_GREATER_THAN => new CompareGtBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_LESS_THAN_OR_EQUAL_TO => new CompareLteBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_GREATER_THAN_OR_EQUAL_TO => new CompareGteBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_EQUALS => new CompareEqualityBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_NOT_EQUALS => new CompareInequalityBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_LOGICAL_AND => new LogicalAndBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_LOGICAL_OR => new LogicalOrBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_ASSIGN => new AssignmentParseNode(lhs, rhsExpression),
+                    Syntax.BINOP_ADD => new AddBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_SUBTRACT => new SubtractBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_MULTIPLY => new MultiplyBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_DIVIDE => new DivideBinOpNode(lhs, rhsExpression),
+                    Syntax.BINOP_MODULO => new ModuloBinOpNode(lhs, rhsExpression),
+                    _ => null
+                };
+            }
 
             if (rawNode == null) {
                 tokens.AddError($"Unrecognized binary operator {token.Value}", token);
@@ -654,6 +672,8 @@ namespace MonC
             }
 
             switch (token.Value) {
+                case Syntax.BINOP_ACCESS:
+                    return 8;
                 case Syntax.OPENING_PAREN:
                     return 7;
                 case Syntax.BINOP_MULTIPLY:
@@ -842,6 +862,14 @@ namespace MonC
             }
 
             return NewNode(new IdentifierParseNode(token.Value), token, tokens.Peek(-1));
+        }
+
+        private DeclarationIdentifierParseNode? ParseDeclarationIdentifier(ref TokenSource tokens)
+        {
+            if (tokens.Next(TokenType.Identifier, out Token token)) {
+                return NewNode(new DeclarationIdentifierParseNode(token.Value), token, token);
+            }
+            return null;
         }
 
         private NumericLiteralNode ParseNumericLiteralExpression(ref TokenSource tokens)

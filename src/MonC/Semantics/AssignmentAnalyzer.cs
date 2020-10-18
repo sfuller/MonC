@@ -1,10 +1,10 @@
 using MonC.Parsing.ParseTree;
 using MonC.Parsing.ParseTree.Nodes;
+using MonC.Parsing.ParseTree.Util;
 using MonC.Semantics.Scoping;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
-using MonC.SyntaxTree.Nodes.Statements;
 using MonC.SyntaxTree.Util;
 using MonC.SyntaxTree.Util.Delegators;
 using MonC.SyntaxTree.Util.ReplacementVisitors;
@@ -64,23 +64,13 @@ namespace MonC.Semantics
 
         public void Visit(AssignmentParseNode node)
         {
-            if (!(node.LHS is IdentifierParseNode identifier)) {
-                _errors.AddError("Expecting identifier", node.LHS);
+            if (!(node.LHS is IAssignableNode assignableNode)) {
+                _errors.AddError("Left hand side of assignment is not assignable.", node);
                 return;
             }
 
             _shouldReplace = true;
-            IExpressionNode resultNode;
-
-            DeclarationNode declaration = _scopeManager.GetScope(node).Variables.Find(d => d.Name == identifier.Name);
-            if (declaration == null) {
-                _errors.AddError($"Undeclared identifier {identifier.Name}", identifier);
-                resultNode = new VoidExpressionNode();
-            } else {
-                resultNode = new AssignmentNode(declaration, node.RHS);
-            }
-
-            _newNode = resultNode;
+            _newNode = new AssignmentNode(assignableNode, node.RHS);
 
             // TODO: Need more automated symbol association for new nodes.
             Symbol originalSymbol;

@@ -57,6 +57,11 @@ namespace MonC.SyntaxTree.Util.NoOpVisitors
             VisitDefaultExpression(node);
         }
 
+        public void VisitAccess(AccessNode node)
+        {
+            VisitDefaultExpression(node);
+        }
+
         public virtual void VisitUnknown(IExpressionNode node)
         {
             ThrowForUnknown();

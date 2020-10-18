@@ -7,8 +7,6 @@ namespace MonC.VM
     public class VirtualMachine : IVMBindingContext, IDebuggableVM
     {
         private readonly List<StackFrame> _callStack = new List<StackFrame>();
-        //private VMModule _module = new VMModule();
-        private int _aRegister;
         private bool _isContinuing;
         private bool _isPaused;
         private bool _isStartingYield;
@@ -22,7 +20,7 @@ namespace MonC.VM
 
         public bool IsRunning { get; private set; }
         public bool IsPaused => _isPaused;
-        public int ReturnValue => _aRegister;
+        public byte[] ReturnValueBuffer { get; private set; } = new byte[0];
         public int CallStackFrameCount => _callStack.Count;
 
         public int MaxCycles { get; set; }
@@ -32,18 +30,10 @@ namespace MonC.VM
             MaxCycles = -1;
         }
 
-        // public void LoadModule(VMModule module)
-        // {
-        //     if (IsRunning) {
-        //         throw new InvalidOperationException("Cannot load module while running");
-        //     }
-        //     _module = module;
-        // }
-
         public bool Call(
             VMModule module,
             string functionName,
-            IReadOnlyList<int> arguments,
+            byte[] argumentData,
             Action<bool>? finished = null)
         {
             if (IsRunning) {
@@ -64,7 +54,8 @@ namespace MonC.VM
                 argumentsSize = module.VMFunctions[functionIndex].ArgumentMemorySize;
             }
 
-            if (arguments.Count != argumentsSize) {
+            if (argumentData.Length != argumentsSize) {
+                // TODO: Should this be an exception? At the very least we need a result code to determine why it failed.
                 return false;
             }
 
@@ -77,7 +68,7 @@ namespace MonC.VM
             _finishedCallback = finished;
             _cycleCount = 0;
 
-            PushCall(module, functionIndex, arguments);
+            PushCall(module, functionIndex, argumentData);
 
             if (_isStepping) {
                 Break();
@@ -187,15 +178,6 @@ namespace MonC.VM
             return _callStack[_callStack.Count - 1];
         }
 
-        /// <summary>
-        /// Common operation for instructions which load a value from the stack based on the immediate value of the
-        /// instruction.
-        /// </summary>
-        private int ReadStackWithImmediateValue(Instruction ins)
-        {
-            return PeekCallStack().Memory.Read(ins.ImmediateValue);
-        }
-
         private void PushCallStack(StackFrame frame)
         {
             _callStack.Add(frame);
@@ -253,7 +235,6 @@ namespace MonC.VM
         private bool InterpretInstruction(Instruction ins)
         {
             // Returns true if a break should be triggered. Otherwise false.
-
             switch (ins.Op) {
                 case OpCode.NOOP:
                     InterpretNoOp();
@@ -261,29 +242,38 @@ namespace MonC.VM
                 case OpCode.BREAK:
                     InterpretBreak();
                     return true;
-                case OpCode.LOAD:
-                    InterpretLoad(ins);
-                    break;
                 case OpCode.READ:
                     InterpretRead(ins);
                     break;
                 case OpCode.WRITE:
                     InterpretWrite(ins);
                     break;
+                case OpCode.PUSHWORD:
+                    InterpretPushWord(ins);
+                    break;
+                case OpCode.PUSH:
+                    InterpretPush(ins);
+                    break;
+                case OpCode.POP:
+                    InterpretPop(ins);
+                    break;
+                case OpCode.ACCESS:
+                    InterpretAccess(ins);
+                    break;
                 case OpCode.CALL:
-                    InterpretCall(ins);
+                    InterpretCall();
                     break;
                 case OpCode.RETURN:
                     InterpretReturn();
                     break;
                 case OpCode.CMPE:
-                    InterpretCmpE(ins);
+                    InterpretCmpE();
                     break;
                 case OpCode.CMPLT:
-                    InterpretCmpLT(ins);
+                    InterpretCmpLT();
                     break;
                 case OpCode.CMPLTE:
-                    InterpretCmpLTE(ins);
+                    InterpretCmpLTE();
                     break;
                 case OpCode.JUMP:
                     InterpretJump(ins);
@@ -301,25 +291,25 @@ namespace MonC.VM
                     InterpretLogicalNot();
                     break;
                 case OpCode.ADD:
-                    InterpretAdd(ins);
+                    InterpretAdd();
                     break;
                 case OpCode.SUB:
-                    InterpretSub(ins);
+                    InterpretSub();
                     break;
                 case OpCode.AND:
-                    InterpretAnd(ins);
+                    InterpretAnd();
                     break;
                 case OpCode.OR:
-                    InterpretOr(ins);
+                    InterpretOr();
                     break;
                 case OpCode.MUL:
-                    InterpretMul(ins);
+                    InterpretMul();
                     break;
                 case OpCode.DIV:
-                    InterpretDiv(ins);
+                    InterpretDiv();
                     break;
                 case OpCode.MOD:
-                    InterpretMod(ins);
+                    InterpretMod();
                     break;
                 default:
                     throw new NotImplementedException();
@@ -339,25 +329,48 @@ namespace MonC.VM
             // Note: Triggering the actual break is done by InterpretInstruction.
         }
 
-        private void InterpretLoad(Instruction ins)
-        {
-            _aRegister = ins.ImmediateValue;
-        }
-
         private void InterpretRead(Instruction ins)
         {
-            _aRegister = ReadStackWithImmediateValue(ins);
+            StackFrame frame = PeekCallStack();
+            for (int i = 0; i < ins.SizeValue; ++i) {
+                frame.Memory.PushVal(frame.Memory.Read(ins.ImmediateValue + i));
+            }
         }
 
         private void InterpretWrite(Instruction ins)
         {
-            PeekCallStack().Memory.Write(ins.ImmediateValue, _aRegister);
+            StackFrameMemory stack = PeekCallStack().Memory;
+            int sourcePointer = stack.StackPointer - ins.SizeValue;
+
+            for (int i = 0; i < ins.SizeValue; ++i) {
+                stack.Write(ins.ImmediateValue + i, stack.Read(sourcePointer++));
+            }
         }
 
-        private void InterpretCall(Instruction ins)
+        private void InterpretPushWord(Instruction ins)
+        {
+            PeekCallStack().Memory.PushValInt(ins.ImmediateValue);
+        }
+
+        private void InterpretPush(Instruction ins)
+        {
+            PeekCallStack().Memory.Push(ins.SizeValue);
+        }
+
+        private void InterpretPop(Instruction ins)
+        {
+            PeekCallStack().Memory.Discard(ins.SizeValue);
+        }
+
+        private void InterpretAccess(Instruction ins)
+        {
+            PeekCallStack().Memory.Access(ins.ImmediateValue, ins.SizeValue);
+        }
+
+        private void InterpretCall()
         {
             StackFrame currentFrame = PeekCallStack();
-            PushCall(currentFrame.Module, currentFrame.Memory, ins.ImmediateValue);
+            PushCall(currentFrame.Module, currentFrame.Memory);
         }
 
         private void InterpretReturn()
@@ -365,19 +378,28 @@ namespace MonC.VM
             PopFrame();
         }
 
-        private void InterpretCmpE(Instruction ins)
+        private void InterpretCmpE()
         {
-            _aRegister = _aRegister == ReadStackWithImmediateValue(ins) ? 1 : 0;
+            StackFrame frame = PeekCallStack();
+            int a = frame.Memory.PopValInt();
+            int b = frame.Memory.PopValInt();
+            frame.Memory.PushValInt(a == b ? 1 : 0);
         }
 
-        private void InterpretCmpLT(Instruction ins)
+        private void InterpretCmpLT()
         {
-            _aRegister = _aRegister < ReadStackWithImmediateValue(ins) ? 1 : 0;
+            StackFrame frame = PeekCallStack();
+            int a = frame.Memory.PopValInt();
+            int b = frame.Memory.PopValInt();
+            frame.Memory.PushValInt(a < b ? 1 : 0);
         }
 
-        private void InterpretCmpLTE(Instruction ins)
+        private void InterpretCmpLTE()
         {
-            _aRegister = _aRegister <= ReadStackWithImmediateValue(ins) ? 1 : 0;
+            StackFrame frame = PeekCallStack();
+            int a = frame.Memory.PopValInt();
+            int b = frame.Memory.PopValInt();
+            frame.Memory.PushValInt(a <= b ? 1 : 0);
         }
 
         private void InterpretJump(Instruction ins)
@@ -387,95 +409,109 @@ namespace MonC.VM
 
         private void InterpretJumpZ(Instruction ins)
         {
-            if (_aRegister == 0) {
+            StackFrame frame = PeekCallStack();
+            if (frame.Memory.PopValInt() == 0) {
                 Jump(ins.ImmediateValue);
             }
         }
 
         private void InterpretJumpNZ(Instruction ins)
         {
-            if (_aRegister != 0) {
+            StackFrame frame = PeekCallStack();
+            if (frame.Memory.PopValInt() != 0) {
                 Jump(ins.ImmediateValue);
             }
         }
 
         private void InterpretBool()
         {
-            _aRegister = _aRegister == 0 ? 0 : 1;
+            StackFrameMemory stack = PeekCallStack().Memory;
+            int val = stack.PopValInt();
+            stack.PushValInt(val == 0 ? 0 : 1);
         }
 
         private void InterpretLogicalNot()
         {
-            _aRegister = _aRegister == 0 ? 1 : 0;
+            StackFrameMemory stack = PeekCallStack().Memory;
+            int val = stack.PopValInt();
+            stack.PushValInt(val == 0 ? 1 : 0);
         }
 
-        private void InterpretAdd(Instruction ins)
+        private void InterpretAdd()
         {
-            _aRegister += ReadStackWithImmediateValue(ins);
+            StackFrameMemory stack = PeekCallStack().Memory;
+            int a = stack.PopValInt();
+            int b = stack.PopValInt();
+            stack.PushValInt(a + b);
         }
 
-        private void InterpretSub(Instruction ins)
+        private void InterpretSub()
         {
-            _aRegister -= ReadStackWithImmediateValue(ins);
+            StackFrameMemory stack = PeekCallStack().Memory;
+            int a = stack.PopValInt();
+            int b = stack.PopValInt();
+            stack.PushValInt(a - b);
         }
 
-        private void InterpretAnd(Instruction ins)
+        private void InterpretAnd()
         {
-            _aRegister &= ReadStackWithImmediateValue(ins);
+            StackFrameMemory stack = PeekCallStack().Memory;
+            int a = stack.PopValInt();
+            int b = stack.PopValInt();
+            stack.PushValInt(a & b);
         }
 
-        private void InterpretOr(Instruction ins)
+        private void InterpretOr()
         {
-            _aRegister |= ReadStackWithImmediateValue(ins);
+            StackFrameMemory stack = PeekCallStack().Memory;
+            int a = stack.PopValInt();
+            int b = stack.PopValInt();
+            stack.PushValInt(a | b);
         }
 
-        private void InterpretMul(Instruction ins)
+        private void InterpretMul()
         {
-            _aRegister *= ReadStackWithImmediateValue(ins);
+            StackFrameMemory stack = PeekCallStack().Memory;
+            int a = stack.PopValInt();
+            int b = stack.PopValInt();
+            stack.PushValInt(a * b);
         }
 
-        private void InterpretDiv(Instruction ins)
+        private void InterpretDiv()
         {
-            _aRegister /= ReadStackWithImmediateValue(ins);
+            StackFrameMemory stack = PeekCallStack().Memory;
+            int a = stack.PopValInt();
+            int b = stack.PopValInt();
+            stack.PushValInt(a / b);
         }
 
-        private void InterpretMod(Instruction ins)
+        private void InterpretMod()
         {
-            _aRegister %= ReadStackWithImmediateValue(ins);
+            StackFrameMemory stack = PeekCallStack().Memory;
+            int a = stack.PopValInt();
+            int b = stack.PopValInt();
+            stack.PushValInt(a % b);
         }
 
-        private void Jump(int offset)
+        private void Jump(int addr)
         {
-            PeekCallStack().PC += offset;
+            PeekCallStack().PC = addr;
         }
 
-        private void PushCall(VMModule module, StackFrameMemory argumentStackSource, int argumentStackStart)
+        private void PushCall(VMModule module, StackFrameMemory sourceStack)
         {
-            // First value on the argument stack is the function index
-            int functionIndex = argumentStackSource.Read(argumentStackStart);
+            int functionIndex = sourceStack.PopValInt();
 
-            // The rest of the data on the argument stack is argument values
-            int argumentValuesStart = argumentStackStart + 1;
+            GetFunctionStackSizes(module, functionIndex,
+                out int returnValueSize,
+                out int argumentMemorySize,
+                out int stackSize);
 
-            int argumentMemorySize;
-            StackFrame frame;
-
-            int definedFunctionCount = module.ILModule.DefinedFunctions.Length;
-
-            if (functionIndex >= definedFunctionCount) {
-                VMFunction function = module.VMFunctions[functionIndex];
-                argumentMemorySize = function.ArgumentMemorySize;
-                frame = AcquireFrame(function.ArgumentMemorySize);
-                //frame.BindingEnumerator = function.Delegate(this, new ArgumentSource(frame.Memory, 0));
-            } else {
-                ILFunction function = module.ILModule.DefinedFunctions[functionIndex];
-                argumentMemorySize = function.ArgumentMemorySize;
-                frame = AcquireFrame(function.MaxStackSize);
-            }
-
+            StackFrame frame = AcquireFrame(stackSize);
             frame.Module = module;
             frame.Function = functionIndex;
-            frame.Memory.CopyFrom(argumentStackSource, argumentValuesStart, 0, argumentMemorySize);
+            frame.Memory.CopyFrom(sourceStack, sourceStack.StackPointer - argumentMemorySize, returnValueSize, argumentMemorySize);
+            sourceStack.Discard(argumentMemorySize);
             PushCallStack(frame);
 
             // TODO: PERF: Try to optimize out calls to HandleModuleAdded when we can deduce that the module has already
@@ -485,25 +521,55 @@ namespace MonC.VM
             _debugger?.HandleModuleAdded(module);
         }
 
-        private void PushCall(VMModule module, int functionIndex, IReadOnlyList<int> arguments)
+        private void GetFunctionStackSizes(
+                VMModule module,
+                int functionIndex,
+                out int returnValueSize,
+                out int argumentMemorySize,
+                out int stackSize)
+        {
+            int definedFunctionCount = module.ILModule.DefinedFunctions.Length;
+
+            if (functionIndex >= definedFunctionCount) {
+                VMFunction function = module.VMFunctions[functionIndex];
+                returnValueSize = function.ReturnValueSize;
+                argumentMemorySize = function.ArgumentMemorySize;
+                stackSize = returnValueSize + argumentMemorySize;
+                //frame = AcquireFrame(function.ArgumentMemorySize);
+                //frame.BindingEnumerator = function.Delegate(this, new ArgumentSource(frame.Memory, 0));
+            } else {
+                ILFunction function = module.ILModule.DefinedFunctions[functionIndex];
+                returnValueSize = function.ReturnValueSize;
+                argumentMemorySize = function.ArgumentMemorySize;
+                stackSize = function.MaxStackSize;
+                //frame = AcquireFrame(function.MaxStackSize);
+            }
+        }
+
+        private void PushCall(VMModule module, int functionIndex, byte[] argumentData)
         {
             // TODO: Need either better documentation about how bound functions must not re-retrieve arguments from
             // the original argumentSource after a Call Continuation, or we need to use unique argument buffers for each
             // bound function call (with pooling of course). I'd opt for the former, it's super easy to just grab your
             // arguments as soon as you enter the bound function, and is the cleanest as well.
 
-            int argumentCount = arguments.Count;
-            _argumentBuffer.Recreate(argumentCount + 1);
+            GetFunctionStackSizes(module, functionIndex,
+                out int _,
+                out int argumentMemorySize,
+                out int stackSize);
 
-            // First value on the argument stack is function index
-            _argumentBuffer.Write(0, functionIndex);
-
-            // Rest of the argument stack is argument values.
-            for (int i = 0; i < argumentCount; ++i) {
-                _argumentBuffer.Write(i + 1, arguments[i]);
+            if (argumentData.Length != argumentMemorySize) {
+                throw new ArgumentOutOfRangeException(nameof(argumentData), "Function argument size differs.");
             }
 
-            PushCall(module, _argumentBuffer, 0);
+            // Function input + space for function index
+            _argumentBuffer.Recreate(stackSize + sizeof(int));
+
+            for (int i = 0, ilen = argumentData.Length; i < ilen; ++i) {
+                _argumentBuffer.PushVal(argumentData[i]);
+            }
+            _argumentBuffer.PushValInt(functionIndex);
+            PushCall(module, _argumentBuffer);
         }
 
         private StackFrame AcquireFrame(int memorySize)
@@ -528,9 +594,19 @@ namespace MonC.VM
             frame.PC = 0;
             _framePool.Push(frame);
 
+            GetFunctionStackSizes(frame.Module, frame.Function, out int returnValueSize, out int _, out int _);
+
             if (_callStack.Count == 0) {
+                if (ReturnValueBuffer.Length < returnValueSize) {
+                    ReturnValueBuffer = new byte[returnValueSize];
+                }
+                frame.Memory.CopyTo(0, 0, returnValueSize, ReturnValueBuffer);
+
                 _isContinuing = false;
                 HandleFinished(true);
+            } else {
+                StackFrame returnFrame = PeekCallStack();
+                returnFrame.Memory.PushFrom(frame.Memory, 0, returnValueSize);
             }
         }
 
