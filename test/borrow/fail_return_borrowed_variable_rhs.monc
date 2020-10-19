@@ -1,0 +1,11 @@
+
+int& test() {
+    int foo = 42;
+    return &foo;
+}
+
+int main() {
+    test();
+    return 0;
+}
+

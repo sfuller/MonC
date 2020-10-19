@@ -1,0 +1,11 @@
+
+int main() {
+    int foo = 42;
+    int& a = &foo;
+
+    if (*foo == 42) {
+        return 0;
+    }
+
+    return 1;
+}

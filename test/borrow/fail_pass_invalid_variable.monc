@@ -1,0 +1,11 @@
+
+int test(int& val) {
+    return 0;
+}
+
+int main() {
+    int& foo;
+    test(foo);
+    return 0;
+}
+
