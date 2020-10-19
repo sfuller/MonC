@@ -229,7 +229,7 @@ namespace MonC.Frontend
                 return;
             }
 
-            VirtualMachine vm = new VirtualMachine();
+            using VirtualMachine vm = new VirtualMachine();
 
             if (withDebugger) {
                 Debugger debugger = new Debugger();

@@ -4,7 +4,7 @@ using MonC.IL;
 
 namespace MonC.VM
 {
-    public class VirtualMachine : IVMBindingContext, IDebuggableVM
+    public sealed class VirtualMachine : IVMBindingContext, IDebuggableVM, IDisposable
     {
         private readonly List<StackFrame> _callStack = new List<StackFrame>();
         private bool _isContinuing;
@@ -626,6 +626,15 @@ namespace MonC.VM
                 _debugger.HandleFinished();
             }
             _finishedCallback(success);
+        }
+
+        public void Dispose()
+        {
+            _argumentBuffer.Dispose();
+
+            foreach (StackFrame frame in _framePool) {
+                frame.Memory.Dispose();
+            }
         }
     }
 }
