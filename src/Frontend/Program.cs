@@ -91,22 +91,12 @@ namespace MonC.Frontend
             }
 
             List<ParseModule> parseModules = new List<ParseModule>(positionals.Count);
+            List<ParseError> errors = new List<ParseError>();
 
             void ParseTokens(string? filename, List<Token> tokens)
             {
                 Parser parser = new Parser();
-                List<ParseError> errors = new List<ParseError>();
                 ParseModule module = parser.Parse(filename, tokens, errors);
-
-                for (int i = 0, ilen = errors.Count; i < ilen; ++i) {
-                    ParseError error = errors[i];
-                    Console.Error.WriteLine($"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
-                }
-
-                if (errors.Count > 0 && !forceCodegen) {
-                    Environment.Exit(1);
-                }
-
                 parseModules.Add(module);
             }
 
@@ -157,7 +147,6 @@ namespace MonC.Frontend
             List<LinkError> linkErrors = new List<LinkError>();
             Linker linker = new Linker(linkErrors);
 
-            List<ParseError> errors = new List<ParseError>();
             SemanticAnalyzer analyzer = new SemanticAnalyzer(errors);
 
             List<SemanticModule> semanticModules = new List<SemanticModule>(parseModules.Count);
