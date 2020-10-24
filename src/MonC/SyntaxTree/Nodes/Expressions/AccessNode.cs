@@ -22,5 +22,13 @@ namespace MonC.SyntaxTree.Nodes.Expressions
         {
             visitor.VisitAccess(this);
         }
+
+        public bool IsAssignable()
+        {
+            if (Lhs is IAssignableNode assignableLhs) {
+                return assignableLhs.IsAssignable();
+            }
+            return false;
+        }
     }
 }

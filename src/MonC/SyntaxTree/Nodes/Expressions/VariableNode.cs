@@ -20,5 +20,10 @@ namespace MonC.SyntaxTree.Nodes.Expressions
         {
             visitor.VisitVariable(this);
         }
+
+        public bool IsAssignable()
+        {
+            return true;
+        }
     }
 }

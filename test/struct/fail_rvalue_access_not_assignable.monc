@@ -1,0 +1,15 @@
+
+struct Foo {
+    int a;
+}
+
+Foo get_foo() {
+    Foo foo;
+    foo.a = 0;
+    return foo;
+}
+
+int main() {
+    get_foo().a = 42;
+    return 0;
+}
