@@ -177,6 +177,7 @@ namespace MonC.Semantics
             new TranslateIdentifiersVisitor(_context, this).Process(function);
             new TranslateAccessVisitor(this, expressionTypeManager).Process(function);
             new AssignmentAnalyzer(this, _context).Process(function);
+            new BorrowAnalyzer(this).Process(function);
             new TypeCheckVisitor(_context, _typeManager, this, expressionTypeManager).Process(function);
         }
 

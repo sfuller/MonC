@@ -13,6 +13,8 @@ namespace MonC
 
         public const string UNOP_NEGATE = "-";
         public const string UNOP_LOGICAL_NOT = "!";
+        public const string UNOP_BORROW = "&";
+        public const string UNOP_DEREFERENCE = "*";
 
         public const string BINOP_ADD = "+";
         public const string BINOP_SUBTRACT = "-";

@@ -5,15 +5,15 @@ using MonC.TypeSystem.Types.Impl;
 
 namespace MonC.Codegen
 {
-    public class AssignmentCodeGenVisitor : IAssignableVisitor
+    public class AddressOfVisitor : IAddressableVisitor
     {
         private readonly FunctionStackLayout _layout;
         private readonly SemanticModule _module;
         private readonly StructLayoutManager _structLayoutManager;
 
-        public int AssignmentWriteLocation { get; private set; }
+        public int AbsoluteStackAddress { get; private set; }
 
-        public AssignmentCodeGenVisitor(
+        public AddressOfVisitor(
             FunctionStackLayout layout,
                 SemanticModule module,
                 StructLayoutManager structLayoutManager)
@@ -25,13 +25,13 @@ namespace MonC.Codegen
 
         public void VisitVariable(VariableNode node)
         {
-            AssignmentWriteLocation = _layout.Variables[node.Declaration];
+            AbsoluteStackAddress = _layout.Variables[node.Declaration];
         }
 
         public void VisitAccess(AccessNode node)
         {
-            IAssignableNode assignableLhs = (IAssignableNode) node.Lhs;
-            assignableLhs.AcceptAssignableVisitor(this);
+            IAddressableNode addressableLhs = (IAddressableNode) node.Lhs;
+            addressableLhs.AcceptAddressableVisitor(this);
 
             StructType structType = (StructType) _module.ExpressionResultTypes[node.Lhs];
             StructLayout layout = _structLayoutManager.GetLayout(structType);
@@ -39,7 +39,7 @@ namespace MonC.Codegen
                 throw new InvalidOperationException();
             }
 
-            AssignmentWriteLocation += offset;
+            AbsoluteStackAddress += offset;
         }
     }
 }

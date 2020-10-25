@@ -2,10 +2,10 @@ namespace MonC.SyntaxTree.Nodes.Expressions
 {
     public class AssignmentNode : BasicExpression
     {
-        public IAssignableNode Lhs;
+        public IAddressableNode Lhs;
         public IExpressionNode Rhs;
 
-        public AssignmentNode(IAssignableNode lhs, IExpressionNode rhs)
+        public AssignmentNode(IAddressableNode lhs, IExpressionNode rhs)
         {
             Lhs = lhs;
             Rhs = rhs;

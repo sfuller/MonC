@@ -75,13 +75,13 @@ namespace MonC.Codegen
 
         public void VisitAssignment(AssignmentNode node)
         {
-            AssignmentCodeGenVisitor assignmentCodeGenVisitor
-                    = new AssignmentCodeGenVisitor(_layout, _module, _structLayoutManager);
-            node.Lhs.AcceptAssignableVisitor(assignmentCodeGenVisitor);
+            AddressOfVisitor addressOfVisitor
+                    = new AddressOfVisitor(_layout, _module, _structLayoutManager);
+            node.Lhs.AcceptAddressableVisitor(addressOfVisitor);
 
             node.Rhs.AcceptExpressionVisitor(this);
 
-             int addr = _functionBuilder.AddInstruction(OpCode.WRITE, assignmentCodeGenVisitor.AssignmentWriteLocation);
+             int addr = _functionBuilder.AddInstruction(OpCode.WRITE, addressOfVisitor.AbsoluteStackAddress);
              _functionBuilder.AddDebugSymbol(addr, node);
         }
 

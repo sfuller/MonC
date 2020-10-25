@@ -820,6 +820,8 @@ namespace MonC
             IUnaryOperationNode? rawNode = token.Value switch {
                 Syntax.UNOP_NEGATE => MakeUnary(ref tokens, rhs => new NegateUnaryOpNode(rhs)),
                 Syntax.UNOP_LOGICAL_NOT => MakeUnary(ref tokens, rhs => new LogicalNotUnaryOpNode(rhs)),
+                Syntax.UNOP_BORROW => MakeUnary(ref tokens, rhs => new BorrowUnaryOpNode(rhs)),
+                Syntax.UNOP_DEREFERENCE => MakeUnary(ref tokens, rhs => new DereferenceUnaryOpNode(rhs)),
                 _ => null
             };
 

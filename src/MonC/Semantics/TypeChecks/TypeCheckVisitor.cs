@@ -12,7 +12,8 @@ using MonC.TypeSystem.Types;
 
 namespace MonC.Semantics.TypeChecks
 {
-    public class TypeCheckVisitor : IStatementVisitor, IExpressionVisitor, ISpecifierVisitor, IBasicExpressionVisitor
+    public class TypeCheckVisitor : IStatementVisitor, IExpressionVisitor, ISpecifierVisitor, IBasicExpressionVisitor,
+            IUnaryOperationVisitor
     {
         private readonly SemanticContext _context;
         private readonly TypeManager _typeManager;
@@ -137,16 +138,7 @@ namespace MonC.Semantics.TypeChecks
 
         public void VisitUnaryOperation(IUnaryOperationNode node)
         {
-            if (node is CastUnaryOpNode castNode) {
-                castNode.ToType.AcceptSpecifierVisitor(this);
-                SetAndCacheType(node, Type);
-                return;
-            }
-
-            // TODO: Ensure operator is valid based on type.
-
-            node.RHS.AcceptExpressionVisitor(this);
-            SetAndCacheType(node, Type);
+            node.AcceptUnaryOperationVisitor(this);
         }
 
         public void VisitFunctionCall(FunctionCallNode node)
@@ -252,6 +244,52 @@ namespace MonC.Semantics.TypeChecks
 
         public void VisitUnknown(ISpecifierNode node)
         {
+        }
+
+        public void VisitNegateUnaryOp(NegateUnaryOpNode node)
+        {
+            node.RHS.AcceptExpressionVisitor(this);
+            SetAndCacheType(node, Type);
+        }
+
+        public void VisitLogicalNotUnaryOp(LogicalNotUnaryOpNode node)
+        {
+            node.RHS.AcceptExpressionVisitor(this);
+            SetAndCacheType(node, Type);
+        }
+
+        public void VisitCastUnaryOp(CastUnaryOpNode node)
+        {
+            // TODO: Ensure cast is allowed
+
+            node.ToType.AcceptSpecifierVisitor(this);
+            SetAndCacheType(node, Type);
+        }
+
+        public void VisitBorrowUnaryOp(BorrowUnaryOpNode node)
+        {
+            node.RHS.AcceptExpressionVisitor(this);
+
+            if (!(Type is IValueType valueType)) {
+                _errors.AddError("Cannot borrow non-value type", node);
+                SetAndCacheType(node, Type);
+                return;
+            }
+
+            SetAndCacheType(node, _typeManager.GetType(valueType, PointerMode.Borrowed));
+        }
+
+        public void VisitDereferenceUnaryOp(DereferenceUnaryOpNode node)
+        {
+            node.RHS.AcceptExpressionVisitor(this);
+
+            if (!(Type is IPointerType pointerType)) {
+                _errors.AddError("Cannot dereference non-pointer type", node);
+                SetAndCacheType(node, Type);
+                return;
+            }
+
+            SetAndCacheType(node, pointerType.DestinationType);
         }
     }
 }

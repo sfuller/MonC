@@ -1,3 +1,4 @@
+using System;
 using MonC.IL;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
@@ -18,13 +19,9 @@ namespace MonC.Codegen
 
         public void VisitNegateUnaryOp(NegateUnaryOpNode node)
         {
-            //int rhsStackAddress = _builder.AllocTemporaryStackAddress();
             node.RHS.AcceptExpressionVisitor(_expressionVisitor);
-            //int addr = _builder.AddInstruction(OpCode.WRITE, rhsStackAddress);
-            //_builder.AddInstruction(OpCode.LOAD, 0);
             int startAddr = _builder.AddInstruction(OpCode.PUSHWORD, 0);
             _builder.AddInstruction(OpCode.SUB);
-            //_builder.FreeTemporaryStackAddress();
             _builder.AddDebugSymbol(startAddr, node);
         }
 
@@ -39,6 +36,19 @@ namespace MonC.Codegen
         {
             // TODO: Conversions?
             node.RHS.AcceptExpressionVisitor(_expressionVisitor);
+        }
+
+        public void VisitBorrowUnaryOp(BorrowUnaryOpNode node)
+        {
+
+
+
+            throw new NotImplementedException();
+        }
+
+        public void VisitDereferenceUnaryOp(DereferenceUnaryOpNode node)
+        {
+            throw new NotImplementedException();
         }
     }
 }

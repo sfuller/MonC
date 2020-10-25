@@ -64,8 +64,8 @@ namespace MonC.Semantics
 
         public void Visit(AssignmentParseNode node)
         {
-            IAssignableNode? assignableNode = node.LHS as IAssignableNode;
-            if (assignableNode == null || !assignableNode.IsAssignable()) {
+            IAddressableNode? assignableNode = node.LHS as IAddressableNode;
+            if (assignableNode == null || !assignableNode.IsAddressable()) {
                 _errors.AddError("Left hand side of assignment is not assignable.", node);
                 return;
             }

@@ -58,6 +58,14 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
             node.ToType = _processor.ProcessReplacement(node.ToType);
         }
 
+        public void VisitBorrowUnaryOp(BorrowUnaryOpNode node)
+        {
+        }
+
+        public void VisitDereferenceUnaryOp(DereferenceUnaryOpNode node)
+        {
+        }
+
         public void VisitBinaryOperation(IBinaryOperationNode node)
         {
             // TODO: Should this be optional to allow more flexibility with a IBinaryOperationVisitor?
