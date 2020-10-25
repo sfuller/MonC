@@ -2,7 +2,6 @@ using System;
 using MonC.Codegen;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
-using MonC.SyntaxTree.Nodes.Specifiers;
 using MonC.SyntaxTree.Nodes.Statements;
 using MonC.TypeSystem.Types.Impl;
 
@@ -27,9 +26,9 @@ namespace MonC.LLVM
             _lexicalScope = _function.DiFunctionDef;
         }
 
-        internal Metadata SetCurrentDebugLocation(ISyntaxTreeNode node)
+        internal Metadata SetCurrentDebugLocation(ISyntaxTreeNode node, bool forceDbgInfo = false)
         {
-            if (_genContext.DebugInfo) {
+            if (_genContext.DebugInfo || forceDbgInfo) {
                 _genContext.TryGetNodeSymbol(node, out Symbol range);
                 Metadata location = _genContext.Context.CreateDebugLocation(range.LLVMLine,
                     _genContext.ColumnInfo ? range.LLVMColumn : 0, _lexicalScope, Metadata.Null);
@@ -145,7 +144,7 @@ namespace MonC.LLVM
 
             if (_genContext.DebugInfo) {
                 _genContext.TryGetNodeSymbol(node, out Symbol varRange);
-                Metadata varType = _genContext.LookupDiType(node.Type);
+                Metadata varType = _genContext.LookupDiType(node.Type)!.Value;
                 Metadata varMetadata = _genContext.DiBuilder.CreateAutoVariable(_lexicalScope, node.Name,
                     _genContext.DiFile, varRange.LLVMLine, varType, true, CAPI.LLVMDIFlags.Zero,
                     varType.GetTypeAlignInBits());
@@ -240,8 +239,10 @@ namespace MonC.LLVM
                 args[i] = ConvertToType(_visitedValue, paramTypes[i]);
             }
 
-            SetCurrentDebugLocation(node);
+            // Force debug location on call instructions to make ExecutionEngine happy
+            SetCurrentDebugLocation(node, true);
             _visitedValue = _builder.BuildCall(func.FunctionType, func.FunctionValue, args);
+            _builder.SetCurrentDebugLocation(Metadata.Null);
         }
 
         public void VisitVariable(VariableNode node)
@@ -252,7 +253,8 @@ namespace MonC.LLVM
 
             SetCurrentDebugLocation(node);
             _function.VariableValues.TryGetValue(node.Declaration, out Value varStorage);
-            _visitedValue = _builder.BuildLoad(_genContext.LookupType(node.Declaration.Type), varStorage);
+            Type declType = _genContext.LookupType(node.Declaration.Type)!.Value;
+            _visitedValue = _builder.BuildLoad(declType, varStorage);
         }
 
         public void VisitIfElse(IfElseNode node)
@@ -465,13 +467,12 @@ namespace MonC.LLVM
             Value lhs = _visitedValue;
 
             StructType structType = (StructType) _genContext.SemanticModule.ExpressionResultTypes[node.Lhs];
-            Type llvmStructType = _genContext.LookupType(structType);
             StructLayout layout = _genContext.StructLayoutManager.GetLayout(structType);
-            if (!layout.MemberLayouts.TryGetValue(node.Rhs, out MemberLayoutInfo memberLayout)) {
+            if (!layout.MemberOffsets.TryGetValue(node.Rhs, out int index)) {
                 throw new InvalidOperationException();
             }
 
-            _visitedValue = _builder.BuildStructGEP(llvmStructType, lhs, (uint) memberLayout.Index);
+            _visitedValue = _builder.BuildExtractValue(lhs, (uint) index);
         }
 
         public void VisitEnumValue(EnumValueNode node)

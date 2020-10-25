@@ -35,11 +35,11 @@ namespace MonC.Codegen
 
             StructType structType = (StructType) _module.ExpressionResultTypes[node.Lhs];
             StructLayout layout = _structLayoutManager.GetLayout(structType);
-            if (!layout.MemberLayouts.TryGetValue(node.Rhs, out MemberLayoutInfo memberLayout)) {
+            if (!layout.MemberOffsets.TryGetValue(node.Rhs, out int offset)) {
                 throw new InvalidOperationException();
             }
 
-            AssignmentWriteLocation += memberLayout.Offset;
+            AssignmentWriteLocation += offset;
         }
     }
 }

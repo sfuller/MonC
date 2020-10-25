@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using MonC.Codegen;
 using MonC.Parsing;
 using MonC.Semantics;
 using MonC.SyntaxTree;
-using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Specifiers;
 using MonC.SyntaxTree.Nodes.Statements;
 using MonC.TypeSystem.Types;
@@ -16,12 +16,11 @@ namespace MonC.LLVM
     using FunctionStackLayout = Codegen.FunctionStackLayout;
     using StructLayoutGenerator = Codegen.StructLayoutGenerator;
     using StructLayoutManager = Codegen.StructLayoutManager;
-    using TypeSizeManager = Codegen.TypeSizeManager;
 
     /// <summary>
     /// Frequently referenced objects within the scope of CodeGenerator.Generate
     /// </summary>
-    public class CodeGeneratorContext
+    internal class CodeGeneratorContext
     {
         public Context Context { get; }
         public SemanticModule SemanticModule { get; }
@@ -65,7 +64,7 @@ namespace MonC.LLVM
             ColumnInfo = columnInfo && debugInfo;
 
             // IR-independent manager to generate struct type layouts
-            StructLayoutManager.Setup(new StructLayoutGenerator());
+            StructLayoutManager.Setup(new StructLayoutGenerator(new IndexTypeSizeManager()));
 
             // Struct sizes need to be resolved for debug info (which is target-dependent)
             Target target = Target.FromTriple(targetTriple);
@@ -74,74 +73,86 @@ namespace MonC.LLVM
             TargetDataLayout = machine.CreateTargetDataLayout();
         }
 
-        public void CreateStruct(StructNode structNode)
+        private Type EnsureStructRecursive(StructNode structNode, HashSet<StructNode> closedSet)
         {
-            List<Type> memberTypes = structNode.Members.ConvertAll(d => LookupType(((TypeSpecifierNode) d.Type).Type));
-            Type structType = Context.CreateStruct(structNode.Name, memberTypes.ToArray());
+            // Check if struct has already been created
+            Type? llvmStructType = Context.LookupStructType(structNode.Name);
+            if (llvmStructType != null)
+                return llvmStructType.Value;
 
-            ulong sizeInBits = TargetDataLayout!.SizeOfTypeInBits(structType);
-            uint alignInBits = TargetDataLayout.PreferredAlignmentOfType(structType);
+            // Add this node to closed set to avoid cycles
+            if (closedSet.Contains(structNode))
+                throw new InvalidOperationException($"Cyclic struct member detected: {structNode.Name}");
+            closedSet.Add(structNode);
+
+            // Head recursion is necessary to resolve non-forward-declared struct types
+            Type[] memberTypes = new Type[structNode.Members.Count];
+            for (int i = 0, ilen = structNode.Members.Count; i < ilen; ++i) {
+                DeclarationNode member = structNode.Members[i];
+                IType tp = ((TypeSpecifierNode) member.Type).Type;
+                Type? llvmTp = LookupType(tp);
+                if (llvmTp != null) {
+                    memberTypes[i] = llvmTp.Value;
+                } else if (tp is StructType structType) {
+                    memberTypes[i] = EnsureStructRecursive(structType.Struct, closedSet);
+                } else {
+                    throw new InvalidOperationException("Unable to ensure type recursively");
+                }
+            }
+
+            // Actually create the LLVM type here
+            Type newStructType = Context.CreateStruct(structNode.Name, memberTypes);
+
+            ulong sizeInBits = TargetDataLayout.SizeOfTypeInBits(newStructType);
+            uint alignInBits = TargetDataLayout.PreferredAlignmentOfType(newStructType);
             List<Metadata> diMemberTypes =
-                structNode.Members.ConvertAll(d => LookupDiType(((TypeSpecifierNode) d.Type).Type));
+                structNode.Members.ConvertAll(d => LookupDiType(((TypeSpecifierNode) d.Type).Type)!.Value);
             // TODO: resolve declaration file and line
             DiBuilder.CreateStruct(structNode.Name, DiFile, 0, sizeInBits, alignInBits, diMemberTypes.ToArray());
+
+            return newStructType;
         }
 
-        public Type LookupType(IType type)
+        public void EnsureStruct(StructNode structNode)
         {
-            switch (type) {
-                case IPointerType pointerType:
-                    return LookupType(pointerType.DestinationType).PointerType();
-                case IPrimitiveType primitiveType: {
-                    Type? returnType = Context.LookupPrimitiveType(primitiveType.Primitive);
-                    if (returnType == null) {
-                        throw new InvalidOperationException($"undefined type '{primitiveType.Primitive}'");
-                    }
-                    return returnType.Value;
-                }
-                case StructType structType: {
-                    Type? returnType = Context.LookupStructType(structType.Name);
-                    if (returnType == null) {
-                        throw new InvalidOperationException($"undefined type '{structType.Name}'");
-                    }
-                    return returnType.Value;
-                }
-                default:
-                    throw new InvalidOperationException("unhandled IType");
-            }
+            HashSet<StructNode> closedSet = new HashSet<StructNode>();
+            EnsureStructRecursive(structNode, closedSet);
         }
 
-        public Type LookupType(ITypeSpecifierNode typeSpecifier)
+        public Type? LookupType(IType type)
+        {
+            return type switch {
+                IPointerType pointerType => LookupType(pointerType.DestinationType)?.PointerType(),
+                IPrimitiveType primitiveType => Context.LookupPrimitiveType(primitiveType.Primitive),
+                StructType structType => Context.LookupStructType(structType.Name),
+                _ => throw new InvalidOperationException("unhandled IType")
+            };
+        }
+
+        public Type? LookupType(ITypeSpecifierNode typeSpecifier)
         {
             TypeSpecifierNode typeSpecifierNode = (TypeSpecifierNode) typeSpecifier;
             return LookupType(typeSpecifierNode.Type);
         }
 
-        public Metadata LookupDiType(IType type)
+        private Metadata? CreateDiPointerType(Metadata? tp)
         {
-            switch (type) {
-                case IPointerType pointerType:
-                    return DiBuilder.CreatePointerType(LookupDiType(pointerType.DestinationType));
-                case IPrimitiveType primitiveType: {
-                    Metadata? returnType = DiBuilder.LookupPrimitiveType(primitiveType.Primitive);
-                    if (returnType == null) {
-                        throw new InvalidOperationException($"undefined type '{primitiveType.Primitive}'");
-                    }
-                    return returnType.Value;
-                }
-                case StructType structType: {
-                    Metadata? returnType = DiBuilder.LookupStructType(structType.Name);
-                    if (returnType == null) {
-                        throw new InvalidOperationException($"undefined type '{structType.Name}'");
-                    }
-                    return returnType.Value;
-                }
-                default:
-                    throw new InvalidOperationException("unhandled IType");
-            }
+            if (tp != null)
+                return DiBuilder.CreatePointerType(tp.Value);
+            return null;
         }
 
-        public Metadata LookupDiType(ITypeSpecifierNode typeSpecifier)
+        public Metadata? LookupDiType(IType type)
+        {
+            return type switch {
+                IPointerType pointerType => CreateDiPointerType(LookupDiType(pointerType.DestinationType)),
+                IPrimitiveType primitiveType => DiBuilder.LookupPrimitiveType(primitiveType.Primitive),
+                StructType structType => DiBuilder.LookupStructType(structType.Name),
+                _ => throw new InvalidOperationException("unhandled IType")
+            };
+        }
+
+        public Metadata? LookupDiType(ITypeSpecifierNode typeSpecifier)
         {
             TypeSpecifierNode typeSpecifierNode = (TypeSpecifierNode) typeSpecifier;
             return LookupDiType(typeSpecifierNode.Type);
@@ -166,9 +177,10 @@ namespace MonC.LLVM
 
                 // Create function type and add the function node without appending any basic blocks
                 // This results in a function declaration in LLVM-IR
-                Type[] paramTypes = Array.ConvertAll(leaf.Parameters, param => genContext.LookupType(param.Type));
+                Type[] paramTypes =
+                    Array.ConvertAll(leaf.Parameters, param => genContext.LookupType(param.Type)!.Value);
                 FunctionType =
-                    genContext.Context.FunctionType(genContext.LookupType(leaf.ReturnType), paramTypes, false);
+                    genContext.Context.FunctionType(genContext.LookupType(leaf.ReturnType)!.Value, paramTypes, false);
                 FunctionValue = genContext.Module.AddFunction(leaf.Name, FunctionType);
 
                 // Process the static keyword in the same manner as clang
@@ -203,17 +215,17 @@ namespace MonC.LLVM
                 }
 
                 // Visit all declaration nodes and create storage (parameters and variables)
-                StackLayoutGenerator layoutGenerator = new StackLayoutGenerator();
+                StackLayoutGenerator layoutGenerator = new StackLayoutGenerator(new IndexTypeSizeManager());
                 layoutGenerator.VisitFunctionDefinition(_leaf);
                 FunctionStackLayout layout = layoutGenerator.GetLayout();
                 foreach (var v in layout.Variables) {
-                    Type varType = genContext.LookupType(v.Key.Type);
+                    Type varType = genContext.LookupType(v.Key.Type)!.Value;
                     Value varStorage = builder.BuildAlloca(varType, v.Key.Name);
                     VariableValues[v.Key] = varStorage;
                 }
 
                 // Emit store instruction for return value
-                if (RetvalStorage != null) {
+                if (RetvalStorage != null && !returnType.IsStructType()) {
                     builder.BuildStore(Value.ConstInt(returnType, 0, true), RetvalStorage.Value);
                 }
 
@@ -231,7 +243,7 @@ namespace MonC.LLVM
                 // Create subroutine type debug info
                 genContext.TryGetNodeSymbol(_leaf, out Symbol range);
                 Metadata subroutineType = genContext.DiBuilder.CreateSubroutineType(genContext.DiFile,
-                    Array.ConvertAll(_leaf.Parameters, param => genContext.LookupDiType(param.Type)),
+                    Array.ConvertAll(_leaf.Parameters, param => genContext.LookupDiType(param.Type)!.Value),
                     CAPI.LLVMDIFlags.Zero);
                 Metadata funcLocation = genContext.Context.CreateDebugLocation(range.LLVMLine,
                     genContext.ColumnInfo ? range.LLVMColumn : 0, DiFwdDecl, Metadata.Null);
@@ -248,7 +260,7 @@ namespace MonC.LLVM
                     for (int i = 0, ilen = _leaf.Parameters.Length; i < ilen; ++i) {
                         DeclarationNode parameter = _leaf.Parameters[i];
                         genContext.TryGetNodeSymbol(parameter, out Symbol paramRange);
-                        Metadata paramType = genContext.LookupDiType(parameter.Type);
+                        Metadata paramType = genContext.LookupDiType(parameter.Type)!.Value;
                         Metadata paramMetadata = genContext.DiBuilder.CreateParameterVariable(DiFunctionDef,
                             parameter.Name, (uint) i + 1, genContext.DiFile, paramRange.LLVMLine, paramType, true,
                             CAPI.LLVMDIFlags.Zero);
@@ -351,7 +363,7 @@ namespace MonC.LLVM
 
             // Struct pass
             foreach (StructNode structNode in genContext.ParseModule.Structs) {
-                genContext.CreateStruct(structNode);
+                genContext.EnsureStruct(structNode);
             }
 
             // Declaration pass

@@ -5,7 +5,7 @@ using MonC.TypeSystem.Types.Impl;
 
 namespace MonC.LLVM
 {
-    public class AssignmentCodeGenVisitor : IAssignableVisitor
+    internal class AssignmentCodeGenVisitor : IAssignableVisitor
     {
         private readonly Builder _builder;
         private readonly CodeGeneratorContext _genContext;
@@ -34,14 +34,14 @@ namespace MonC.LLVM
             assignableLhs.AcceptAssignableVisitor(this);
 
             StructType structType = (StructType) _genContext.SemanticModule.ExpressionResultTypes[node.Lhs];
-            Type llvmStructType = _genContext.LookupType(structType);
+            Type llvmStructType = _genContext.LookupType(structType)!.Value;
             StructLayout layout = _genContext.StructLayoutManager.GetLayout(structType);
-            if (!layout.MemberLayouts.TryGetValue(node.Rhs, out MemberLayoutInfo memberLayout)) {
+            if (!layout.MemberOffsets.TryGetValue(node.Rhs, out int index)) {
                 throw new InvalidOperationException();
             }
 
             AssignmentWritePointer =
-                _builder.BuildStructGEP(llvmStructType, AssignmentWritePointer, (uint) memberLayout.Index);
+                _builder.BuildStructGEP(llvmStructType, AssignmentWritePointer, (uint) index);
         }
     }
 }

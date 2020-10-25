@@ -23,7 +23,7 @@ namespace MonC.LLVM
         public void VisitCastUnaryOp(CastUnaryOpNode node)
         {
             Value operand = GetUnaryOperand(node);
-            Type destTp = _codeGenVisitor._genContext.LookupType(node.ToType);
+            Type destTp = _codeGenVisitor._genContext.LookupType(node.ToType)!.Value;
             CAPI.LLVMOpcode castOp = _codeGenVisitor.GetCastOpcode(operand, destTp);
             _codeGenVisitor._visitedValue = _codeGenVisitor._builder.BuildCast(castOp, operand, destTp);
         }

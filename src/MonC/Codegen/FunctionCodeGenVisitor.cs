@@ -4,7 +4,6 @@ using MonC.IL;
 using MonC.Semantics;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
-using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
 using MonC.SyntaxTree.Nodes.Specifiers;
 using MonC.SyntaxTree.Nodes.Statements;
 using MonC.TypeSystem.Types;
@@ -21,7 +20,7 @@ namespace MonC.Codegen
         private readonly SemanticModule _module;
         private readonly SemanticContext _semanticContext;
         private readonly StructLayoutManager _structLayoutManager;
-        private readonly TypeSizeManager _typeSizeManager;
+        private readonly ILTypeSizeManager _typeSizeManager;
         private readonly List<string> _strings;
 
         private readonly Stack<int> _breaks = new Stack<int>();
@@ -34,7 +33,7 @@ namespace MonC.Codegen
             SemanticModule module,
             SemanticContext semanticContext,
             StructLayoutManager structLayoutManager,
-            TypeSizeManager typeSizeManager,
+            ILTypeSizeManager typeSizeManager,
             List<string> strings
         )
         {
@@ -51,8 +50,6 @@ namespace MonC.Codegen
         public void VisitBinaryOperation(IBinaryOperationNode node)
         {
             node.RHS.AcceptExpressionVisitor(this);
-            if (node is LogicalAndBinOpNode)
-                _functionBuilder.AddInstruction(OpCode.BOOL);
             node.LHS.AcceptExpressionVisitor(this);
 
             int comparisonOperationAddress = _functionBuilder.InstructionCount;
@@ -79,13 +76,13 @@ namespace MonC.Codegen
         public void VisitAssignment(AssignmentNode node)
         {
             AssignmentCodeGenVisitor assignmentCodeGenVisitor
-                = new AssignmentCodeGenVisitor(_layout, _module, _structLayoutManager);
+                    = new AssignmentCodeGenVisitor(_layout, _module, _structLayoutManager);
             node.Lhs.AcceptAssignableVisitor(assignmentCodeGenVisitor);
 
             node.Rhs.AcceptExpressionVisitor(this);
 
-            int addr = _functionBuilder.AddInstruction(OpCode.WRITE, assignmentCodeGenVisitor.AssignmentWriteLocation);
-            _functionBuilder.AddDebugSymbol(addr, node);
+             int addr = _functionBuilder.AddInstruction(OpCode.WRITE, assignmentCodeGenVisitor.AssignmentWriteLocation);
+             _functionBuilder.AddDebugSymbol(addr, node);
         }
 
         public void VisitAccess(AccessNode node)
@@ -94,11 +91,10 @@ namespace MonC.Codegen
 
             StructType structType = (StructType) _module.ExpressionResultTypes[node.Lhs];
             StructLayout layout = _structLayoutManager.GetLayout(structType);
-            if (!layout.MemberLayouts.TryGetValue(node.Rhs, out MemberLayoutInfo memberLayout)) {
+            if (!layout.MemberOffsets.TryGetValue(node.Rhs, out int offset)) {
                 throw new InvalidOperationException();
             }
 
-            int offset = memberLayout.Offset;
             int structSize = _typeSizeManager.GetSize(structType);
             int fieldSize = _typeSizeManager.GetSize(((TypeSpecifierNode) node.Rhs.Type).Type);
 
@@ -182,14 +178,12 @@ namespace MonC.Codegen
                 argument.AcceptExpressionVisitor(this);
             }
 
-            int functionLoadAddr =
-                _functionBuilder.AddInstruction(OpCode.PUSHWORD, _functionManager.GetFunctionIndex(node.LHS));
+            int functionLoadAddr = _functionBuilder.AddInstruction(OpCode.PUSHWORD, _functionManager.GetFunctionIndex(node.LHS));
             _functionBuilder.SetInstructionReferencingFunctionAddress(functionLoadAddr);
 
             _functionBuilder.AddInstruction(OpCode.CALL);
 
-            _functionBuilder.FreeStackSpace(argumentsSize +
-                                            sizeof(int)); // Extra word is function index that was pushed.
+            _functionBuilder.FreeStackSpace(argumentsSize + sizeof(int)); // Extra word is function index that was pushed.
 
             IType returnType = ((TypeSpecifierNode) node.LHS.ReturnType).Type;
             _functionBuilder.AllocStackSpace(_typeSizeManager.GetSize(returnType));
@@ -225,10 +219,12 @@ namespace MonC.Codegen
             int endIndex = _functionBuilder.InstructionCount;
 
             _functionBuilder.Instructions[branchIndex] = new Instruction(OpCode.JUMPZ, bodyIndex);
-            _functionBuilder.Instructions[ifEndIndex] = new Instruction(OpCode.JUMP, endIndex);
+            _functionBuilder.Instructions[ifEndIndex] =  new Instruction(OpCode.JUMP, endIndex);
         }
 
-        public void VisitVoid(VoidExpressionNode node) { }
+        public void VisitVoid(VoidExpressionNode node)
+        {
+        }
 
         public void VisitNumericLiteral(NumericLiteralNode node)
         {
@@ -311,8 +307,7 @@ namespace MonC.Codegen
 
         public void VisitUnknown(IExpressionNode node)
         {
-            throw new InvalidOperationException(
-                "Unexpected expression node type. Was replacement of a parse tree node missed?");
+            throw new InvalidOperationException("Unexpected expression node type. Was replacement of a parse tree node missed?");
         }
     }
 }

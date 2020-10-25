@@ -741,6 +741,14 @@ namespace MonC.LLVM
             LLVMValueRef pointer, uint idx, string name);
 
         [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildExtractValue(LLVMBuilderRef builder, LLVMValueRef aggVal, uint index,
+            string name);
+
+        [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildInsertValue(LLVMBuilderRef builder, LLVMValueRef aggVal,
+            LLVMValueRef eltVal, uint index, string Name);
+
+        [DllImport("LLVM-C")]
         public static extern LLVMValueRef LLVMBuildGlobalString(LLVMBuilderRef builder, string str, string name);
 
         [DllImport("LLVM-C")]

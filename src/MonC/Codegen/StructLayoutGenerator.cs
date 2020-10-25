@@ -7,28 +7,25 @@ namespace MonC.Codegen
 {
     public class StructLayoutGenerator
     {
-        private readonly TypeSizeManager? _typeSizeManager;
+        private readonly ITypeSizeManager _typeSizeManager;
 
-        public StructLayoutGenerator(TypeSizeManager? typeSizeManager = null)
+        public StructLayoutGenerator(ITypeSizeManager typeSizeManager)
         {
             _typeSizeManager = typeSizeManager;
         }
 
         public StructLayout Generate(StructType structType, StructLayoutManager manager)
         {
-            Dictionary<DeclarationNode, MemberLayoutInfo> offsets = new Dictionary<DeclarationNode, MemberLayoutInfo>();
-            MemberLayoutInfo nextLayout = new MemberLayoutInfo();
+            Dictionary<DeclarationNode, int> offsets = new Dictionary<DeclarationNode,int>();
+            int nextOffset = 0;
 
             foreach (DeclarationNode declaration in structType.Struct.Members) {
-                offsets.Add(declaration, nextLayout);
-                nextLayout.Index += 1;
-
-                // LLVM only cares about member indices and does its own size and offset calculations
-                if (_typeSizeManager != null)
-                    nextLayout.Offset += _typeSizeManager.GetSize(((TypeSpecifierNode) declaration.Type).Type);
+                offsets.Add(declaration, nextOffset);
+                nextOffset += _typeSizeManager.GetSize(((TypeSpecifierNode) declaration.Type).Type);
             }
 
-            return new StructLayout(offsets, nextLayout.Offset);
+            return new StructLayout(offsets, nextOffset);
         }
+
     }
 }

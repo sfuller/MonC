@@ -12,14 +12,14 @@ namespace MonC.Codegen
         private readonly SemanticContext _semanticContext;
         private readonly FunctionManager _functionManager = new FunctionManager();
         private readonly StructLayoutManager _structLayoutManager = new StructLayoutManager();
-        private readonly TypeSizeManager _typeSizeManager;
+        private readonly ILTypeSizeManager _typeSizeManager;
 
         public CodeGenerator(SemanticModule module, SemanticContext semanticContext)
         {
             _module = module;
             _semanticContext = semanticContext;
 
-            _typeSizeManager = new TypeSizeManager(_structLayoutManager);
+            _typeSizeManager = new ILTypeSizeManager(_structLayoutManager);
             _structLayoutManager.Setup(new StructLayoutGenerator(_typeSizeManager));
         }
 
