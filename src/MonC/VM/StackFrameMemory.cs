@@ -64,10 +64,17 @@ namespace MonC.VM
         {
             int stackStart = _stackPointer;
             unchecked {
-                Write(stackStart, (byte) (val >> 24));
-                Write(stackStart + 1, (byte) (val >> 16));
-                Write(stackStart + 2, (byte) (val >> 8));
-                Write(stackStart + 3, (byte) val);
+                if (BitConverter.IsLittleEndian) {
+                    Write(stackStart, (byte)val);
+                    Write(stackStart + 1, (byte)(val >> 8));
+                    Write(stackStart + 2, (byte)(val >> 16));
+                    Write(stackStart + 3, (byte)(val >> 24));
+                } else {
+                    Write(stackStart, (byte)(val >> 24));
+                    Write(stackStart + 1, (byte)(val >> 16));
+                    Write(stackStart + 2, (byte)(val >> 8));
+                    Write(stackStart + 3, (byte)val);
+                }
             }
             _stackPointer += 4;
         }
@@ -75,10 +82,18 @@ namespace MonC.VM
         public int PopValInt()
         {
             int stackPointer = _stackPointer;
-            byte byte1 = Read(stackPointer - 1);
-            byte byte2 = Read(stackPointer - 2);
-            byte byte3 = Read(stackPointer - 3);
-            byte byte4 = Read(stackPointer - 4);
+            byte byte4, byte3, byte2, byte1;
+            if (BitConverter.IsLittleEndian) {
+                byte1 = Read(stackPointer - 4);
+                byte2 = Read(stackPointer - 3);
+                byte3 = Read(stackPointer - 2);
+                byte4 = Read(stackPointer - 1);
+            } else {
+                byte1 = Read(stackPointer - 1);
+                byte2 = Read(stackPointer - 2);
+                byte3 = Read(stackPointer - 3);
+                byte4 = Read(stackPointer - 4);
+            }
             _stackPointer -= 4;
             return (byte4 << 24) + (byte3 << 16) + (byte2 << 8) + byte1;
         }
