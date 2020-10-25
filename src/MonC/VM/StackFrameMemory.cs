@@ -65,15 +65,15 @@ namespace MonC.VM
             int stackStart = _stackPointer;
             unchecked {
                 if (BitConverter.IsLittleEndian) {
-                    Write(stackStart, (byte) val);
-                    Write(stackStart + 1, (byte) (val >> 8));
-                    Write(stackStart + 2, (byte) (val >> 16));
-                    Write(stackStart + 3, (byte) (val >> 24));
+                    Write(stackStart, (byte)val);
+                    Write(stackStart + 1, (byte)(val >> 8));
+                    Write(stackStart + 2, (byte)(val >> 16));
+                    Write(stackStart + 3, (byte)(val >> 24));
                 } else {
-                    Write(stackStart, (byte) (val >> 24));
-                    Write(stackStart + 1, (byte) (val >> 16));
-                    Write(stackStart + 2, (byte) (val >> 8));
-                    Write(stackStart + 3, (byte) val);
+                    Write(stackStart, (byte)(val >> 24));
+                    Write(stackStart + 1, (byte)(val >> 16));
+                    Write(stackStart + 2, (byte)(val >> 8));
+                    Write(stackStart + 3, (byte)val);
                 }
             }
             _stackPointer += 4;
