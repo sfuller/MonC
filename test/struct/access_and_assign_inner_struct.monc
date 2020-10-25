@@ -1,0 +1,27 @@
+
+struct Foo {
+    Bar bar;
+    int a;
+}
+
+struct Bar {
+    int b;
+    int c;
+}
+
+int main() {
+    Bar bar;
+    bar.b = 2;
+    bar.c = 3;
+    
+    Foo foo;
+    foo.a = 1;
+    foo.bar = bar;
+
+    if (foo.a == 1 && foo.bar.b == 2 && foo.bar.c == 3) {
+        return 0;
+    }
+    return 1;
+}
+
+

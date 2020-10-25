@@ -68,6 +68,11 @@ namespace MonC.LLVM
             return kind == CAPI.LLVMTypeKind.Vector || kind == CAPI.LLVMTypeKind.ScalableVector;
         }
 
+        public bool IsStructType()
+        {
+            return Kind == CAPI.LLVMTypeKind.Struct;
+        }
+
         public bool HasElements()
         {
             CAPI.LLVMTypeKind kind = Kind;

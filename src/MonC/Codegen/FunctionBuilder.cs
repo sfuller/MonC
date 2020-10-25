@@ -32,20 +32,74 @@ namespace MonC.Codegen
         {
             _layout = layout;
             _nodeToTokenMap = nodeToTokenMap;
-
-            if (layout.Variables.Count > 0) {
-                _stackWorkOffset = layout.Variables.Max(kvp => kvp.Value) + 1;
-            }
-            _maxStackWorkOffset = _stackWorkOffset;
         }
 
         public List<Instruction> Instructions => _instructions;
         public int InstructionCount => _instructions.Count;
 
-        public int AddInstruction(OpCode op, int immediate = 0)
+        public int AddInstruction(OpCode op, int immediate = 0, int size = 4)
         {
+            switch (op) {
+                case OpCode.NOOP:
+                case OpCode.BREAK:
+                    // No Stack Change
+                    break;
+                case OpCode.PUSHWORD:
+                    AllocStackSpace(sizeof(int));
+                    break;
+                case OpCode.PUSH:
+                    AllocStackSpace(size);
+                    break;
+                case OpCode.POP:
+                    FreeStackSpace(size);
+                    break;
+                case OpCode.READ:
+                    AllocStackSpace(size);
+                    break;
+                case OpCode.WRITE:
+                    // No stack change
+                    break;
+                case OpCode.ACCESS:
+                    FreeStackSpace(immediate);
+                    break;
+                case OpCode.CALL:
+                    // Space must be adjusted manually
+                    break;
+                case OpCode.RETURN:
+                    // No stack change
+                    break;
+                case OpCode.CMPE:
+                case OpCode.CMPLT:
+                case OpCode.CMPLTE:
+                    FreeStackSpace(sizeof(int));
+                    break;
+                case OpCode.JUMP:
+                    // No change
+                    break;
+                case OpCode.JUMPZ:
+                case OpCode.JUMPNZ:
+                    FreeStackSpace(sizeof(int));
+                    break;
+                case OpCode.BOOL:
+                case OpCode.LNOT:
+                    // No change
+                    break;
+                case OpCode.ADD:
+                case OpCode.SUB:
+                case OpCode.OR:
+                case OpCode.AND:
+                case OpCode.XOR:
+                case OpCode.MUL:
+                case OpCode.DIV:
+                case OpCode.MOD:
+                    FreeStackSpace(sizeof(int));
+                    break;
+                default:
+                    throw new NotSupportedException();
+            }
+
             int index = _instructions.Count;
-            _instructions.Add(new Instruction(op, immediate));
+            _instructions.Add(new Instruction(op, immediate, size));
             return index;
         }
 
@@ -56,7 +110,7 @@ namespace MonC.Codegen
             _addressToTokenMap[address] = range;
         }
 
-        public int AllocTemporaryStackAddress(int length = 1)
+        public int AllocStackSpace(int length = 1)
         {
             int address = _stackWorkOffset;
             _stackWorkOffset += length;
@@ -64,8 +118,11 @@ namespace MonC.Codegen
             return address;
         }
 
-        public int FreeTemporaryStackAddress(int length = 1)
+        public int FreeStackSpace(int length = 1)
         {
+            if (_stackWorkOffset < length) {
+                throw new InvalidOperationException("Stack work offset underflow");
+            }
             _stackWorkOffset -= length;
             return _stackWorkOffset;
         }
@@ -82,11 +139,9 @@ namespace MonC.Codegen
 
         public ILFunction Build(FunctionDefinitionNode functionDefinitionNode)
         {
-            // Note: Will need to be adjusted when non sizeof(int) sized types are introduced.
-            int argumentMemorySize = functionDefinitionNode.Parameters.Length;
-
             return new ILFunction {
-                ArgumentMemorySize = argumentMemorySize,
+                ArgumentMemorySize = _layout.ArgumentsSize,
+                ReturnValueSize = _layout.ReturnValueSize,
                 MaxStackSize = _maxStackWorkOffset,
                 Code = _instructions.ToArray(),
                 Symbols = _addressToTokenMap,

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using MonC.TypeSystem;
 
 namespace MonC.LLVM
 {
@@ -97,27 +98,31 @@ namespace MonC.LLVM
         public Metadata CreateDebugLocation(uint line, uint column, Metadata scope, Metadata inlinedAt) =>
             CAPI.LLVMDIBuilderCreateDebugLocation(_context, line, column, scope, inlinedAt);
 
-        private Dictionary<string, Type> _udts = new Dictionary<string, Type>();
+        private readonly Dictionary<string, Type> _structs = new Dictionary<string, Type>();
 
-        public Type? LookupType(string name)
+        public Type? LookupPrimitiveType(Primitive primitive)
         {
-            if (name.Length == 0)
-                return VoidType;
-            if (name == "int")
-                return Int32Type;
-            if (_udts.TryGetValue(name, out Type type))
+            return primitive switch {
+                Primitive.Void => VoidType,
+                Primitive.Int => Int32Type,
+                _ => null
+            };
+        }
+
+        public Type? LookupStructType(string name)
+        {
+            if (_structs.TryGetValue(name, out Type type))
                 return type;
             return null;
         }
 
-        public Type CreateUDTStruct(string name, Type[] elementTypes, bool packed = false)
+        public Type CreateStruct(string name, Type[] elementTypes, bool packed = false)
         {
-            if (_udts.ContainsKey(name))
+            if (_structs.ContainsKey(name))
                 throw new InvalidOperationException($"struct '{name}' is already defined");
             Type type = CAPI.LLVMStructCreateNamed(_context, name);
-            CAPI.LLVMStructSetBody(type, Array.ConvertAll(elementTypes, tp => (CAPI.LLVMTypeRef) tp),
-                (uint) elementTypes.Length, packed);
-            _udts.Add(name, type);
+            CAPI.LLVMStructSetBody(type, Array.ConvertAll(elementTypes, tp => (CAPI.LLVMTypeRef) tp), packed);
+            _structs.Add(name, type);
             return type;
         }
 
@@ -166,22 +171,20 @@ namespace MonC.LLVM
 
         public static void Main(string[] args)
         {
-            using (Context context = new Context()) {
-                using (Module module = context.CreateModule("MyModule")) {
-                    Type funcType = context.FunctionType(context.Int32Type, new Type[] { }, false);
-                    Value function = module.AddFunction("GetDragonsBankBalance", funcType);
+            using Context context = new Context();
+            using Module module = context.CreateModule("MyModule");
+            Type funcType = context.FunctionType(context.Int32Type, new Type[] { }, false);
+            Value function = module.AddFunction("GetDragonsBankBalance", funcType);
 
-                    BasicBlock basicBlock = context.AppendBasicBlock(function);
+            BasicBlock basicBlock = context.AppendBasicBlock(function);
 
-                    using (Builder builder = context.CreateBuilder()) {
-                        builder.PositionAtEnd(basicBlock);
-                        Value theAnswer = Value.ConstInt(context.Int32Type, int.MaxValue, true);
-                        builder.BuildRet(theAnswer);
-                    }
-
-                    module.Dump();
-                }
+            using (Builder builder = context.CreateBuilder()) {
+                builder.PositionAtEnd(basicBlock);
+                Value theAnswer = Value.ConstInt(context.Int32Type, int.MaxValue, true);
+                builder.BuildRet(theAnswer);
             }
+
+            module.Dump();
         }
     }
 }

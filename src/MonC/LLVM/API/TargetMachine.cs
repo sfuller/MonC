@@ -58,5 +58,7 @@ namespace MonC.LLVM
 
             return new MemoryBuffer(outMemBuf);
         }
+
+        public TargetData CreateTargetDataLayout() => new TargetData(CAPI.LLVMCreateTargetDataLayout(_targetMachine));
     }
 }

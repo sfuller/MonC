@@ -4,4 +4,7 @@ packages
 bin
 obj
 .vs
-src/MonC/LLVM/CAPIGEN.cs
+
+# Project specific
+.passing_tests
+src/MonC/LLVM/API/CAPIGEN.cs

@@ -8,12 +8,17 @@ namespace Driver.ToolChains
 {
     public class MonCCodeGenTool : IModuleTool
     {
-        private ICodeGenInput _input;
+        private readonly Job _job;
+        private readonly ICodeGenInput _input;
 
-        private MonCCodeGenTool(ICodeGenInput input) => _input = input;
+        private MonCCodeGenTool(Job job, ICodeGenInput input)
+        {
+            _job = job;
+            _input = input;
+        }
 
         public static MonCCodeGenTool Construct(Job job, MonC toolchain, ICodeGenInput input) =>
-            new MonCCodeGenTool(input);
+            new MonCCodeGenTool(job, input);
 
         public void WriteInputChain(TextWriter writer)
         {
@@ -23,10 +28,12 @@ namespace Driver.ToolChains
 
         public void RunHeaderPass() => _input.RunHeaderPass();
 
+        public void RunAnalyserPass() => _input.RunAnalyserPass();
+
         public IModuleArtifact GetModuleArtifact()
         {
-            CodeGenerator generator = new CodeGenerator();
-            return generator.Generate(_input.GetParseModule());
+            CodeGenerator generator = new CodeGenerator(_input.GetSemanticModule(), _job._semanticAnalyzer.Context);
+            return generator.Generate();
         }
     }
 }

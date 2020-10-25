@@ -2,15 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using MonC.Parsing;
+using MonC.Semantics;
 using MonC.SyntaxTree;
+using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Specifiers;
 using MonC.SyntaxTree.Nodes.Statements;
 using MonC.TypeSystem.Types;
+using MonC.TypeSystem.Types.Impl;
 
 namespace MonC.LLVM
 {
     using StackLayoutGenerator = Codegen.StackLayoutGenerator;
     using FunctionStackLayout = Codegen.FunctionStackLayout;
+    using StructLayoutGenerator = Codegen.StructLayoutGenerator;
+    using StructLayoutManager = Codegen.StructLayoutManager;
+    using TypeSizeManager = Codegen.TypeSizeManager;
 
     /// <summary>
     /// Frequently referenced objects within the scope of CodeGenerator.Generate
@@ -18,19 +24,24 @@ namespace MonC.LLVM
     public class CodeGeneratorContext
     {
         public Context Context { get; }
-        public ParseModule ParseModule { get; }
+        public SemanticModule SemanticModule { get; }
+        public ParseModule ParseModule => SemanticModule.BaseModule;
+        public SemanticContext SemanticContext { get; }
         public Module Module { get; }
         public Metadata DiFile { get; }
         public Metadata DiModule { get; }
         public DIBuilder DiBuilder => Module.DiBuilder;
         public bool DebugInfo { get; }
         public bool ColumnInfo { get; }
+        public readonly StructLayoutManager StructLayoutManager = new StructLayoutManager();
+        public TargetData TargetDataLayout { get; }
 
-        public CodeGeneratorContext(Context context, ParseModule parseModule, string fileName, string dirName,
-            string targetTriple, bool optimized, bool debugInfo, bool columnInfo)
+        public CodeGeneratorContext(Context context, SemanticModule semanticModule, SemanticContext semanticContext,
+            string fileName, string dirName, string targetTriple, bool optimized, bool debugInfo, bool columnInfo)
         {
             Context = context;
-            ParseModule = parseModule;
+            SemanticModule = semanticModule;
+            SemanticContext = semanticContext;
 
             Module = context.CreateModule(fileName);
             Module.SetTarget(targetTriple);
@@ -52,23 +63,52 @@ namespace MonC.LLVM
 
             DebugInfo = debugInfo;
             ColumnInfo = columnInfo && debugInfo;
+
+            // IR-independent manager to generate struct type layouts
+            StructLayoutManager.Setup(new StructLayoutGenerator());
+
+            // Struct sizes need to be resolved for debug info (which is target-dependent)
+            Target target = Target.FromTriple(targetTriple);
+            TargetMachine machine = target.CreateTargetMachine(targetTriple, "", "",
+                CAPI.LLVMCodeGenOptLevel.Default, CAPI.LLVMRelocMode.Default, CAPI.LLVMCodeModel.Default);
+            TargetDataLayout = machine.CreateTargetDataLayout();
+        }
+
+        public void CreateStruct(StructNode structNode)
+        {
+            List<Type> memberTypes = structNode.Members.ConvertAll(d => LookupType(((TypeSpecifierNode) d.Type).Type));
+            Type structType = Context.CreateStruct(structNode.Name, memberTypes.ToArray());
+
+            ulong sizeInBits = TargetDataLayout!.SizeOfTypeInBits(structType);
+            uint alignInBits = TargetDataLayout.PreferredAlignmentOfType(structType);
+            List<Metadata> diMemberTypes =
+                structNode.Members.ConvertAll(d => LookupDiType(((TypeSpecifierNode) d.Type).Type));
+            // TODO: resolve declaration file and line
+            DiBuilder.CreateStruct(structNode.Name, DiFile, 0, sizeInBits, alignInBits, diMemberTypes.ToArray());
         }
 
         public Type LookupType(IType type)
         {
-            if (type is IPointerType pointerType) {
-                return LookupType(pointerType.DestinationType).PointerType();
-            }
-
-            if (type is IValueType valueType) {
-                Type? returnType = Context.LookupType(valueType.Name);
-                if (returnType == null) {
-                    throw new InvalidOperationException($"undefined type '{valueType.Name}'");
+            switch (type) {
+                case IPointerType pointerType:
+                    return LookupType(pointerType.DestinationType).PointerType();
+                case IPrimitiveType primitiveType: {
+                    Type? returnType = Context.LookupPrimitiveType(primitiveType.Primitive);
+                    if (returnType == null) {
+                        throw new InvalidOperationException($"undefined type '{primitiveType.Primitive}'");
+                    }
+                    return returnType.Value;
                 }
-                return returnType.Value;
+                case StructType structType: {
+                    Type? returnType = Context.LookupStructType(structType.Name);
+                    if (returnType == null) {
+                        throw new InvalidOperationException($"undefined type '{structType.Name}'");
+                    }
+                    return returnType.Value;
+                }
+                default:
+                    throw new InvalidOperationException("unhandled IType");
             }
-
-            throw new InvalidOperationException("unhandled IType");
         }
 
         public Type LookupType(ITypeSpecifierNode typeSpecifier)
@@ -79,19 +119,26 @@ namespace MonC.LLVM
 
         public Metadata LookupDiType(IType type)
         {
-            if (type is IPointerType pointerType) {
-                return DiBuilder.CreatePointerType(LookupDiType(pointerType.DestinationType));
-            }
-
-            if (type is IValueType valueType) {
-                Metadata? returnType = DiBuilder.LookupType(valueType.Name);
-                if (returnType == null) {
-                    throw new InvalidOperationException($"undefined type '{valueType.Name}'");
+            switch (type) {
+                case IPointerType pointerType:
+                    return DiBuilder.CreatePointerType(LookupDiType(pointerType.DestinationType));
+                case IPrimitiveType primitiveType: {
+                    Metadata? returnType = DiBuilder.LookupPrimitiveType(primitiveType.Primitive);
+                    if (returnType == null) {
+                        throw new InvalidOperationException($"undefined type '{primitiveType.Primitive}'");
+                    }
+                    return returnType.Value;
                 }
-                return returnType.Value;
+                case StructType structType: {
+                    Metadata? returnType = DiBuilder.LookupStructType(structType.Name);
+                    if (returnType == null) {
+                        throw new InvalidOperationException($"undefined type '{structType.Name}'");
+                    }
+                    return returnType.Value;
+                }
+                default:
+                    throw new InvalidOperationException("unhandled IType");
             }
-
-            throw new InvalidOperationException("unhandled IType");
         }
 
         public Metadata LookupDiType(ITypeSpecifierNode typeSpecifier)
@@ -270,8 +317,9 @@ namespace MonC.LLVM
 
     public static class CodeGenerator
     {
-        public static Module Generate(Context context, string path, ParseModule parseModule, string targetTriple,
-            PassManagerBuilder? optBuilder, bool debugInfo, bool columnInfo)
+        public static Module Generate(Context context, string path, SemanticModule module,
+            SemanticContext semanticContext, string targetTriple, PassManagerBuilder? optBuilder, bool debugInfo,
+            bool columnInfo)
         {
             // Path information for debug info nodes
             string fileName = Path.GetFileName(path);
@@ -283,17 +331,15 @@ namespace MonC.LLVM
             }
 
             // Create module and file-level debug info nodes
-            CodeGeneratorContext genContext = new CodeGeneratorContext(context, parseModule, fileName, dirName,
-                targetTriple, optBuilder != null, debugInfo, columnInfo);
+            CodeGeneratorContext genContext = new CodeGeneratorContext(context, module, semanticContext, fileName,
+                dirName, targetTriple, optBuilder != null, debugInfo, columnInfo);
 
             // Enum pass
-            Dictionary<string, int> enums = new Dictionary<string, int>();
-            foreach (EnumNode enumNode in parseModule.Enums) {
+            foreach (EnumNode enumNode in genContext.ParseModule.Enums) {
                 Metadata[] enumerators = new Metadata[enumNode.Declarations.Count];
                 for (int i = 0, ilen = enumNode.Declarations.Count; i < ilen; ++i) {
                     var enumeration = enumNode.Declarations[i];
                     enumerators[i] = genContext.DiBuilder.CreateEnumerator(enumeration.Name, i, false);
-                    enums[enumeration.Name] = i;
                 }
 
                 genContext.TryGetNodeSymbol(enumNode, out Symbol range);
@@ -303,46 +349,50 @@ namespace MonC.LLVM
                     genContext.DiBuilder.Int32Type.GetTypeAlignInBits(), enumerators, genContext.DiBuilder.Int32Type);
             }
 
+            // Struct pass
+            foreach (StructNode structNode in genContext.ParseModule.Structs) {
+                genContext.CreateStruct(structNode);
+            }
+
             // Declaration pass
-            foreach (FunctionDefinitionNode function in parseModule.Functions) {
+            foreach (FunctionDefinitionNode function in genContext.ParseModule.Functions) {
                 genContext.RegisterDefinedFunction(function);
             }
 
             // Definition pass
-            foreach (FunctionDefinitionNode function in parseModule.Functions) {
+            foreach (FunctionDefinitionNode function in genContext.ParseModule.Functions) {
                 CodeGeneratorContext.Function ctxFunction = genContext.GetFunctionDefinition(function);
 
-                using (Builder builder = genContext.Context.CreateBuilder()) {
-                    FunctionCodeGenVisitor functionCodeGenVisitor = new FunctionCodeGenVisitor(genContext, ctxFunction,
-                        builder, ctxFunction.StartDefinition(genContext, builder), enums);
-                    builder.PositionAtEnd(functionCodeGenVisitor._basicBlock);
-                    function.Body.VisitStatements(functionCodeGenVisitor);
+                using Builder builder = genContext.Context.CreateBuilder();
+                FunctionCodeGenVisitor functionCodeGenVisitor = new FunctionCodeGenVisitor(genContext, ctxFunction,
+                    builder, ctxFunction.StartDefinition(genContext, builder));
+                builder.PositionAtEnd(functionCodeGenVisitor._basicBlock);
+                function.Body.VisitStatements(functionCodeGenVisitor);
 
-                    if (genContext.DebugInfo) {
-                        // TODO: Use the body end rather than the function end
-                        genContext.TryGetNodeSymbol(function, out Symbol range);
-                        Metadata location = genContext.Context.CreateDebugLocation(range.End.Line + 1,
-                            genContext.ColumnInfo ? range.End.Column + 1 : 0, ctxFunction.DiFunctionDef,
-                            Metadata.Null);
-                        builder.SetCurrentDebugLocation(location);
-                    }
+                if (genContext.DebugInfo) {
+                    // TODO: Use the body end rather than the function end
+                    genContext.TryGetNodeSymbol(function, out Symbol range);
+                    Metadata location = genContext.Context.CreateDebugLocation(range.End.Line + 1,
+                        genContext.ColumnInfo ? range.End.Column + 1 : 0, ctxFunction.DiFunctionDef,
+                        Metadata.Null);
+                    builder.SetCurrentDebugLocation(location);
+                }
 
-                    // If we still have a valid insert block, this function did not end with a return; Insert one now
-                    if (builder.InsertBlock.IsValid) {
-                        if (ctxFunction.ReturnBlock != null) {
-                            builder.BuildBr(ctxFunction.ReturnBlock.Value);
-                        } else {
-                            builder.BuildRetVoid();
-                        }
+                // If we still have a valid insert block, this function did not end with a return; Insert one now
+                if (builder.InsertBlock.IsValid) {
+                    if (ctxFunction.ReturnBlock != null) {
+                        builder.BuildBr(ctxFunction.ReturnBlock.Value);
+                    } else {
+                        builder.BuildRetVoid();
                     }
+                }
 
-                    if (ctxFunction.ReturnBlock != null && ctxFunction.RetvalStorage != null) {
-                        ctxFunction.FunctionValue.AppendExistingBasicBlock(ctxFunction.ReturnBlock.Value);
-                        builder.PositionAtEnd(ctxFunction.ReturnBlock.Value);
-                        Value retVal = builder.BuildLoad(ctxFunction.FunctionType.ReturnType,
-                            ctxFunction.RetvalStorage.Value);
-                        builder.BuildRet(retVal);
-                    }
+                if (ctxFunction.ReturnBlock != null && ctxFunction.RetvalStorage != null) {
+                    ctxFunction.FunctionValue.AppendExistingBasicBlock(ctxFunction.ReturnBlock.Value);
+                    builder.PositionAtEnd(ctxFunction.ReturnBlock.Value);
+                    Value retVal = builder.BuildLoad(ctxFunction.FunctionType.ReturnType,
+                        ctxFunction.RetvalStorage.Value);
+                    builder.BuildRet(retVal);
                 }
             }
 

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace MonC.VM
 {
     public class StackFrame
@@ -8,6 +6,10 @@ namespace MonC.VM
         public int Function;
         public int PC;
         public readonly StackFrameMemory Memory = new StackFrameMemory();
-        public IEnumerator<Continuation>? BindingEnumerator;
+
+        public bool IsBoundFunction()
+        {
+            return Function >= Module.ILModule.DefinedFunctions.Length;
+        }
     }
 }

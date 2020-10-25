@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using MonC;
-using MonC.Parsing;
+using MonC.Semantics;
 
 namespace Driver
 {
@@ -22,13 +22,15 @@ namespace Driver
     public interface ICodeGenInput : IInput
     {
         public void RunHeaderPass();
-        public ParseModule GetParseModule();
+        public void RunAnalyserPass();
+        public SemanticModule GetSemanticModule();
         public FileInfo GetFileInfo();
     }
 
     public interface IBackendInput : IInput
     {
         public void RunHeaderPass();
+        public void RunAnalyserPass();
         public IModuleArtifact GetModuleArtifact();
     }
 

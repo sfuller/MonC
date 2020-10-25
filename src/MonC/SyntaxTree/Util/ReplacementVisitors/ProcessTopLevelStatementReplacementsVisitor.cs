@@ -21,7 +21,12 @@
 
         public void VisitStruct(StructNode node)
         {
-            throw new System.NotImplementedException();
+            for (int i = 0, ilen = node.FunctionAssociations.Count; i < ilen; ++i) {
+                node.FunctionAssociations[i] = _processor.ProcessReplacement(node.FunctionAssociations[i]);
+            }
+            for (int i = 0, ilen = node.Members.Count; i < ilen; ++i) {
+                node.Members[i] = _processor.ProcessReplacement(node.Members[i]);
+            }
         }
     }
 }

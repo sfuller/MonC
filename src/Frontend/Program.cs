@@ -8,6 +8,7 @@ using MonC.DotNetInterop;
 using MonC.IL;
 using MonC.Parsing;
 using MonC.Semantics;
+using MonC.SyntaxTree;
 using MonC.VM;
 
 namespace MonC.Frontend
@@ -18,14 +19,15 @@ namespace MonC.Frontend
         {
             bool isInteractive = false;
             bool showLex = false;
-            bool showAST = false;
-            bool showIL = false;
+            bool showAst = false;
+            bool showIl = false;
             bool withDebugger = false;
             bool forceCodegen = false;
             bool run = true;
             List<string> positionals = new List<string>();
             List<int> argsToPass = new List<int>();
             List<string> libraryNames = new List<string>();
+            List<string> librarySearchPaths = new List<string>();
 
             for (int i = 0, ilen = args.Length; i < ilen; ++i) {
                 string arg = args[i].Trim();
@@ -39,10 +41,10 @@ namespace MonC.Frontend
                         showLex = true;
                         break;
                     case "--showast":
-                        showAST = true;
+                        showAst = true;
                         break;
                     case "--showil":
-                        showIL = true;
+                        showIl = true;
                         break;
                     case "-a":
                         int argToPass;
@@ -51,6 +53,9 @@ namespace MonC.Frontend
                         break;
                     case "-l":
                         libraryNames.Add(args[++i]);
+                        break;
+                    case "-L":
+                        librarySearchPaths.Add(args[++i]);
                         break;
                     case "--debugger":
                         withDebugger = true;
@@ -81,7 +86,7 @@ namespace MonC.Frontend
             const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static;
 
             foreach (string libraryName in libraryNames) {
-                Assembly lib = Assembly.LoadFile(Path.GetFullPath(libraryName));
+                Assembly lib = LoadAssembly(libraryName, librarySearchPaths);
                 interopResolver.ImportAssembly(lib, bindingFlags);
             }
 
@@ -155,19 +160,24 @@ namespace MonC.Frontend
             List<ParseError> errors = new List<ParseError>();
             SemanticAnalyzer analyzer = new SemanticAnalyzer(errors);
 
-            analyzer.RegisterModule(interopResolver.CreateHeaderModule());
+            List<SemanticModule> semanticModules = new List<SemanticModule>(parseModules.Count);
+
+            analyzer.Register(interopResolver.CreateHeaderModule());
 
             foreach (ParseModule module in parseModules) {
-                analyzer.RegisterModule(module);
+                analyzer.Register(module);
             }
 
             foreach (ParseModule module in parseModules) {
-                analyzer.Process(module);
+                semanticModules.Add(analyzer.Process(module));
 
-                if (showAST) {
+                if (showAst) {
                     PrintTreeVisitor treeVisitor = new PrintTreeVisitor(Console.Out);
-                    for (int i = 0, ilen = module.Functions.Count; i < ilen; ++i) {
-                        module.Functions[i].AcceptTopLevelVisitor(treeVisitor);
+                    foreach (StructNode structNode in module.Structs) {
+                        structNode.AcceptTopLevelVisitor(treeVisitor);
+                    }
+                    foreach (FunctionDefinitionNode function in module.Functions) {
+                        function.AcceptTopLevelVisitor(treeVisitor);
                     }
                 }
             }
@@ -181,10 +191,10 @@ namespace MonC.Frontend
                 Environment.Exit(1);
             }
 
-            foreach (ParseModule module in parseModules) {
-                CodeGenerator generator = new CodeGenerator();
-                ILModule ilmodule = generator.Generate(module);
-                if (showIL) {
+            foreach (SemanticModule module in semanticModules) {
+                CodeGenerator generator = new CodeGenerator(module, analyzer.Context);
+                ILModule ilmodule = generator.Generate();
+                if (showIl) {
                     ilmodule.WriteListing(Console.Out);
                 }
 
@@ -228,7 +238,8 @@ namespace MonC.Frontend
                 vmDebugger.Pause();
             }
 
-            if (!vm.Call(vmModule, "main", argsToPass, success => HandleExecutionFinished(vm, success))) {
+            // TODO: Args to pass is broken
+            if (!vm.Call(vmModule, "main", new byte[0], success => HandleExecutionFinished(vm, success))) {
                 Console.Error.WriteLine("Failed to call main function.");
                 Environment.Exit(-1);
             }
@@ -240,7 +251,7 @@ namespace MonC.Frontend
                 Environment.Exit(-1);
             }
 
-            Environment.Exit(vm.ReturnValue);
+            Environment.Exit(BitConverter.ToInt32(vm.ReturnValueBuffer));
         }
 
         private static void WritePrompt()
@@ -259,6 +270,17 @@ namespace MonC.Frontend
                     Console.WriteLine(tokens[i]);
                 }
             }
+        }
+
+        private static Assembly LoadAssembly(string name, List<string> searchPaths)
+        {
+            foreach (string path in searchPaths) {
+                try {
+                    return Assembly.LoadFile(Path.GetFullPath(Path.Combine(path, name + ".dll")));
+                } catch (FileNotFoundException) {}
+            }
+
+            return Assembly.Load(name);
         }
 
         private static void HandleBreak(VirtualMachine vm, Debugger debugger, VMDebugger vmDebugger)
@@ -286,7 +308,7 @@ namespace MonC.Frontend
             switch (command) {
                 case "reg": {
                     StackFrameInfo frame = vm.GetStackFrame(0);
-                    Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}, A: {vm.ReturnValue}");
+                    Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}");
                     string? sourcePath;
                     int lineNumber;
                     if (debugger.GetSourceLocation(frame, out sourcePath, out lineNumber)) {

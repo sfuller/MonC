@@ -1,0 +1,20 @@
+
+struct Foo {
+    int a;
+    int b;
+}
+
+Foo test() {
+    Foo foo;
+    foo.a = 1;
+    foo.b = 2;
+    return foo;
+}
+
+int main() {
+    Foo foo = test();
+    if (foo.a == 1 && foo.b == 2) {
+        return 0;
+    }
+    return 1;
+}

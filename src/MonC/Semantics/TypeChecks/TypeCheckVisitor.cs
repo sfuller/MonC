@@ -14,39 +14,48 @@ namespace MonC.Semantics.TypeChecks
 {
     public class TypeCheckVisitor : IStatementVisitor, IExpressionVisitor, ISpecifierVisitor, IBasicExpressionVisitor
     {
+        private readonly SemanticContext _context;
         private readonly TypeManager _typeManager;
         private readonly IErrorManager _errors;
+        private readonly ExpressionTypeManager _expressionTypeManager;
 
         private readonly SyntaxTreeDelegator _delegator = new SyntaxTreeDelegator();
 
-        public TypeCheckVisitor(TypeManager typeManager, IErrorManager errors)
+        public TypeCheckVisitor(SemanticContext context, TypeManager typeManager, IErrorManager errors, ExpressionTypeManager expressionTypeManager)
         {
+            _context = context;
             _typeManager = typeManager;
             _errors = errors;
+            _expressionTypeManager = expressionTypeManager;
 
             _delegator.StatementVisitor = this;
             _delegator.ExpressionVisitor = this;
             _delegator.SpecifierVisitor = this;
+
+            // TODO: Better way to get this void type.
+            Type = _typeManager.GetType("void", PointerMode.NotAPointer)!;
         }
 
-        public IType? Type { get; set; }
+        public IType Type { get; set; }
 
-        private TypeCheckVisitor MakeSubVisitor()
+        public void SetAndCacheType(IExpressionNode node, IType type)
         {
-            return new TypeCheckVisitor(_typeManager, _errors);
+            Type = type;
+            _expressionTypeManager.SetExpressionType(node, type);
+        }
+
+        private IType GetExpressionType(IExpressionNode node)
+        {
+            return _expressionTypeManager.GetExpressionType(node);
         }
 
         public void Process(FunctionDefinitionNode function)
         {
-            StatementChildrenVisitor statementVisitor = new StatementChildrenVisitor(_delegator);
+            SyntaxTreeDelegator childrenDelegator = new SyntaxTreeDelegator();
+            StatementChildrenVisitor statementVisitor = new StatementChildrenVisitor(_delegator, childrenDelegator);
+            childrenDelegator.StatementVisitor = statementVisitor;
+            childrenDelegator.ExpressionVisitor = this;
             function.Body.VisitStatements(statementVisitor);
-        }
-
-        public void VisitSpecifier(ISpecifierNode node)
-        {
-            if (node is TypeSpecifierNode typeSpecifierNode) {
-                Type = typeSpecifierNode.Type;
-            }
         }
 
         public void VisitBody(BodyNode node)
@@ -56,16 +65,15 @@ namespace MonC.Semantics.TypeChecks
         public void VisitDeclaration(DeclarationNode node)
         {
             node.Type.AcceptSpecifierVisitor(this);
+            IType rhsType = GetExpressionType(node.Assignment);
 
-            TypeCheckVisitor assignmentVisitor = MakeSubVisitor();
-            node.Assignment.AcceptExpressionVisitor(assignmentVisitor);
-
-            if (Type == null || assignmentVisitor.Type == null) {
+            if (node.Assignment is VoidExpressionNode) {
+                // VoidExpression as assignment means assignment is skpped and assignment doesn't take place.
                 return;
             }
 
-            if (Type != assignmentVisitor.Type) {
-                AddAssigmentTypeMismatchError(Type, assignmentVisitor.Type, node);
+            if (Type != rhsType) {
+                AddAssigmentTypeMismatchError(Type, rhsType, node);
             }
         }
 
@@ -91,7 +99,7 @@ namespace MonC.Semantics.TypeChecks
 
         public void VisitReturn(ReturnNode node)
         {
-            // TODO: Verify return value matches function type.
+            // TODO: Verify return value matches function type. (This should be done at an outer level)
             node.RHS.AcceptExpressionVisitor(this);
         }
 
@@ -106,25 +114,20 @@ namespace MonC.Semantics.TypeChecks
 
         public void VisitBinaryOperation(IBinaryOperationNode node)
         {
-            TypeCheckVisitor lhsTypeCheck = MakeSubVisitor();
-            TypeCheckVisitor rhsTypeCheck = MakeSubVisitor();
-            node.LHS.AcceptExpressionVisitor(lhsTypeCheck);
-            node.RHS.AcceptExpressionVisitor(rhsTypeCheck);
+            IType lhsType = GetExpressionType(node.LHS);
+            IType rhsType = GetExpressionType(node.RHS);
 
-            if (lhsTypeCheck.Type == null || rhsTypeCheck.Type == null) {
-                return;
-            }
-
-            // For now, both sides must be of same type.
-            if (lhsTypeCheck.Type != rhsTypeCheck.Type) {
+            // Both sides must be of same type. (No implicit conversions in MonC)
+            if (lhsType != rhsType) {
                 string message = "Type mismatch between binary operator.\n" +
-                                 $"  LHS: {lhsTypeCheck.Type.Represent()}\n" +
-                                 $"  RHS: {rhsTypeCheck.Type.Represent()}";
+                                 $"  LHS: {lhsType.Represent()}\n" +
+                                 $"  RHS: {rhsType.Represent()}";
                 _errors.AddError(message, node);
             }
 
             // TODO: Ensure operator is valid based on type.
-            Type = lhsTypeCheck.Type;
+
+            SetAndCacheType(node, lhsType);
         }
 
         public void VisitBasicExpression(IBasicExpression node)
@@ -136,31 +139,58 @@ namespace MonC.Semantics.TypeChecks
         {
             if (node is CastUnaryOpNode castNode) {
                 castNode.ToType.AcceptSpecifierVisitor(this);
+                SetAndCacheType(node, Type);
                 return;
             }
 
-            node.RHS.AcceptExpressionVisitor(this);
             // TODO: Ensure operator is valid based on type.
+
+            node.RHS.AcceptExpressionVisitor(this);
+            SetAndCacheType(node, Type);
         }
 
         public void VisitFunctionCall(FunctionCallNode node)
         {
             node.LHS.ReturnType.AcceptSyntaxTreeVisitor(_delegator);
+
+            for (int i = 0, ilen = node.Arguments.Count; i < ilen; ++i) {
+                DeclarationNode parameter = node.LHS.Parameters[i];
+                IExpressionNode argument = node.Arguments[i];
+
+                // TypeSpecifiers should be resolved at this point.
+                TypeSpecifierNode typeSpecifier = (TypeSpecifierNode) parameter.Type;
+                IType parameterType = typeSpecifier.Type;
+                IType argumentType = GetExpressionType(argument);
+
+                if (parameterType != argumentType) {
+                    string message = $"Type mismatch between parameter and positional argument {i}.\n" +
+                                     $"  Parameter: {parameterType.Represent()}\n" +
+                                     $"  Argument: {argumentType.Represent()}";
+                    _errors.AddError(message, node);
+                }
+            }
+
+            SetAndCacheType(node, Type);
         }
 
         public void VisitVariable(VariableNode node)
         {
             node.Declaration.Type.AcceptSyntaxTreeVisitor(_delegator);
+            SetAndCacheType(node, Type);
         }
 
         public void VisitEnumValue(EnumValueNode node)
         {
-            IType? type = _typeManager.GetType(node.Enum.Name, PointerMode.NotAPointer);
-            if (type == null) {
-                _errors.AddError($"Enum with name {node.Enum.Name} is not registered with the type system.", node.Enum);
-                return;
+            if (!_context.EnumInfo.TryGetValue(node.Declaration.Name, out EnumDeclarationInfo info)) {
+                throw new InvalidOperationException("Enumeration declaration name not known by semantic context.");
             }
-            Type = type;
+
+            IType? type = _typeManager.GetType(info.Enum.Name, PointerMode.NotAPointer);
+            if (type == null) {
+                throw new InvalidOperationException($"Enum with name {info.Enum.Name} is not registered with the type system.");
+            }
+
+            SetAndCacheType(node, type);
         }
 
         public void VisitNumericLiteral(NumericLiteralNode node)
@@ -169,7 +199,8 @@ namespace MonC.Semantics.TypeChecks
             if (type == null) {
                 throw new InvalidOperationException("Primitive types not registered with type system.");
             }
-            Type = type;
+
+            SetAndCacheType(node, type);
         }
 
         public void VisitStringLiteral(StringLiteralNode node)
@@ -180,22 +211,26 @@ namespace MonC.Semantics.TypeChecks
             if (type == null) {
                 throw new InvalidOperationException("Primitive types not registered with type system.");
             }
-            Type = type;
+
+            SetAndCacheType(node, type);
         }
 
         public void VisitAssignment(AssignmentNode node)
         {
-            VisitSpecifier(node.Declaration.Type);
-            TypeCheckVisitor rhsCheck = MakeSubVisitor();
-            node.RHS.AcceptExpressionVisitor(rhsCheck);
+            IType lhsType = GetExpressionType(node.Lhs);
+            IType rhsType = GetExpressionType(node.Rhs);
 
-            if (Type == null || rhsCheck.Type == null) {
-                return;
+            if (lhsType != rhsType) {
+                AddAssigmentTypeMismatchError(lhsType, rhsType, node);
             }
 
-            if (Type != rhsCheck.Type) {
-                AddAssigmentTypeMismatchError(Type, rhsCheck.Type, node);
-            }
+            SetAndCacheType(node, lhsType);
+        }
+
+        public void VisitAccess(AccessNode node)
+        {
+            node.Rhs.Type.AcceptSpecifierVisitor(this);
+            SetAndCacheType(node, Type);
         }
 
         private void AddAssigmentTypeMismatchError(IType lhsType, IType rhsType, ISyntaxTreeNode node)

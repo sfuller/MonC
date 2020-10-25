@@ -6,17 +6,19 @@ namespace Driver.ToolChains
 {
     public class LLVMCodeGenTool : IModuleTool, IBackendInput
     {
-        private LLVM _toolchain;
-        private ICodeGenInput _input;
+        private readonly Job _job;
+        private readonly LLVM _toolchain;
+        private readonly ICodeGenInput _input;
 
-        private LLVMCodeGenTool(LLVM toolchain, ICodeGenInput input)
+        private LLVMCodeGenTool(Job job, LLVM toolchain, ICodeGenInput input)
         {
+            _job = job;
             _toolchain = toolchain;
             _input = input;
         }
 
         public static LLVMCodeGenTool Construct(Job job, LLVM toolchain, ICodeGenInput input) =>
-            new LLVMCodeGenTool(toolchain, input);
+            new LLVMCodeGenTool(job, toolchain, input);
 
         public void WriteInputChain(TextWriter writer)
         {
@@ -26,7 +28,9 @@ namespace Driver.ToolChains
 
         public void RunHeaderPass() => _input.RunHeaderPass();
 
+        public void RunAnalyserPass() => _input.RunAnalyserPass();
+
         public IModuleArtifact GetModuleArtifact() =>
-            _toolchain.CreateModule(_input.GetFileInfo(), _input.GetParseModule());
+            _toolchain.CreateModule(_input.GetFileInfo(), _input.GetSemanticModule(), _job._semanticAnalyzer.Context);
     }
 }

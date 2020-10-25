@@ -1,0 +1,21 @@
+
+struct Foo {
+    int a;
+    int b;
+}
+
+int test(Foo foo) {
+    return foo.a + foo.b;
+}
+
+int main() {
+    Foo foo;
+    foo.a = 1;
+    foo.b = 2;
+
+    if (test(foo) == 3) {
+       return 0;
+    } 
+
+    return 1;
+}

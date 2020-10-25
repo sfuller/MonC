@@ -6,7 +6,7 @@ namespace MonC.LLVM
     public static class CAPI
     {
         // Suppress warnings about InternalPtr fields not being assigned to
-#pragma warning disable 649
+        #pragma warning disable 649
 
         public struct LLVMContextRef
         {
@@ -142,8 +142,11 @@ namespace MonC.LLVM
         public static extern LLVMTypeRef LLVMStructCreateNamed(LLVMContextRef context, string name);
 
         [DllImport("LLVM-C")]
-        public static extern void LLVMStructSetBody(LLVMTypeRef structTy, LLVMTypeRef[] elementTypes,
+        private static extern void LLVMStructSetBody(LLVMTypeRef structTy, LLVMTypeRef[] elementTypes,
             uint elementCount, bool packed);
+
+        public static void LLVMStructSetBody(LLVMTypeRef structTy, LLVMTypeRef[] elementTypes, bool packed) =>
+            LLVMStructSetBody(structTy, elementTypes, (uint) elementTypes.Length, packed);
 
         [DllImport("LLVM-C")]
         public static extern LLVMTypeRef LLVMArrayType(LLVMTypeRef elementType, uint elementCount);
@@ -244,9 +247,13 @@ namespace MonC.LLVM
 
         public static bool LLVMPrintModuleToFile(LLVMModuleRef module, string filename, out string? errorMessage)
         {
-            bool ret = LLVMPrintModuleToFile(module, filename, out IntPtr msgPtr);
-            errorMessage = MarshallMessage(msgPtr);
-            return ret;
+            if (LLVMPrintModuleToFile(module, filename, out IntPtr msgPtr)) {
+                errorMessage = MarshallMessage(msgPtr);
+                return true;
+            }
+
+            errorMessage = null;
+            return false;
         }
 
         [DllImport("LLVM-C")]
@@ -269,7 +276,7 @@ namespace MonC.LLVM
             out LLVMModuleRef moduleOut, out string? outMessage)
         {
             bool ret = LLVMParseIRInContext(context, memBuf, out moduleOut, out IntPtr msgPtr);
-            outMessage = MarshallMessage(msgPtr);
+            outMessage = msgPtr != IntPtr.Zero ? MarshallMessage(msgPtr) : null;
             return ret;
         }
 
@@ -730,6 +737,10 @@ namespace MonC.LLVM
         public static extern LLVMValueRef LLVMBuildStore(LLVMBuilderRef builder, LLVMValueRef val, LLVMValueRef ptr);
 
         [DllImport("LLVM-C")]
+        public static extern LLVMValueRef LLVMBuildStructGEP2(LLVMBuilderRef builder, LLVMTypeRef ty,
+            LLVMValueRef pointer, uint idx, string name);
+
+        [DllImport("LLVM-C")]
         public static extern LLVMValueRef LLVMBuildGlobalString(LLVMBuilderRef builder, string str, string name);
 
         [DllImport("LLVM-C")]
@@ -860,7 +871,7 @@ namespace MonC.LLVM
             out LLVMMemoryBufferRef outMemBuf, out string? outMessage)
         {
             bool ret = LLVMCreateMemoryBufferWithContentsOfFile(path, out outMemBuf, out IntPtr msgPtr);
-            outMessage = MarshallMessage(msgPtr);
+            outMessage = msgPtr != IntPtr.Zero ? MarshallMessage(msgPtr) : null;
             return ret;
         }
 
@@ -1480,6 +1491,27 @@ namespace MonC.LLVM
         public static extern LLVMTargetDataRef LLVMCreateTargetDataLayout(LLVMTargetMachineRef t);
 
         [DllImport("LLVM-C")]
+        public static extern void LLVMDisposeTargetData(LLVMTargetDataRef TD);
+
+        [DllImport("LLVM-C")]
+        public static extern ulong LLVMSizeOfTypeInBits(LLVMTargetDataRef TD, LLVMTypeRef Ty);
+
+        [DllImport("LLVM-C")]
+        public static extern ulong LLVMStoreSizeOfType(LLVMTargetDataRef TD, LLVMTypeRef Ty);
+
+        [DllImport("LLVM-C")]
+        public static extern ulong LLVMABISizeOfType(LLVMTargetDataRef TD, LLVMTypeRef Ty);
+
+        [DllImport("LLVM-C")]
+        public static extern uint LLVMABIAlignmentOfType(LLVMTargetDataRef TD, LLVMTypeRef Ty);
+
+        [DllImport("LLVM-C")]
+        public static extern uint LLVMCallFrameAlignmentOfType(LLVMTargetDataRef TD, LLVMTypeRef Ty);
+
+        [DllImport("LLVM-C")]
+        public static extern uint LLVMPreferredAlignmentOfType(LLVMTargetDataRef TD, LLVMTypeRef Ty);
+
+        [DllImport("LLVM-C")]
         public static extern void LLVMSetTargetMachineAsmVerbosity(LLVMTargetMachineRef t, bool verboseAsm);
 
         [DllImport("LLVM-C")]
@@ -1586,9 +1618,13 @@ namespace MonC.LLVM
         public static bool LLVMCreateExecutionEngineForModule(out LLVMExecutionEngineRef outEE, LLVMModuleRef m,
             out string? errorMessage)
         {
-            bool ret = LLVMCreateExecutionEngineForModule(out outEE, m, out IntPtr errPtr);
-            errorMessage = MarshallMessage(errPtr);
-            return ret;
+            if (LLVMCreateExecutionEngineForModule(out outEE, m, out IntPtr errPtr)) {
+                errorMessage = MarshallMessage(errPtr);
+                return true;
+            }
+
+            errorMessage = null;
+            return false;
         }
 
         [DllImport("LLVM-C")]
@@ -1604,7 +1640,6 @@ namespace MonC.LLVM
         public static LLVMGenericValueRef LLVMRunFunction(LLVMExecutionEngineRef ee, LLVMValueRef f,
             LLVMGenericValueRef[] args) =>
             LLVMRunFunction(ee, f, (uint) args.Length, args);
-
 
 
         public static void Main(string[] args)

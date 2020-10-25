@@ -1,9 +1,10 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using MonC.Codegen;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Nodes.Specifiers;
 using MonC.SyntaxTree.Nodes.Statements;
+using MonC.TypeSystem.Types.Impl;
 
 namespace MonC.LLVM
 {
@@ -16,17 +17,14 @@ namespace MonC.LLVM
         internal Metadata _lexicalScope;
         internal Value _visitedValue;
 
-        private readonly Dictionary<string, int> _enumerations;
-
         internal FunctionCodeGenVisitor(CodeGeneratorContext genContext, CodeGeneratorContext.Function function,
-            Builder builder, BasicBlock basicBlock, Dictionary<string, int> enumerations)
+            Builder builder, BasicBlock basicBlock)
         {
             _genContext = genContext;
             _function = function;
             _builder = builder;
             _basicBlock = basicBlock;
             _lexicalScope = _function.DiFunctionDef;
-            _enumerations = enumerations;
         }
 
         internal Metadata SetCurrentDebugLocation(ISyntaxTreeNode node)
@@ -232,9 +230,9 @@ namespace MonC.LLVM
             CodeGeneratorContext.Function func = _genContext.GetFunctionDeclaration(node.LHS);
             Type[] paramTypes = func.FunctionType.ParamTypes;
 
-            Value[] args = new Value[node.ArgumentCount];
-            for (int i = 0, ilen = node.ArgumentCount; i < ilen; ++i) {
-                node.GetArgument(i).AcceptExpressionVisitor(this);
+            Value[] args = new Value[node.Arguments.Count];
+            for (int i = 0, ilen = node.Arguments.Count; i < ilen; ++i) {
+                node.Arguments[i].AcceptExpressionVisitor(this);
                 if (!_visitedValue.IsValid) {
                     throw new InvalidOperationException("argument did not produce a usable rvalue");
                 }
@@ -437,19 +435,48 @@ namespace MonC.LLVM
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            node.RHS.AcceptExpressionVisitor(this);
+            AssignmentCodeGenVisitor assignmentCodeGenVisitor
+                = new AssignmentCodeGenVisitor(_builder, _genContext, _function);
+            node.Lhs.AcceptAssignableVisitor(assignmentCodeGenVisitor);
+            if (!assignmentCodeGenVisitor.AssignmentWritePointer.IsValid) {
+                throw new InvalidOperationException("assignment did not produce a usable lvalue");
+            }
+            Value varStorage = assignmentCodeGenVisitor.AssignmentWritePointer;
+
+            node.Rhs.AcceptExpressionVisitor(this);
             if (!_visitedValue.IsValid) {
                 throw new InvalidOperationException("assignment did not produce a usable rvalue");
             }
 
             SetCurrentDebugLocation(node);
-            _function.VariableValues.TryGetValue(node.Declaration, out Value varStorage);
             _visitedValue = _builder.BuildStore(_visitedValue, varStorage);
+        }
+
+        public void VisitAccess(AccessNode node)
+        {
+            // Don't insert unreachable code
+            if (!_builder.InsertBlock.IsValid)
+                return;
+
+            node.Lhs.AcceptExpressionVisitor(this);
+            if (!_visitedValue.IsValid) {
+                throw new InvalidOperationException("access did not produce a usable base pointer");
+            }
+            Value lhs = _visitedValue;
+
+            StructType structType = (StructType) _genContext.SemanticModule.ExpressionResultTypes[node.Lhs];
+            Type llvmStructType = _genContext.LookupType(structType);
+            StructLayout layout = _genContext.StructLayoutManager.GetLayout(structType);
+            if (!layout.MemberLayouts.TryGetValue(node.Rhs, out MemberLayoutInfo memberLayout)) {
+                throw new InvalidOperationException();
+            }
+
+            _visitedValue = _builder.BuildStructGEP(llvmStructType, lhs, (uint) memberLayout.Index);
         }
 
         public void VisitEnumValue(EnumValueNode node)
         {
-            int value = _enumerations[node.Name];
+            int value = _genContext.SemanticContext.EnumInfo[node.Declaration.Name].Value;
             _visitedValue = Value.ConstInt(_genContext.Context.Int32Type, (ulong) value, true);
         }
 

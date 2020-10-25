@@ -2,7 +2,7 @@ namespace MonC.VM
 {
     public interface IVMBindingContext
     {
-        int ReturnValue { get; }
+        //int ReturnValue { get; }
 
         string GetString(int id);
     }

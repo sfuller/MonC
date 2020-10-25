@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 
 namespace LLVMInterfaceGen
@@ -27,7 +28,10 @@ namespace LLVMInterfaceGen
 
         static void Main(string[] args)
         {
-            string pathOut = Path.Combine(args[0], "LLVM", "CAPIGEN.cs");
+            if (args.Length == 0)
+                throw new InvalidOperationException("Must pass source path to MonC project");
+
+            string pathOut = Path.Combine(args[0], "LLVM", "API", "CAPIGEN.cs");
             using StreamWriter writer = new StreamWriter(pathOut);
 
             void WriteLine0(string str)

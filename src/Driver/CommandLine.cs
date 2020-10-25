@@ -47,9 +47,29 @@ namespace Driver
         [CommandLine("-h", "Print this help message")]
         private bool _printHelp = false;
 
+        private readonly HashSet<string> _knownStringFlags = new HashSet<string>();
         private readonly Dictionary<string, List<string>> _flagArguments = new Dictionary<string, List<string>>();
         private readonly List<string> _positionalArguments = new List<string>();
         private readonly HashSet<string> _usedArguments = new HashSet<string>();
+
+        private void BuildKnownStringFlags()
+        {
+            foreach (Type clClass in CommandLineClasses) {
+                for (Type type = clClass; type != typeof(object); type = type.BaseType) {
+                    foreach (FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.GetField |
+                                                               BindingFlags.GetProperty | BindingFlags.Public |
+                                                               BindingFlags.NonPublic |
+                                                               BindingFlags.DeclaredOnly)) {
+                        foreach (CommandLineAttribute attribute in field
+                            .GetCustomAttributes<CommandLineAttribute>()) {
+                            if (field.FieldType != typeof(bool)) {
+                                _knownStringFlags.Add(attribute.Prefix);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         private void InsertFlagArgument(string key, string value)
         {
@@ -62,10 +82,28 @@ namespace Driver
 
         public CommandLine(string[] args)
         {
+            BuildKnownStringFlags();
+            string pendingFlagArg = null;
+
             foreach (string arg in args) {
+                if (pendingFlagArg != null) {
+                    InsertFlagArgument(pendingFlagArg, arg);
+                    pendingFlagArg = null;
+                    continue;
+                }
+
                 if (arg.StartsWith("-")) {
                     string[] kvStr = arg.Split("=", 2);
-                    InsertFlagArgument(kvStr[0], kvStr.Length == 2 ? kvStr[1] : string.Empty);
+                    if (kvStr.Length == 2) {
+                        // -prefix=value
+                        InsertFlagArgument(kvStr[0], kvStr[1]);
+                    } else if (_knownStringFlags.Contains(kvStr[0])) {
+                        // -prefix value
+                        pendingFlagArg = kvStr[0];
+                    } else {
+                        // -prefix
+                        InsertFlagArgument(kvStr[0], string.Empty);
+                    }
                 } else {
                     _positionalArguments.Add(arg);
                 }

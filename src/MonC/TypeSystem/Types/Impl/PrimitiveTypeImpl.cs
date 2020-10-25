@@ -2,10 +2,12 @@ namespace MonC.TypeSystem.Types.Impl
 {
     public class PrimitiveTypeImpl : IPrimitiveType
     {
+        public Primitive Primitive { get; }
         public string Name { get; }
 
-        public PrimitiveTypeImpl(string name)
+        public PrimitiveTypeImpl(Primitive primitive, string name)
         {
+            Primitive = primitive;
             Name = name;
         }
 

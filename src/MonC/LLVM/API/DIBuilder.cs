@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using MonC.SyntaxTree;
+using MonC.TypeSystem;
 
 namespace MonC.LLVM
 {
@@ -116,27 +118,32 @@ namespace MonC.LLVM
             CAPI.LLVMDIBuilderInsertDbgValueAtEnd(_builder, val, varInfo, expr, debugLoc, block);
 
 
-        private Dictionary<string, Metadata> _udts = new Dictionary<string, Metadata>();
+        private Dictionary<string, Metadata> _structs = new Dictionary<string, Metadata>();
 
-        public Metadata? LookupType(string name)
+        public Metadata? LookupPrimitiveType(Primitive primitive)
         {
-            if (name.Length == 0)
-                return null;
-            if (name == "int")
-                return Int32Type;
-            if (_udts.TryGetValue(name, out Metadata type))
+            return primitive switch {
+                Primitive.Void => null,
+                Primitive.Int => Int32Type,
+                _ => null
+            };
+        }
+
+        public Metadata? LookupStructType(string name)
+        {
+            if (_structs.TryGetValue(name, out Metadata type))
                 return type;
             return null;
         }
 
-        public Metadata CreateUDTStruct(string name, Metadata file, uint lineNumber, ulong sizeInBits, uint alignInBits,
+        public Metadata CreateStruct(string name, Metadata file, uint lineNumber, ulong sizeInBits, uint alignInBits,
             Metadata[] elementTypes)
         {
-            if (_udts.ContainsKey(name))
+            if (_structs.ContainsKey(name))
                 throw new InvalidOperationException($"struct '{name}' is already defined");
             Metadata ret = CreateStructType(file, name, file, lineNumber, sizeInBits, alignInBits,
                 CAPI.LLVMDIFlags.Zero, Metadata.Null, elementTypes, 0, Metadata.Null, name);
-            _udts.Add(name, ret);
+            _structs.Add(name, ret);
             return ret;
         }
     }

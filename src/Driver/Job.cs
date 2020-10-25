@@ -54,6 +54,9 @@ namespace Driver
         [CommandLine("-l", "Add library module to link list", "name")]
         private List<string> _libraryNames = new List<string>();
 
+        [CommandLine("-L", "Add library search path", "path")]
+        private List<string> _librarySearchPaths = new List<string>();
+
         internal InteropResolver InteropResolver;
 
         internal SemanticAnalyzer _semanticAnalyzer;
@@ -281,17 +284,28 @@ namespace Driver
             }
         }
 
+        private Assembly LoadAssembly(string name)
+        {
+            foreach (string path in _librarySearchPaths) {
+                try {
+                    return Assembly.LoadFile(Path.GetFullPath(Path.Combine(path, name + ".dll")));
+                } catch (FileNotFoundException) { }
+            }
+
+            return Assembly.Load(name);
+        }
+
         private void ResolveInteropLibs()
         {
             InteropResolver = new InteropResolver();
 
             foreach (string libraryName in _libraryNames) {
-                Assembly lib = Assembly.LoadFile(Path.GetFullPath(libraryName));
+                Assembly lib = LoadAssembly(libraryName);
                 InteropResolver.ImportAssembly(lib,
                     BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Static);
             }
 
-            _semanticAnalyzer.RegisterModule(InteropResolver.CreateHeaderModule());
+            _semanticAnalyzer.Register(InteropResolver.CreateHeaderModule());
         }
 
         public int Execute()
@@ -327,14 +341,24 @@ namespace Driver
                 tool.RunHeaderPass();
             }
 
-            // Produce per-module artifacts
+            // Run per-module analyser pass; resulting in a full context for CodeGen
             foreach (IModuleTool tool in _moduleFileTools) {
-                _moduleArtifacts.Add(tool.GetModuleArtifact());
+                tool.RunAnalyserPass();
             }
 
             // Stop on semantic analysis errors
             if (semaErrors.Count > 0 && !_forceCodegen) {
+                for (int i = 0, ilen = semaErrors.Count; i < ilen; ++i) {
+                    ParseError error = semaErrors[i];
+                    Diagnostics.Report(Diagnostics.Severity.Error,
+                        $"{error.Start.Line + 1},{error.Start.Column + 1}: {error.Message}");
+                }
                 return 1;
+            }
+
+            // Produce per-module artifacts
+            foreach (IModuleTool tool in _moduleFileTools) {
+                _moduleArtifacts.Add(tool.GetModuleArtifact());
             }
 
             // Output assembly or relocatable if requested

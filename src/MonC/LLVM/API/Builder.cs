@@ -162,6 +162,9 @@ namespace MonC.LLVM
 
         public Value BuildStore(Value val, Value ptr) => CAPI.LLVMBuildStore(_builder, val, ptr);
 
+        public Value BuildStructGEP(Type ty, Value pointer, uint idx, string name = "") =>
+            CAPI.LLVMBuildStructGEP2(_builder, ty, pointer, idx, name);
+
         public Value BuildGlobalString(string str, string name = "") => CAPI.LLVMBuildGlobalString(_builder, str, name);
 
         public Value BuildGlobalStringPtr(string str, string name = "") =>

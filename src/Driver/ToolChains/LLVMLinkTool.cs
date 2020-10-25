@@ -8,8 +8,8 @@ namespace Driver.ToolChains
 {
     public class LLVMLinkTool : IExecutableTool, IVMInput
     {
-        private Job _job;
-        private ILinkInput _input;
+        private readonly Job _job;
+        private readonly ILinkInput _input;
 
         private LLVMLinkTool(Job job, ILinkInput input)
         {

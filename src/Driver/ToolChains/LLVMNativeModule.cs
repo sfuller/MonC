@@ -6,8 +6,8 @@ namespace Driver.ToolChains
 {
     public class LLVMNativeModule : IModuleArtifact
     {
-        private LLVM _toolchain;
-        private Module _input;
+        private readonly LLVM _toolchain;
+        private readonly Module _input;
 
         public LLVMNativeModule(LLVM toolchain, Module input)
         {

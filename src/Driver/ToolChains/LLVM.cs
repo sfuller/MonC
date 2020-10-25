@@ -1,6 +1,7 @@
 ﻿using System;
 using MonC.LLVM;
 using MonC.Parsing;
+using MonC.Semantics;
 
 namespace Driver.ToolChains
 {
@@ -91,8 +92,9 @@ namespace Driver.ToolChains
                 }
             }
 
+            Target.InitializeAllTargets();
+
             if (_native) {
-                Target.InitializeAllTargets();
                 _target = Target.FromTriple(_targetTriple);
                 TargetMachine = _target.CreateTargetMachine(_targetTriple, "", "", _optLevel,
                     CAPI.LLVMRelocMode.Default, CAPI.LLVMCodeModel.Default);
@@ -131,9 +133,10 @@ namespace Driver.ToolChains
         public override IExecutableTool BuildVMJobTool(Job job, IVMInput input) =>
             LLVMVMTool.Construct(job, this, input);
 
-        internal Module CreateModule(FileInfo fileInfo, ParseModule parseModule) =>
-            CodeGenerator.Generate(_context, fileInfo.FullPath, parseModule, _targetTriple, _optBuilder, _debugInfo,
-                _debugColumnInfo);
+        internal Module CreateModule(FileInfo fileInfo, SemanticModule semanticModule,
+            SemanticContext semanticContext) =>
+            CodeGenerator.Generate(_context, fileInfo.FullPath, semanticModule, semanticContext, _targetTriple,
+                _optBuilder, _debugInfo, _debugColumnInfo);
 
         internal Module ParseIR(FileInfo fileInfo)
         {

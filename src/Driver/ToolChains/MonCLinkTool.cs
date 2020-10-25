@@ -10,8 +10,8 @@ namespace Driver.ToolChains
 {
     public class MonCLinkTool : IExecutableTool, IVMInput
     {
-        private Job _job;
-        private ILinkInput _input;
+        private readonly Job _job;
+        private readonly ILinkInput _input;
 
         private MonCLinkTool(Job job, ILinkInput input)
         {

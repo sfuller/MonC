@@ -4,6 +4,7 @@ using System.IO;
 using MonC;
 using MonC.Frontend;
 using MonC.Parsing;
+using MonC.Semantics;
 
 namespace Driver
 {
@@ -13,10 +14,10 @@ namespace Driver
         [CommandLine("-showast", "Show AST while processing")]
         private bool _showAST = false;
 
-        private Job _job;
-        private IParseInput _parseInput;
+        private readonly Job _job;
+        private readonly IParseInput _parseInput;
         private ParseModule _parseModule;
-        private bool _ranSemanticAnalysis;
+        private SemanticModule _semanticModule;
 
         public ParseTool(Job job, IParseInput parseInput)
         {
@@ -52,20 +53,25 @@ namespace Driver
                 Diagnostics.ThrowIfErrors();
 
             // Register module members with semantic analyzer
-            _job._semanticAnalyzer.RegisterModule(_parseModule);
+            _job._semanticAnalyzer.Register(_parseModule);
         }
 
-        public ParseModule GetParseModule()
+        public void RunAnalyserPass()
         {
             if (_parseModule == null)
                 throw new InvalidOperationException("RunHeaderPass has not been called");
 
-            if (!_ranSemanticAnalysis) {
-                _job._semanticAnalyzer.Process(_parseModule);
-                _ranSemanticAnalysis = true;
-            }
+            if (_semanticModule != null)
+                throw new InvalidOperationException("RunAnalyserPass has already been called");
 
-            return _parseModule;
+            _semanticModule = _job._semanticAnalyzer.Process(_parseModule);
+        }
+
+        public SemanticModule GetSemanticModule()
+        {
+            if (_semanticModule == null)
+                throw new InvalidOperationException("RunAnalyserPass has not been called");
+            return _semanticModule;
         }
 
         public FileInfo GetFileInfo() => _parseInput.GetFileInfo();

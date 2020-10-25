@@ -6,8 +6,8 @@ namespace Driver.ToolChains
 {
     public class LLVMBackendTool : IModuleTool
     {
-        private LLVM _toolchain;
-        private IBackendInput _input;
+        private readonly LLVM _toolchain;
+        private readonly IBackendInput _input;
 
         private LLVMBackendTool(LLVM toolchain, IBackendInput input)
         {
@@ -25,6 +25,8 @@ namespace Driver.ToolChains
         }
 
         public void RunHeaderPass() => _input.RunHeaderPass();
+
+        public void RunAnalyserPass() => _input.RunAnalyserPass();
 
         public IModuleArtifact GetModuleArtifact() =>
             new LLVMNativeModule(_toolchain, (Module) _input.GetModuleArtifact());

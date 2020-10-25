@@ -5,8 +5,8 @@ namespace Driver.ToolChains
 {
     public class LLVMLinkerInputFileTool : IModuleTool
     {
-        private LLVM _toolchain;
-        private FileInfo _fileInfo;
+        private readonly LLVM _toolchain;
+        private readonly FileInfo _fileInfo;
 
         private LLVMLinkerInputFileTool(LLVM toolchain, FileInfo fileInfo)
         {
@@ -24,6 +24,11 @@ namespace Driver.ToolChains
         }
 
         public void RunHeaderPass()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void RunAnalyserPass()
         {
             throw new System.NotImplementedException();
         }

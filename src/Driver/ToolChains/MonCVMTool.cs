@@ -14,8 +14,8 @@ namespace Driver.ToolChains
 
     public class MonCVMTool : IExecutableTool
     {
-        protected Job _job;
-        protected IVMInput _input;
+        protected readonly Job _job;
+        protected readonly IVMInput _input;
 
         protected MonCVMTool(Job job, IVMInput input)
         {
@@ -45,7 +45,8 @@ namespace Driver.ToolChains
             SetUpDebugger(vm);
 
             try {
-                if (!vm.Call((VMModule) _input.GetVMModuleArtifact(), _job._entry, _job._argsToPass,
+                // TODO: Args to pass is broken
+                if (!vm.Call((VMModule) _input.GetVMModuleArtifact(), _job._entry, new byte[0],
                     success => HandleExecutionFinished(vm, success))) {
                     throw Diagnostics.ThrowError($"Failed to call '{_job._entry}' function.");
                 }
@@ -53,12 +54,12 @@ namespace Driver.ToolChains
                 return exception.ReturnValue;
             }
 
-            return vm.ReturnValue;
+            return BitConverter.ToInt32(vm.ReturnValueBuffer);
         }
 
         private static void HandleExecutionFinished(VirtualMachine vm, bool success)
         {
-            throw new MonCFinishedException(success ? vm.ReturnValue : 1);
+            throw new MonCFinishedException(success ? BitConverter.ToInt32(vm.ReturnValueBuffer) : 1);
         }
     }
 
@@ -105,7 +106,7 @@ namespace Driver.ToolChains
             switch (command) {
                 case "reg": {
                     StackFrameInfo frame = vm.GetStackFrame(0);
-                    Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}, A: {vm.ReturnValue}");
+                    Console.WriteLine($"Function: {frame.Function}, PC: {frame.PC}");
                     string sourcePath;
                     int lineNumber;
                     if (debugger.GetSourceLocation(frame, out sourcePath, out lineNumber)) {

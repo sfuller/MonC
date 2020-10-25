@@ -6,9 +6,9 @@ namespace Driver.ToolChains
 {
     public class LLVMVMTool : IExecutableTool
     {
-        private Job _job;
-        private LLVM _toolchain;
-        private IVMInput _input;
+        private readonly Job _job;
+        private readonly LLVM _toolchain;
+        private readonly IVMInput _input;
 
         private LLVMVMTool(Job job, LLVM toolchain, IVMInput input)
         {
