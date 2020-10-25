@@ -34,13 +34,13 @@ int main() {
     if (test_logical_and_2() != 0) {
         return 2;
     }
-    if (test_logical_and_3() != 0) {
+    if (test_logical_and_3() != 1) {
         return 3;
     }
     if (test_logical_and_4() != 0) {
         return 4;
     }
-    if (test_logical_and_5() != 1) {
+    if (test_logical_and_5() != 0) {
         return 5;
     }
     if (test_logical_and_6() != 1) {

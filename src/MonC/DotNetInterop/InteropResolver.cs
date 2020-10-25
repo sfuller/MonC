@@ -172,7 +172,8 @@ namespace MonC.DotNetInterop
             Binding binding = new Binding {
                 Prototype = def,
                 Implementation = new VMFunction {
-                    ArgumentMemorySize = def.Parameters.Length,
+                    ReturnValueSize = sizeof(int), // TODO
+                    ArgumentMemorySize = def.Parameters.Length * sizeof(int), // TODO
                     Delegate = implementation
                 }
             };
