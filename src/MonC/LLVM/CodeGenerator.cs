@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using MonC.Codegen;
 using MonC.Parsing;
 using MonC.Semantics;
 using MonC.SyntaxTree;
@@ -16,11 +15,12 @@ namespace MonC.LLVM
     using FunctionStackLayout = Codegen.FunctionStackLayout;
     using StructLayoutGenerator = Codegen.StructLayoutGenerator;
     using StructLayoutManager = Codegen.StructLayoutManager;
+    using IndexTypeSizeManager = Codegen.IndexTypeSizeManager;
 
     /// <summary>
     /// Frequently referenced objects within the scope of CodeGenerator.Generate
     /// </summary>
-    internal class CodeGeneratorContext
+    internal class CodeGeneratorContext : IDisposable
     {
         public Context Context { get; }
         public SemanticModule SemanticModule { get; }
@@ -34,6 +34,12 @@ namespace MonC.LLVM
         public bool ColumnInfo { get; }
         public readonly StructLayoutManager StructLayoutManager = new StructLayoutManager();
         public TargetData TargetDataLayout { get; }
+
+        public void Dispose()
+        {
+            TargetDataLayout.Dispose();
+            GC.SuppressFinalize(this);
+        }
 
         public CodeGeneratorContext(Context context, SemanticModule semanticModule, SemanticContext semanticContext,
             string fileName, string dirName, string targetTriple, bool optimized, bool debugInfo, bool columnInfo)
@@ -343,7 +349,7 @@ namespace MonC.LLVM
             }
 
             // Create module and file-level debug info nodes
-            CodeGeneratorContext genContext = new CodeGeneratorContext(context, module, semanticContext, fileName,
+            using CodeGeneratorContext genContext = new CodeGeneratorContext(context, module, semanticContext, fileName,
                 dirName, targetTriple, optBuilder != null, debugInfo, columnInfo);
 
             // Enum pass

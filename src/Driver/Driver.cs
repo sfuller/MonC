@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Driver
+﻿namespace Driver
 {
     public static class Driver
     {

@@ -1,5 +1,4 @@
 using System;
-using MonC.Codegen;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Statements;
@@ -7,6 +6,8 @@ using MonC.TypeSystem.Types.Impl;
 
 namespace MonC.LLVM
 {
+    using StructLayout = Codegen.StructLayout;
+
     public class FunctionCodeGenVisitor : IStatementVisitor, IExpressionVisitor, IBasicExpressionVisitor
     {
         internal readonly CodeGeneratorContext _genContext;

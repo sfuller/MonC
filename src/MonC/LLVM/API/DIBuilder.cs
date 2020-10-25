@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using MonC.SyntaxTree;
 using MonC.TypeSystem;
 
 namespace MonC.LLVM

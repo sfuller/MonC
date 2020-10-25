@@ -1,10 +1,11 @@
 ﻿using System;
-using MonC.Codegen;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.TypeSystem.Types.Impl;
 
 namespace MonC.LLVM
 {
+    using StructLayout = Codegen.StructLayout;
+
     internal class AssignmentCodeGenVisitor : IAssignableVisitor
     {
         private readonly Builder _builder;

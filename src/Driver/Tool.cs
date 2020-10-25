@@ -1,5 +1,4 @@
-﻿using System;
-using MonC;
+﻿using MonC;
 
 namespace Driver
 {

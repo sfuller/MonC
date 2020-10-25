@@ -1,6 +1,5 @@
 ﻿using System;
 using MonC.LLVM;
-using MonC.Parsing;
 using MonC.Semantics;
 
 namespace Driver.ToolChains
