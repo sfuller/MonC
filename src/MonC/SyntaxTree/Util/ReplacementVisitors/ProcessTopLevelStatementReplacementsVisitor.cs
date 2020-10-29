@@ -4,9 +4,9 @@
     {
         public readonly ReplacementProcessor _processor;
 
-        public ProcessTopLevelStatementReplacementsVisitor(IReplacementSource replacementSource)
+        public ProcessTopLevelStatementReplacementsVisitor(IReplacementSource replacementSource, IReplacementListener listener)
         {
-            _processor = new ReplacementProcessor(replacementSource);
+            _processor = new ReplacementProcessor(replacementSource, listener);
         }
 
         public void VisitEnum(EnumNode node) { }

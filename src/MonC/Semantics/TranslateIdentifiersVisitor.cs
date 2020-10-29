@@ -22,15 +22,16 @@ namespace MonC.Semantics
         private readonly SemanticContext _semanticModule;
         private readonly IErrorManager _errors;
 
-        private readonly ScopeManager _scopeManager = new ScopeManager();
+        private readonly ScopeManager _scopeManager;
         private readonly SyntaxTreeDelegator _replacementDelegator = new SyntaxTreeDelegator();
 
         private readonly ParseTreeDelegator _parseTreeReplacementDelegator = new ParseTreeDelegator();
 
-        public TranslateIdentifiersVisitor(SemanticContext semanticModule, IErrorManager errors)
+        public TranslateIdentifiersVisitor(SemanticContext semanticModule, IErrorManager errors, ScopeManager scopes)
         {
             _semanticModule = semanticModule;
             _errors = errors;
+            _scopeManager = scopes;
 
             NewNode = new VoidExpressionNode();
 
@@ -48,16 +49,14 @@ namespace MonC.Semantics
         public bool ShouldReplace { get; private set; }
         public ISyntaxTreeNode NewNode { get; private set; }
 
-        public void Process(FunctionDefinitionNode function)
+        public void Process(FunctionDefinitionNode function, IReplacementListener listener)
         {
-            _scopeManager.ProcessFunction(function);
-
             // TODO: Helper class to reduce repeating of this setup code.
-            ProcessReplacementsVisitorChain visitorChain = new ProcessReplacementsVisitorChain(this);
+            ProcessReplacementsVisitorChain visitorChain = new ProcessReplacementsVisitorChain(this, listener);
             ParseTreeChildrenVisitor parseTreeChildrenVisitor
                 = new ParseTreeChildrenVisitor(visitorChain.ReplacementVisitor, null, visitorChain.ChildrenVisitor);
             ProcessParseTreeReplacementsVisitor parseTreeReplacementsVisitor
-                = new ProcessParseTreeReplacementsVisitor(this);
+                = new ProcessParseTreeReplacementsVisitor(this, listener);
             visitorChain.ExpressionChildrenVisitor.ExtensionChildrenVisitor = new ParseTreeVisitorExtension(parseTreeChildrenVisitor);
             visitorChain.ExpressionReplacementsVisitor.ExtensionVisitor = new ParseTreeVisitorExtension(parseTreeReplacementsVisitor);
 
@@ -75,7 +74,8 @@ namespace MonC.Semantics
         {
             ShouldReplace = true;
 
-            DeclarationNode decl = _scopeManager.GetScope(node).Variables.Find(d => d.Name == node.Name);
+            NodeScopeInfo nodeScopeInfo = _scopeManager.GetScope(node);
+            DeclarationNode? decl = nodeScopeInfo.Scope.FindNearestDeclaration(node.Name, nodeScopeInfo.DeclarationIndex);
             if (decl != null) {
                 NewNode = UpdateSymbolMap(new VariableNode(decl), node);
                 return;
@@ -113,14 +113,14 @@ namespace MonC.Semantics
             }
 
             if (resultNode == null) {
-                resultNode = MakeFakeFunctionCall(identifier, node);
+                resultNode = MakeFakeFunctionCall(identifier);
             }
 
             UpdateSymbolMap(resultNode, node);
             NewNode = resultNode;
         }
 
-        private FunctionCallNode MakeFakeFunctionCall(IdentifierParseNode identifier, FunctionCallParseNode call)
+        private FunctionCallNode MakeFakeFunctionCall(IdentifierParseNode identifier)
         {
             FunctionCallNode fakeFunctionCall = new FunctionCallNode(
                 lhs: new FunctionDefinitionNode(

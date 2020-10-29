@@ -1,36 +1,42 @@
 using MonC.Semantics.Scoping;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes.Statements;
+using MonC.SyntaxTree.Util;
+using MonC.SyntaxTree.Util.ChildrenVisitors;
 using MonC.SyntaxTree.Util.Delegators;
-using MonC.SyntaxTree.Util.NoOpVisitors;
 
 namespace MonC.Semantics
 {
-    public class DuplicateVariableDeclarationAnalyzer : NoOpStatementVisitor, IScopeHandler
+    public class DuplicateVariableDeclarationAnalyzer : IVisitor<DeclarationNode>
     {
         private readonly IErrorManager _errors;
+        private readonly ScopeManager _scopes;
 
-        private readonly SyntaxTreeDelegator _delegator = new SyntaxTreeDelegator();
-
-        public DuplicateVariableDeclarationAnalyzer(IErrorManager errors)
+        public DuplicateVariableDeclarationAnalyzer(IErrorManager errors, ScopeManager scopes)
         {
             _errors = errors;
-
-            _delegator.StatementVisitor = this;
+            _scopes = scopes;
         }
-
-        public Scope CurrentScope { private get; set; }
 
         public void Process(FunctionDefinitionNode function)
         {
-            WalkScopeVisitor scopeVisitor = new WalkScopeVisitor(this, _delegator, Scope.New(function));
-            function.Body.VisitStatements(scopeVisitor);
+            SyntaxTreeDelegator visitor = new SyntaxTreeDelegator();
+            StatementDelegator statementDelegator = new StatementDelegator();
+            statementDelegator.DeclarationVisitor = this;
+            visitor.StatementVisitor = statementDelegator;
+
+            SyntaxTreeDelegator childrenVisitor = new SyntaxTreeDelegator();
+            StatementChildrenVisitor statementChildrenVisitor = new StatementChildrenVisitor(visitor, childrenVisitor);
+            childrenVisitor.StatementVisitor = statementChildrenVisitor;
+
+            function.Body.VisitStatements(statementChildrenVisitor);
         }
 
-        public override void VisitDeclaration(DeclarationNode node)
+        public void Visit(DeclarationNode node)
         {
             // Ensure declaration doesn't duplicate another declaration in the current scope.
-            DeclarationNode previousNode = CurrentScope.Variables.Find(existingNode => node.Name == existingNode.Name);
+            Scope scope = _scopes.GetScope(node).Scope;
+            DeclarationNode previousNode = scope.Variables.Find(existingNode => node.Name == existingNode.Name && node != existingNode);
 
             if (previousNode != null) {
                 _errors.AddError($"Duplicate declaration {node.Name}", node);

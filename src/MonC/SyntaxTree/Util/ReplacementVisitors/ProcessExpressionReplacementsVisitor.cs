@@ -9,9 +9,9 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
         private readonly ReplacementProcessor _processor;
         public IVisitor<IExpressionNode>? ExtensionVisitor;
 
-        public ProcessExpressionReplacementsVisitor(IReplacementSource replacementSource)
+        public ProcessExpressionReplacementsVisitor(IReplacementSource replacementSource, IReplacementListener listener)
         {
-            _processor = new ReplacementProcessor(replacementSource);
+            _processor = new ReplacementProcessor(replacementSource, listener);
         }
 
         public void VisitVoid(VoidExpressionNode node)

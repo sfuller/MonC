@@ -7,9 +7,9 @@ namespace MonC.Parsing.ParseTree.Util
     {
         public readonly ReplacementProcessor _processor;
 
-        public ProcessParseTreeReplacementsVisitor(IReplacementSource replacementSource)
+        public ProcessParseTreeReplacementsVisitor(IReplacementSource replacementSource, IReplacementListener listener)
         {
-            _processor = new ReplacementProcessor(replacementSource);
+            _processor = new ReplacementProcessor(replacementSource, listener);
         }
 
         public void VisitAssignment(AssignmentParseNode node)

@@ -16,7 +16,6 @@ namespace MonC.Semantics
         private readonly IErrorManager _errors;
         private readonly SemanticContext _semanticModule;
 
-        private readonly ScopeManager _scopeManager = new ScopeManager();
         private readonly SyntaxTreeDelegator _replacementDelegator = new SyntaxTreeDelegator();
         private readonly ParseTreeDelegator _parseTreeDelegator = new ParseTreeDelegator();
 
@@ -38,11 +37,9 @@ namespace MonC.Semantics
             _parseTreeDelegator.AssignmentVisitor = this;
         }
 
-        public void Process(FunctionDefinitionNode function)
+        public void Process(FunctionDefinitionNode function, IReplacementListener listener)
         {
-            _scopeManager.ProcessFunction(function);
-
-            ProcessReplacementsVisitorChain replacementsVisitorChain = new ProcessReplacementsVisitorChain(this);
+            ProcessReplacementsVisitorChain replacementsVisitorChain = new ProcessReplacementsVisitorChain(this, listener);
             replacementsVisitorChain.ProcessReplacements(function);
         }
 
