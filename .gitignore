@@ -6,5 +6,5 @@ obj
 .vs
 
 # Project specific
-.passing_tests
+*.passing_tests
 src/MonC/LLVM/API/CAPIGEN.cs

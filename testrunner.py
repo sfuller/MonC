@@ -91,13 +91,15 @@ def main():
 
             test.files.append(os.path.join(dirpath, filename))
 
-    for tool_name, tool, extra_args in (("Frontend", FRONTEND_BINARY, ()), ("Driver", DRIVER_BINARY, ()),
-                                        ("Driver LLVM", DRIVER_BINARY, ("-toolchain=llvm",))):
+    any_tool_fail = False
+
+    for tool_name, tool, extra_args in (("frontend", FRONTEND_BINARY, ()), ("driver", DRIVER_BINARY, ()),
+                                        ("driver_llvm", DRIVER_BINARY, ("-toolchain=llvm",))):
         print(f'Using {tool_name} to run tests')
         tool_args_to_pass = args_to_pass.copy()
         tool_args_to_pass.extend(extra_args)
 
-        passing_tests_path = os.path.normpath(os.path.join(REPOSITORY_DIR, '.passing_tests'))
+        passing_tests_path = os.path.normpath(os.path.join(REPOSITORY_DIR, f'.{tool_name}.passing_tests'))
         passing_tests: Set[str]
         if os.path.isfile(passing_tests_path):
             with open(passing_tests_path) as f:
@@ -133,6 +135,7 @@ def main():
             message = TERM_TEXT_PARTIAL_PASS if args.non_passing else TERM_TEXT_PASS
             print(f' ** {message} **')
         else:
+            any_tool_fail = True
             print(f' ** {TERM_TEXT_FAIL} **')
             print('Failed tests:')
             for test_name in failed_tests:
@@ -140,7 +143,7 @@ def main():
 
         print('=' * 80)
 
-    if not status:
+    if any_tool_fail:
         sys.exit(1)
 
 
