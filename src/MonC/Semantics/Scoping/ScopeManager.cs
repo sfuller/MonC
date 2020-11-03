@@ -13,6 +13,11 @@ namespace MonC.Semantics.Scoping
     {
         private readonly Dictionary<ISyntaxTreeNode, NodeScopeInfo> _scopes = new Dictionary<ISyntaxTreeNode, NodeScopeInfo>();
 
+        /// <summary>
+        /// Represents the scope of "Outside the current function".
+        /// </summary>
+        public readonly Scope OuterScope = new Scope();
+
         public void SetScope(ISyntaxTreeNode node, Scope scope)
         {
             NodeScopeInfo info = new NodeScopeInfo { Scope = scope, DeclarationIndex = scope.Variables.Count};

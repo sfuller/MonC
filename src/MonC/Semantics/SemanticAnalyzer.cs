@@ -174,16 +174,17 @@ namespace MonC.Semantics
 
         private void AnalyzeFunction(FunctionDefinitionNode function, ExpressionTypeManager expressionTypeManager)
         {
-            ScopeManager scopeManager = new ScopeManager();
-            FunctionReplacementHandler replacementHandler = new FunctionReplacementHandler(scopeManager);
+            ScopeManager scopes = new ScopeManager();
+            FunctionReplacementHandler replacementHandler = new FunctionReplacementHandler(scopes);
 
-            new ScopeAnalyzer(scopeManager).Analyze(function);
-            new DuplicateVariableDeclarationAnalyzer(this, scopeManager).Process(function);
+            new ScopeAnalyzer(scopes).Analyze(function);
+            new DuplicateVariableDeclarationAnalyzer(this, scopes).Process(function);
             new TypeSpecifierResolver(_typeManager, this).Process(function, replacementHandler);
-            new TranslateIdentifiersVisitor(_context, this, scopeManager).Process(function, replacementHandler);
+            new TranslateIdentifiersVisitor(_context, this, scopes).Process(function, replacementHandler);
             new TranslateAccessVisitor(this, expressionTypeManager).Process(function, replacementHandler);
             new AssignmentAnalyzer(this, _context).Process(function, replacementHandler);
-            new BorrowAnalyzer(this).Process(function);
+            new BorrowOperatorValidator(this).Process(function);
+            new BorrowAssignmentLifetimeValidator(function, this, _typeManager, scopes).Process();
             new TypeCheckVisitor(_context, _typeManager, this, expressionTypeManager).Process(function);
         }
 

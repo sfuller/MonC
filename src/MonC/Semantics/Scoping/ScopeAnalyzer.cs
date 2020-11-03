@@ -13,14 +13,9 @@ namespace MonC.Semantics.Scoping
     public class ScopeAnalyzer : IStatementVisitor, IVisitor<IExpressionNode>
     {
         private readonly ScopeManager _scopeManager;
-        private Scope _currentScope = new Scope();
+        private Scope _currentScope;
 
         private readonly ExpressionChildrenVisitor _expressionChildrenVisitor;
-
-        /// <summary>
-        /// Represents the scope of "Outside the current function".
-        /// </summary>
-        public Scope OuterScope { get; }
 
         public ScopeAnalyzer(ScopeManager scopeManager)
         {
@@ -35,12 +30,15 @@ namespace MonC.Semantics.Scoping
                     new ParseTreeChildrenVisitor(visitor, null, childrenVisitor));
             childrenVisitor.ExpressionVisitor = _expressionChildrenVisitor;
 
-            OuterScope = _currentScope;
+            _currentScope = _scopeManager.OuterScope;
         }
 
         public void Analyze(FunctionDefinitionNode function)
         {
-            OuterScope.Variables.AddRange(function.Parameters);
+            _currentScope = _scopeManager.OuterScope;
+            foreach (DeclarationNode parameter in function.Parameters) {
+                VisitDeclaration(parameter);
+            }
             PushScope();
             function.Body.VisitStatements(this);
             PopScope();

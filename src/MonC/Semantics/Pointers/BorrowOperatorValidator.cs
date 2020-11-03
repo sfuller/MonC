@@ -6,11 +6,14 @@ using MonC.SyntaxTree.Util.Delegators;
 
 namespace MonC.Semantics.Pointers
 {
-    public class BorrowAnalyzer : IUnaryOperationVisitor
+    /// <summary>
+    /// Validates borrow operator rules.
+    /// </summary>
+    public class BorrowOperatorValidator : IUnaryOperationVisitor
     {
         private readonly IErrorManager _errors;
 
-        public BorrowAnalyzer(IErrorManager errors)
+        public BorrowOperatorValidator(IErrorManager errors)
         {
             _errors = errors;
         }

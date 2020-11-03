@@ -34,5 +34,19 @@ namespace MonC.Semantics.Scoping
             return null;
         }
 
+        public bool Outlives(Scope other)
+        {
+            Scope? scope = other.Parent;
+
+            while (scope != null) {
+                if (scope == this) {
+                    return true;
+                }
+                scope = scope.Parent;
+            }
+
+            return false;
+        }
+
     }
 }
