@@ -68,7 +68,8 @@ namespace MonC.Codegen
 
         public void VisitUnaryOperation(IUnaryOperationNode node)
         {
-            UnaryOperationCodeGenVisitor unaryVisitor = new UnaryOperationCodeGenVisitor(_functionBuilder, this);
+            UnaryOperationCodeGenVisitor unaryVisitor = new UnaryOperationCodeGenVisitor(
+                _functionBuilder, this, _module, _typeSizeManager, _layout, _structLayoutManager);
             node.AcceptUnaryOperationVisitor(unaryVisitor);
         }
 

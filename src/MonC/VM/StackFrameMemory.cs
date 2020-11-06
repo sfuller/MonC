@@ -170,5 +170,69 @@ namespace MonC.VM
             }
             _stackPointer -= offset;
         }
+
+        public IntPtr AddressOf(int stackPointer)
+        {
+            if (stackPointer < 0 || stackPointer > _stackPointer) {
+                throw new IndexOutOfRangeException();
+            }
+            return IntPtr.Add(_data, stackPointer);
+        }
+
+        public void PushIndirect(IntPtr ptr, int size)
+        {
+            if (size < 0 || _stackPointer + size > _capacity) {
+                throw new IndexOutOfRangeException();
+            }
+            unsafe {
+                void* sourcePtr = ptr.ToPointer();
+                void* destPtr = IntPtr.Add(_data, _stackPointer).ToPointer();
+                Buffer.MemoryCopy(sourcePtr, destPtr, _capacity - _stackPointer, size);
+            }
+            _stackPointer += size;
+        }
+
+        public void PushPointer(IntPtr ptr)
+        {
+            switch (IntPtr.Size) {
+                case 4:
+                    PushValInt(ptr.ToInt32());
+                    break;
+                case 8: {
+                    long longPtr = ptr.ToInt64();
+                    unchecked {
+                        if (BitConverter.IsLittleEndian) {
+                            PushValInt((int) longPtr);
+                            PushValInt((int) (longPtr >> 32));
+                        } else {
+                            PushValInt((int) (longPtr >> 32));
+                            PushValInt((int) longPtr);
+                        }
+                    }
+                    break;
+                }
+                default:
+                    throw new NotSupportedException();
+            }
+        }
+
+        public IntPtr PopPointer()
+        {
+            switch (IntPtr.Size) {
+                case 4:
+                    return new IntPtr(PopValInt());
+                case 8: {
+                    uint b = (uint) PopValInt();
+                    uint a = (uint) PopValInt();
+                    if (BitConverter.IsLittleEndian) {
+                        return new IntPtr(((long) b << 32) + a);
+                    }
+                    return new IntPtr(((long) a << 32) + b);
+                }
+                default:
+                    throw new NotSupportedException();
+            }
+        }
+
     }
 }

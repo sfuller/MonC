@@ -260,6 +260,12 @@ namespace MonC.VM
                 case OpCode.ACCESS:
                     InterpretAccess(ins);
                     break;
+                case OpCode.ADDRESSOF:
+                    InterpretAddressOf(ins);
+                    break;
+                case OpCode.DEREF:
+                    InterpretDeref(ins);
+                    break;
                 case OpCode.CALL:
                     InterpretCall();
                     break;
@@ -365,6 +371,20 @@ namespace MonC.VM
         private void InterpretAccess(Instruction ins)
         {
             PeekCallStack().Memory.Access(ins.ImmediateValue, ins.SizeValue);
+        }
+
+        private void InterpretAddressOf(Instruction ins)
+        {
+            StackFrameMemory memory = PeekCallStack().Memory;
+            IntPtr addr = memory.AddressOf(ins.ImmediateValue);
+            memory.PushPointer(addr);
+        }
+
+        private void InterpretDeref(Instruction ins)
+        {
+            StackFrameMemory memory = PeekCallStack().Memory;
+            IntPtr addr = memory.PopPointer();
+            memory.PushIndirect(addr, ins.SizeValue);
         }
 
         private void InterpretCall()

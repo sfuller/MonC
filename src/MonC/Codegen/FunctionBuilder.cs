@@ -39,63 +39,42 @@ namespace MonC.Codegen
 
         public int AddInstruction(OpCode op, int immediate = 0, int size = 4)
         {
-            switch (op) {
-                case OpCode.NOOP:
-                case OpCode.BREAK:
-                    // No Stack Change
-                    break;
-                case OpCode.PUSHWORD:
-                    AllocStackSpace(sizeof(int));
-                    break;
-                case OpCode.PUSH:
-                    AllocStackSpace(size);
-                    break;
-                case OpCode.POP:
-                    FreeStackSpace(size);
-                    break;
-                case OpCode.READ:
-                    AllocStackSpace(size);
-                    break;
-                case OpCode.WRITE:
-                    // No stack change
-                    break;
-                case OpCode.ACCESS:
-                    FreeStackSpace(immediate);
-                    break;
-                case OpCode.CALL:
-                    // Space must be adjusted manually
-                    break;
-                case OpCode.RETURN:
-                    // No stack change
-                    break;
-                case OpCode.CMPE:
-                case OpCode.CMPLT:
-                case OpCode.CMPLTE:
-                    FreeStackSpace(sizeof(int));
-                    break;
-                case OpCode.JUMP:
-                    // No change
-                    break;
-                case OpCode.JUMPZ:
-                case OpCode.JUMPNZ:
-                    FreeStackSpace(sizeof(int));
-                    break;
-                case OpCode.BOOL:
-                case OpCode.LNOT:
-                    // No change
-                    break;
-                case OpCode.ADD:
-                case OpCode.SUB:
-                case OpCode.OR:
-                case OpCode.AND:
-                case OpCode.XOR:
-                case OpCode.MUL:
-                case OpCode.DIV:
-                case OpCode.MOD:
-                    FreeStackSpace(sizeof(int));
-                    break;
-                default:
-                    throw new NotSupportedException();
+            int delta = op switch {
+                OpCode.NOOP => 0,
+                OpCode.BREAK => 0,
+                OpCode.PUSHWORD => sizeof(int),
+                OpCode.PUSH => size,
+                OpCode.POP => -size,
+                OpCode.READ => size,
+                OpCode.WRITE => 0,
+                OpCode.ACCESS => -immediate,
+                OpCode.ADDRESSOF => IntPtr.Size,
+                OpCode.DEREF => -IntPtr.Size,
+                OpCode.CALL => 0, // Space must be adjusted manually
+                OpCode.RETURN => 0,
+                OpCode.CMPE => -sizeof(int),
+                OpCode.CMPLT => -sizeof(int),
+                OpCode.CMPLTE => -sizeof(int),
+                OpCode.JUMP => 0,
+                OpCode.JUMPZ => -sizeof(int),
+                OpCode.JUMPNZ => -sizeof(int),
+                OpCode.BOOL => 0,
+                OpCode.LNOT => 0,
+                OpCode.ADD => -sizeof(int),
+                OpCode.SUB => -sizeof(int),
+                OpCode.OR => -sizeof(int),
+                OpCode.AND => -sizeof(int),
+                OpCode.XOR => -sizeof(int),
+                OpCode.MUL => -sizeof(int),
+                OpCode.DIV => -sizeof(int),
+                OpCode.MOD => -sizeof(int),
+                _ => throw new NotSupportedException()
+            };
+
+            if (delta > 0) {
+                AllocStackSpace(delta);
+            } else {
+                FreeStackSpace(delta);
             }
 
             int index = _instructions.Count;
