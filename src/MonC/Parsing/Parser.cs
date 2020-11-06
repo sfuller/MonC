@@ -55,6 +55,8 @@ namespace MonC
                 _errors = errors;
             }
 
+            public bool HasErrors => _errors?.Count > 0;
+
             public readonly Token Peek(int offset = 0)
             {
                 int i = _offset + offset;
@@ -64,7 +66,7 @@ namespace MonC
                 return _tokens[i];
             }
 
-            public bool Peek(int offset, TokenType type, out Token token)
+            private bool Peek(int offset, TokenType type, out Token token)
             {
                 token = Peek(offset);
                 if (token.Type != type) {
@@ -73,7 +75,7 @@ namespace MonC
                 return true;
             }
 
-            public bool Peek(int offset, TokenType type, string value, out Token token)
+            private bool Peek(int offset, TokenType type, string value, out Token token)
             {
                 token = Peek(offset);
                 if (token.Type != type || token.Value != value) {
@@ -141,11 +143,9 @@ namespace MonC
                 return matches;
             }
 
-            public void AddError(ParseError error)
+            private void AddError(ParseError error)
             {
-                if (_errors == null) {
-                    _errors = new List<ParseError>();
-                }
+                _errors ??= new List<ParseError>();
                 _errors.Add(error);
             }
 
@@ -172,7 +172,8 @@ namespace MonC
                 #endif
 
                 _offset = other._offset;
-                if (other._errors != null && _errors != null) {
+                if (other._errors != null) {
+                    _errors ??= new List<ParseError>();
                     foreach (ParseError error in other._errors) {
                         _errors.Add(error);
                     }
@@ -260,9 +261,9 @@ namespace MonC
                 if (declarationNode == null) {
                     break;
                 }
-                tokens.Consume(declarationTokens);
                 declarations.Add(declarationNode);
-                ParseSemiColonForgiving(ref tokens);
+                Terminate(ref declarationTokens, Syntax.SEMICOLON);
+                tokens.Consume(declarationTokens);
             }
 
             tokens.TryNext(TokenType.Syntax, Syntax.CLOSING_BRACKET, out _);
@@ -327,18 +328,14 @@ namespace MonC
             List<IStatementNode> statements = new List<IStatementNode>();
 
             while (true) {
-                Token next = tokens.Peek();
-
-                if (next.Type == TokenType.Syntax && next.Value == Syntax.CLOSING_BRACKET) {
-                    tokens.Consume();
+                if (MatchOrUnexpectedEof(ref tokens, TokenType.Syntax, Syntax.CLOSING_BRACKET)) {
                     break;
                 }
 
                 IStatementNode? statement = ParseStatement(ref tokens);
-                if (statement == null) {
-                    return null;
+                if (statement != null) {
+                    statements.Add(statement);
                 }
-                statements.Add(statement);
             }
 
             return NewNode(new BodyNode(statements), bodyOpening, tokens.Peek(-1));
@@ -351,7 +348,7 @@ namespace MonC
                 tokensToConsume = tokens.Fork();
                 IStatementNode? statement = ParseDeclaration(ref tokensToConsume);
                 if (statement != null) {
-                    ParseSemiColonForgiving(ref tokensToConsume);
+                    Terminate(ref tokensToConsume, Syntax.SEMICOLON);
                     return statement;
                 }
 
@@ -362,10 +359,14 @@ namespace MonC
                 }
 
                 tokensToConsume = tokens.Fork();
-                IExpressionNode expression = ParseExpression(ref tokensToConsume) ?? new VoidExpressionNode();
-                statement = new ExpressionStatementNode(expression);
-                ParseSemiColonForgiving(ref tokensToConsume);
-                return statement;
+                IExpressionNode? expression = ParseExpression(ref tokensToConsume);
+                if (expression != null) {
+                    statement = new ExpressionStatementNode(expression);
+                    Terminate(ref tokensToConsume, Syntax.SEMICOLON);
+                    return statement;
+                }
+
+                return null;
             }
 
             IStatementNode? statement = TryNodeTypes(in tokens, out TokenSource tokensToConsume);
@@ -396,6 +397,18 @@ namespace MonC
             }
 
             return NewNode(new DeclarationNode(typeSpecifier, nameToken.Value, assignment), startToken, tokens.Peek(-1));
+        }
+
+        private DeclarationNode CreatePlaceholderDeclaration(Token startToken, Token endToken)
+        {
+            return NewNode(
+                new DeclarationNode(
+                    new TypeSpecifierParseNode("void", PointerMode.NotAPointer),
+                    "",
+                    new VoidExpressionNode()
+                ),
+                startToken,
+                endToken);
         }
 
         private IStatementNode? ParseFlow(ref TokenSource tokens)
@@ -433,26 +446,14 @@ namespace MonC
                 return null;
             }
 
-            IExpressionNode? condition = ParseExpression(ref tokens);
-            if (condition == null) {
-                return null;
-            }
-
-            if (!tokens.Next(TokenType.Syntax, Syntax.CLOSING_PAREN, out _)) {
-                return null;
-            }
-
-            BodyNode? ifBody = ParseBody(ref tokens);
-            if (ifBody == null) {
-                return null;
-            }
-
+            IExpressionNode condition = ParseRequiredExpressionWithTerminator(ref tokens, Syntax.CLOSING_PAREN);
+            BodyNode ifBody = ParseRequiredBody(ref tokens);
             BodyNode? elseBody = null;
             Token nextToken = tokens.Peek();
 
             if (nextToken.Type == TokenType.Keyword && nextToken.Value == Keyword.ELSE) {
                 tokens.Consume();
-                elseBody = ParseBody(ref tokens);
+                elseBody = ParseRequiredBody(ref tokens);
             }
 
             return NewNode(new IfElseNode(condition, ifBody, elseBody ?? new BodyNode()), ifToken, tokens.Peek(-1));
@@ -465,20 +466,8 @@ namespace MonC
                 return null;
             }
 
-            IExpressionNode? condition = ParseExpression(ref tokens);
-            if (condition == null) {
-                return null;
-            }
-
-            if (!tokens.Next(TokenType.Syntax, Syntax.CLOSING_PAREN, out _)) {
-                return null;
-            }
-
-            BodyNode? body = ParseBody(ref tokens);
-            if (body == null) {
-                return null;
-            }
-
+            IExpressionNode condition = ParseRequiredExpressionWithTerminator(ref tokens, Syntax.CLOSING_PAREN);
+            BodyNode body = ParseRequiredBody(ref tokens);
             return NewNode(new WhileNode(condition, body), whileToken, tokens.Peek(-1));
         }
 
@@ -489,34 +478,17 @@ namespace MonC
                 return null;
             }
 
-            DeclarationNode? declaration = ParseDeclaration(ref tokens);
-            if (declaration == null) {
-                return null;
-            }
+            TokenSource declarationTokens = tokens.Fork();
+            Token declarationStart = declarationTokens.Peek();
+            DeclarationNode? declaration = ParseDeclaration(ref declarationTokens);
+            Token declarationEnd = declarationTokens.Peek(-1);
+            Terminate(ref declarationTokens, Syntax.SEMICOLON);
+            tokens.Consume(declarationTokens);
+            declaration ??= CreatePlaceholderDeclaration(declarationStart, declarationEnd);
 
-            ParseSemiColonForgiving(ref tokens);
-
-            IExpressionNode? condition = ParseExpression(ref tokens);
-            if (condition == null) {
-                return null;
-            }
-
-            ParseSemiColonForgiving(ref tokens);
-
-            IExpressionNode? update = ParseExpression(ref tokens);
-            if (update == null) {
-                return null;
-            }
-
-            if (!tokens.Next(TokenType.Syntax, Syntax.CLOSING_PAREN, out _)) {
-                return null;
-            }
-
-            BodyNode? body = ParseBody(ref tokens);
-            if (body == null) {
-                return null;
-            }
-
+            IExpressionNode condition = ParseRequiredExpressionWithTerminator(ref tokens, Syntax.SEMICOLON);
+            IExpressionNode update = ParseRequiredExpressionWithTerminator(ref tokens, Syntax.CLOSING_PAREN);
+            BodyNode body = ParseRequiredBody(ref tokens);
             return NewNode(new ForNode(declaration, condition, update, body), forToken, tokens.Peek(-1));
         }
 
@@ -529,16 +501,15 @@ namespace MonC
 
             IExpressionNode? expression = null;
 
+            TokenSource expressionTokens = tokens.Fork();
+
             if (!(token.Type == TokenType.Syntax && token.Value == Syntax.SEMICOLON)) {
-                expression = ParseExpression(ref tokens);
+                expression = ParseExpression(ref expressionTokens);
             }
+            expression ??= new VoidExpressionNode();
 
-            if (expression == null) {
-                expression = new VoidExpressionNode();
-            }
-
-            ParseSemiColonForgiving(ref tokens);
-
+            Terminate(ref expressionTokens, Syntax.SEMICOLON);
+            tokens.Consume(expressionTokens);
             return NewNode(new ReturnNode(expression), returnToken, tokens.Peek(-1));
         }
 
@@ -556,6 +527,25 @@ namespace MonC
             tokens.Next(TokenType.Keyword, Keyword.BREAK, out breakToken);
             ParseSemiColonForgiving(ref tokens);
             return NewNode<BreakNode>(breakToken, tokens.Peek(-1));
+        }
+
+        private IExpressionNode ParseRequiredExpressionWithTerminator(ref TokenSource tokens, string syntaxValue)
+        {
+            TokenSource expressionTokens = tokens.Fork();
+            Token startToken = expressionTokens.Peek();
+            IExpressionNode? expression = ParseExpression(ref expressionTokens);
+            Token endToken = expressionTokens.Peek(-1);
+            Terminate(ref expressionTokens, syntaxValue);
+            tokens.Consume(expressionTokens);
+            return expression ?? NewNode(new VoidExpressionNode(), startToken, endToken);
+        }
+
+        private BodyNode ParseRequiredBody(ref TokenSource tokens)
+        {
+            Token bodyStart = tokens.Peek();
+            BodyNode? body = ParseBody(ref tokens);
+            Token bodyEnd = tokens.Peek(-1);
+            return body ?? NewNode(new BodyNode(), bodyStart, bodyEnd);
         }
 
         private IExpressionNode? ParseExpression(ref TokenSource tokens, int previousPrecedence = -1)
@@ -582,7 +572,6 @@ namespace MonC
 
             return lhs;
         }
-
 
         private IExpressionNode? ParseNonBinaryExpression(ref TokenSource tokens)
         {
@@ -611,7 +600,9 @@ namespace MonC
                 return ParseParenthesisExpression(ref tokens);
             }
 
-            return ParseUnaryOperation(ref tokens);
+            Token unexpectedToken = tokens.Next();
+            tokens.AddError("Unexpected token", unexpectedToken);
+            return null;
         }
 
         private IExpressionNode? CreateBinOpNodeByOperator(
@@ -811,18 +802,26 @@ namespace MonC
             }
 
             Token op = tokens.Next();
-            IExpressionNode? rhs = ParseExpression(ref tokens, TOKEN_PRECEDENCE_UNARY);
-            if (rhs == null) {
-                return null;
-            }
-            return CreateUnaryOpNodeByOperator(ref tokens, op, rhs);
+            return CreateUnaryOpNodeByOperator(ref tokens, op);
         }
 
-        private IUnaryOperationNode? CreateUnaryOpNodeByOperator(ref TokenSource tokens, Token token, IExpressionNode rhs)
+        private IUnaryOperationNode? CreateUnaryOpNodeByOperator(ref TokenSource tokens, Token token)
         {
+            IUnaryOperationNode? MakeUnary(ref TokenSource tokens, Func<IExpressionNode, IUnaryOperationNode> factory) {
+                IExpressionNode? rhs = ParseExpression(ref tokens, TOKEN_PRECEDENCE_UNARY);
+                if (rhs == null) {
+                    return null;
+                }
+                return factory(rhs);
+            }
+
+            Token startToken = tokens.Peek();
+
             IUnaryOperationNode? rawNode = token.Value switch {
-                Syntax.UNOP_NEGATE => new NegateUnaryOpNode(rhs),
-                Syntax.UNOP_LOGICAL_NOT => new LogicalNotUnaryOpNode(rhs),
+                Syntax.UNOP_NEGATE => MakeUnary(ref tokens, rhs => new NegateUnaryOpNode(rhs)),
+                Syntax.UNOP_LOGICAL_NOT => MakeUnary(ref tokens, rhs => new LogicalNotUnaryOpNode(rhs)),
+                Syntax.UNOP_BORROW => MakeUnary(ref tokens, rhs => new BorrowUnaryOpNode(rhs)),
+                Syntax.UNOP_DEREFERENCE => MakeUnary(ref tokens, rhs => new DereferenceUnaryOpNode(rhs)),
                 _ => null
             };
 
@@ -830,7 +829,7 @@ namespace MonC
                 tokens.AddError($"Unrecognized binary operator {token.Value}", token);
                 return null;
             }
-            return NewNode(rawNode, token.Location, GetSymbolForNode(rhs).End);
+            return NewNode(rawNode, startToken, tokens.Peek(-1));
         }
 
         private CastUnaryOpNode? ParseCast(ref TokenSource tokens)
@@ -944,6 +943,48 @@ namespace MonC
                 return;
             }
             tokens.Consume();
+        }
+
+        /// <summary>
+        /// If the given TokenSource has errors, consume until a token with the given syntax value is found.
+        /// Otherwise, expect a token with the given syntax value, and add an error if it doesn't exist.
+        /// </summary>
+        /// <param name="tokens"></param>
+        /// <param name="syntaxValue"></param>
+        private void Terminate(ref TokenSource tokens, string syntaxValue)
+        {
+            if (!tokens.HasErrors) {
+                if (!tokens.TryNext(TokenType.Syntax, syntaxValue, out Token token)) {
+                    tokens.AddError("Expecting " + syntaxValue, token);
+                }
+                return;
+            }
+
+            while (true) {
+                Token nextToken = tokens.Peek();
+                if (nextToken.Type == TokenType.None) {
+                    // EOF, stop looping. All future tokens will be TokenType.None.
+                    return;
+                }
+                tokens.Consume();
+                if (nextToken.Type == TokenType.Syntax && nextToken.Value == syntaxValue) {
+                    return;
+                }
+            }
+        }
+
+        private bool MatchOrUnexpectedEof(ref TokenSource tokens, TokenType type, string value)
+        {
+            Token token = tokens.Peek();
+            if (token.Type == TokenType.None) {
+                tokens.AddError("Unexpected EOF", token);
+                return true;
+            }
+            if (token.Type == type && token.Value == value) {
+                tokens.Consume();
+                return true;
+            }
+            return false;
         }
 
         private delegate T? ParseNodeAction<out T>(ref TokenSource tokens) where T : class;
@@ -1065,12 +1106,5 @@ namespace MonC
             return NewNode(node, startSymbol.Start, endSymbol.End);
         }
 
-        private Symbol GetSymbolForNode(ISyntaxTreeNode node)
-        {
-            if (!_symbolMap.TryGetValue(node, out Symbol symbol)) {
-                throw new InvalidOperationException($"No symbol associated with {nameof(node)}");
-            }
-            return symbol;
-        }
     }
 }

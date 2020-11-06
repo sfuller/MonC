@@ -2,7 +2,7 @@ using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.SyntaxTree.Nodes.Expressions
 {
-    public class AccessNode : BasicExpression, IAssignableNode
+    public class AccessNode : BasicExpression, IAddressableNode
     {
         public IExpressionNode Lhs;
         public DeclarationNode Rhs;
@@ -18,9 +18,17 @@ namespace MonC.SyntaxTree.Nodes.Expressions
             visitor.VisitAccess(this);
         }
 
-        public void AcceptAssignableVisitor(IAssignableVisitor visitor)
+        public void AcceptAddressableVisitor(IAddressableVisitor visitor)
         {
             visitor.VisitAccess(this);
+        }
+
+        public bool IsAddressable()
+        {
+            if (Lhs is IAddressableNode assignableLhs) {
+                return assignableLhs.IsAddressable();
+            }
+            return false;
         }
     }
 }

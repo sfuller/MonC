@@ -29,9 +29,9 @@ namespace MonC.Semantics
             NewNode = new VoidExpressionNode();
         }
 
-        public void Process(ITopLevelStatementNode topLevelStatement)
+        public void Process(ITopLevelStatementNode topLevelStatement, IReplacementListener listener)
         {
-            ProcessReplacementsVisitorChain replacementsVisitorChain = new ProcessReplacementsVisitorChain(this);
+            ProcessReplacementsVisitorChain replacementsVisitorChain = new ProcessReplacementsVisitorChain(this, listener);
             replacementsVisitorChain.ProcessReplacements(topLevelStatement);
         }
 

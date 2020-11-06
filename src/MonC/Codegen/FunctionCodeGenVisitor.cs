@@ -47,19 +47,18 @@ namespace MonC.Codegen
             _strings = strings;
         }
 
+        private int GetExpressionResultSize(IExpressionNode node)
+        {
+            IType expressionType = _module.ExpressionResultTypes[node];
+            return _typeSizeManager.GetSize(expressionType);
+        }
+
         public void VisitBinaryOperation(IBinaryOperationNode node)
         {
-            node.RHS.AcceptExpressionVisitor(this);
-            node.LHS.AcceptExpressionVisitor(this);
-
-            int comparisonOperationAddress = _functionBuilder.InstructionCount;
-
-            BinaryOperationCodeGenVisitor binOpVisitor = new BinaryOperationCodeGenVisitor(_functionBuilder);
-            binOpVisitor.Setup();
+            BinaryOperationCodeGenVisitor binOpVisitor = new BinaryOperationCodeGenVisitor(this, _functionBuilder);
             node.AcceptBinaryOperationVisitor(binOpVisitor);
 
-
-            _functionBuilder.AddDebugSymbol(comparisonOperationAddress, node);
+            _functionBuilder.AddDebugSymbol(binOpVisitor.ComparisonOperationAddress, node);
         }
 
         public void VisitBasicExpression(IBasicExpression node)
@@ -69,19 +68,21 @@ namespace MonC.Codegen
 
         public void VisitUnaryOperation(IUnaryOperationNode node)
         {
-            UnaryOperationCodeGenVisitor unaryVisitor = new UnaryOperationCodeGenVisitor(_functionBuilder, this);
+            UnaryOperationCodeGenVisitor unaryVisitor = new UnaryOperationCodeGenVisitor(
+                _functionBuilder, this, _module, _typeSizeManager, _layout, _structLayoutManager);
             node.AcceptUnaryOperationVisitor(unaryVisitor);
         }
 
         public void VisitAssignment(AssignmentNode node)
         {
-            AssignmentCodeGenVisitor assignmentCodeGenVisitor
-                    = new AssignmentCodeGenVisitor(_layout, _module, _structLayoutManager);
-            node.Lhs.AcceptAssignableVisitor(assignmentCodeGenVisitor);
+            AddressOfVisitor addressOfVisitor
+                    = new AddressOfVisitor(_layout, _module, _structLayoutManager);
+            node.Lhs.AcceptAddressableVisitor(addressOfVisitor);
 
             node.Rhs.AcceptExpressionVisitor(this);
 
-             int addr = _functionBuilder.AddInstruction(OpCode.WRITE, assignmentCodeGenVisitor.AssignmentWriteLocation);
+            int size = GetExpressionResultSize(node.Rhs);
+             int addr = _functionBuilder.AddInstruction(OpCode.WRITE, addressOfVisitor.AbsoluteStackAddress, size);
              _functionBuilder.AddDebugSymbol(addr, node);
         }
 
@@ -118,9 +119,7 @@ namespace MonC.Codegen
         {
             node.Assignment.AcceptExpressionVisitor(this);
 
-            IType expressionType = _module.ExpressionResultTypes[node.Assignment];
-            int resultSize = _typeSizeManager.GetSize(expressionType);
-
+            int resultSize = GetExpressionResultSize(node.Assignment);
             int addr = _functionBuilder.AddInstruction(OpCode.WRITE, _layout.Variables[node], resultSize);
             _functionBuilder.AddInstruction(OpCode.POP, 0, resultSize);
 
@@ -142,7 +141,8 @@ namespace MonC.Codegen
 
             // Generate update code
             node.Update.AcceptExpressionVisitor(this);
-            _functionBuilder.AddInstruction(OpCode.POP); // TODO: Use size of expression result.
+            int resultSize = GetExpressionResultSize(node.Update);
+            _functionBuilder.AddInstruction(OpCode.POP, 0, resultSize);
 
             // Generate condition code
             int conditionLocation = _functionBuilder.InstructionCount;
@@ -172,9 +172,7 @@ namespace MonC.Codegen
             int argumentsSize = 0;
 
             foreach (IExpressionNode argument in node.Arguments) {
-                IType expressionType = _module.ExpressionResultTypes[argument];
-                argumentsSize += _typeSizeManager.GetSize(expressionType);
-
+                argumentsSize += GetExpressionResultSize(argument);
                 argument.AcceptExpressionVisitor(this);
             }
 
@@ -270,8 +268,7 @@ namespace MonC.Codegen
         {
             node.Expression.AcceptExpressionVisitor(this);
             // Remove Result From Stack
-            IType expressionType = _module.ExpressionResultTypes[node.Expression];
-            int resultSize = _typeSizeManager.GetSize(expressionType);
+            int resultSize = GetExpressionResultSize(node.Expression);
             _functionBuilder.AddInstruction(OpCode.POP, 0, resultSize);
         }
 
@@ -293,9 +290,9 @@ namespace MonC.Codegen
         {
             node.RHS.AcceptExpressionVisitor(this);
 
-            // TODO: Use actual size of return type.
             // Return value is always the beginning of the stack.
-            _functionBuilder.AddInstruction(OpCode.WRITE, 0, sizeof(int));
+            int resultSize = GetExpressionResultSize(node.RHS);
+            _functionBuilder.AddInstruction(OpCode.WRITE, 0, resultSize);
 
             // TODO: Is this POP necesary? The VM doesn't care about extra values on the stack after RETURN.
             // Pop the value off of the top of the stack now that we've written it to the return value location.

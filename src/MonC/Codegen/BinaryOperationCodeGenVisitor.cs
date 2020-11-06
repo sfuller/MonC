@@ -1,5 +1,6 @@
 using System;
 using MonC.IL;
+using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
 
@@ -7,19 +8,15 @@ namespace MonC.Codegen
 {
     public class BinaryOperationCodeGenVisitor : IBinaryOperationVisitor
     {
+        private readonly IExpressionVisitor _expressionVisitor;
         private readonly FunctionBuilder _functionBuilder;
 
-        //private int _rhsStackAddress;
+        public int ComparisonOperationAddress { get; private set; }
 
-        public BinaryOperationCodeGenVisitor(FunctionBuilder functionBuilder)
+        public BinaryOperationCodeGenVisitor(IExpressionVisitor expressionVisitor, FunctionBuilder functionBuilder)
         {
+            _expressionVisitor = expressionVisitor;
             _functionBuilder = functionBuilder;
-        }
-
-        public void Setup()
-        {
-            // Note: LHS value is not in stack, but in current register.
-            //_rhsStackAddress = rhsStackAddress;
         }
 
         public void VisitCompareLTBinOp(CompareLtBinOpNode node)
@@ -44,50 +41,60 @@ namespace MonC.Codegen
 
         public void VisitCompareEqualityBinOp(CompareEqualityBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.CMPE);
+            BasicComparison(node, OpCode.CMPE);
         }
 
         public void VisitCompareInequalityBinOp(CompareInequalityBinOpNode node)
         {
+            node.RHS.AcceptExpressionVisitor(_expressionVisitor);
+            node.LHS.AcceptExpressionVisitor(_expressionVisitor);
+            ComparisonOperationAddress = _functionBuilder.InstructionCount;
             _functionBuilder.AddInstruction(OpCode.CMPE);
             _functionBuilder.AddInstruction(OpCode.LNOT);
         }
 
         public void VisitLogicalAndBinOp(LogicalAndBinOpNode node)
         {
+            node.LHS.AcceptExpressionVisitor(_expressionVisitor);
+            _functionBuilder.AddInstruction(OpCode.BOOL);
+            node.RHS.AcceptExpressionVisitor(_expressionVisitor);
+            ComparisonOperationAddress = _functionBuilder.InstructionCount;
             _functionBuilder.AddInstruction(OpCode.BOOL);
             _functionBuilder.AddInstruction(OpCode.AND);
         }
 
         public void VisitLogicalOrBinOp(LogicalOrBinOpNode node)
         {
+            node.LHS.AcceptExpressionVisitor(_expressionVisitor);
+            node.RHS.AcceptExpressionVisitor(_expressionVisitor);
+            ComparisonOperationAddress = _functionBuilder.InstructionCount;
             _functionBuilder.AddInstruction(OpCode.OR);
             _functionBuilder.AddInstruction(OpCode.BOOL);
         }
 
         public void VisitAddBinOp(AddBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.ADD);
+            BasicComparison(node, OpCode.ADD);
         }
 
         public void VisitSubtractBinOp(SubtractBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.SUB);
+            BasicComparison(node, OpCode.SUB);
         }
 
         public void VisitMultiplyBinOp(MultiplyBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.MUL);
+            BasicComparison(node, OpCode.MUL);
         }
 
         public void VisitDivideBinOp(DivideBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.DIV);
+            BasicComparison(node, OpCode.DIV);
         }
 
         public void VisitModuloBinOp(ModuloBinOpNode node)
         {
-            _functionBuilder.AddInstruction(OpCode.MOD);
+            BasicComparison(node, OpCode.MOD);
         }
 
         public void VisitUnknown(IBinaryOperationNode node)
@@ -95,8 +102,21 @@ namespace MonC.Codegen
             throw new InvalidOperationException("Unexpected binary operation node type. Was replacement of a parse tree node missed?");
         }
 
+        private void BasicComparison(IBinaryOperationNode node, OpCode opCode)
+        {
+            node.RHS.AcceptExpressionVisitor(_expressionVisitor);
+            node.LHS.AcceptExpressionVisitor(_expressionVisitor);
+
+            ComparisonOperationAddress = _functionBuilder.InstructionCount;
+            _functionBuilder.AddInstruction(opCode);
+        }
+
         private void GenerateRelationalComparison(IBinaryOperationNode node)
         {
+            node.RHS.AcceptExpressionVisitor(_expressionVisitor);
+            node.LHS.AcceptExpressionVisitor(_expressionVisitor);
+            ComparisonOperationAddress = _functionBuilder.InstructionCount;
+
             bool isGreaterThan = node is CompareGtBinOpNode || node is CompareGteBinOpNode;
             bool includeEquals = (node is CompareLteBinOpNode || node is CompareGteBinOpNode) ^ isGreaterThan;
 

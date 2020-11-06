@@ -4,29 +4,50 @@ int test_logical_and_1() {
 }
 
 int test_logical_and_2() {
-    return 1 && 1;
+    return 0 && 1;
 }
 
 int test_logical_and_3() {
-    return 2 && 3;
+    return 1 && 1;
 }
 
 int test_logical_and_4() {
+    return 0 && 2;
+}
+
+int test_logical_and_5() {
+    return 2 && 0;
+}
+
+int test_logical_and_6() {
+    return 2 && 1;
+}
+
+int test_logical_and_7() {
     return 1 && 2;
 }
 
 int main() {
-    if (test_logical_and_1()) {
+    if (test_logical_and_1() != 0) {
         return 1;
     }
-    if (test_logical_and_2() != 1) {
+    if (test_logical_and_2() != 0) {
         return 2;
     }
     if (test_logical_and_3() != 1) {
         return 3;
     }
-    if (test_logical_and_4() != 1) {
+    if (test_logical_and_4() != 0) {
         return 4;
+    }
+    if (test_logical_and_5() != 0) {
+        return 5;
+    }
+    if (test_logical_and_6() != 1) {
+        return 6;
+    }
+    if (test_logical_and_7() != 1) {
+        return 7;
     }
     return 0;
 }

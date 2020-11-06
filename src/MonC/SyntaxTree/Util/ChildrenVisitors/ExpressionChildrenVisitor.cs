@@ -135,5 +135,19 @@ namespace MonC.SyntaxTree.Util.ChildrenVisitors
             node.ToType.AcceptSyntaxTreeVisitor(_childrenVisitor);
             VisitPostOrder(node);
         }
+
+        public void VisitBorrowUnaryOp(BorrowUnaryOpNode node)
+        {
+            VisitPreOrder(node);
+            node.RHS.AcceptExpressionVisitor(this);
+            VisitPostOrder(node);
+        }
+
+        public void VisitDereferenceUnaryOp(DereferenceUnaryOpNode node)
+        {
+            VisitPreOrder(node);
+            node.RHS.AcceptExpressionVisitor(this);
+            VisitPostOrder(node);
+        }
     }
 }

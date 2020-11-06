@@ -61,6 +61,17 @@ namespace MonC.IL
         /// </summary>
         ACCESS,
 
+        /// <summary>
+        /// Pushes the native pointer to the element on the stack pointed to by the immediate value.
+        /// </summary>
+        ADDRESSOF,
+
+        /// <summary>
+        /// Pops a native pointer off the stack and reads size bytes from the memory pointed to. These read bytes are
+        /// pushed onto the stack.
+        /// </summary>
+        DEREF,
+
 
         //
         // Calls

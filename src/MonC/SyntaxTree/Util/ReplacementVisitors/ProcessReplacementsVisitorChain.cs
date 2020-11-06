@@ -17,11 +17,11 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
         public readonly SyntaxTreeDelegator ChildrenVisitor;
         public readonly SyntaxTreeDelegator ReplacementVisitor;
 
-        public ProcessReplacementsVisitorChain(IReplacementSource source, bool isPostOrder = false)
+        public ProcessReplacementsVisitorChain(IReplacementSource source, IReplacementListener listener, bool isPostOrder = false)
         {
-            ExpressionReplacementsVisitor = new ProcessExpressionReplacementsVisitor(source);
-            StatementReplacementsVisitor = new ProcessStatementReplacementsVisitor(source);
-            TopLevelStatementReplacementsVisitor = new ProcessTopLevelStatementReplacementsVisitor(source);
+            ExpressionReplacementsVisitor = new ProcessExpressionReplacementsVisitor(source, listener);
+            StatementReplacementsVisitor = new ProcessStatementReplacementsVisitor(source, listener);
+            TopLevelStatementReplacementsVisitor = new ProcessTopLevelStatementReplacementsVisitor(source, listener);
 
             ReplacementVisitor = new SyntaxTreeDelegator();
             ReplacementVisitor.ExpressionVisitor = ExpressionReplacementsVisitor;

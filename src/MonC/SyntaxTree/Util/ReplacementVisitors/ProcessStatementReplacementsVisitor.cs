@@ -7,9 +7,9 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
     {
         public readonly ReplacementProcessor _processor;
 
-        public ProcessStatementReplacementsVisitor(IReplacementSource replacementSource)
+        public ProcessStatementReplacementsVisitor(IReplacementSource replacementSource, IReplacementListener listener)
         {
-            _processor = new ReplacementProcessor(replacementSource);
+            _processor = new ReplacementProcessor(replacementSource, listener);
         }
 
         public void VisitBody(BodyNode node)
