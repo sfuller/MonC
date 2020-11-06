@@ -224,7 +224,7 @@ namespace MonC.VM
         private bool InterpretBoundFunctionCall(StackFrame frame)
         {
             VMFunction boundFunction = frame.Module.VMFunctions[frame.Function];
-            boundFunction.Delegate(this, new ArgumentSource(frame.Memory, 0));
+            boundFunction.Delegate(this, new ArgumentSource(frame.Memory, boundFunction.ReturnValueSize));
 
             PopFrame();
 
