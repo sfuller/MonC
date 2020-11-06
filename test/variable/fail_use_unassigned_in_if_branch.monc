@@ -1,0 +1,14 @@
+
+int test() {
+    int a;
+    if (1) {
+        a = 42;
+    } else {   
+    }
+    return a;
+}
+
+int main() {
+    return 0;
+}
+

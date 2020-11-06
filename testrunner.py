@@ -100,7 +100,8 @@ def main():
     # Remove tests that are passing if we've asked to test non-passing tests only.
     if args.non_passing:
         for passing_test in passing_tests:
-            del tests_by_name[passing_test]
+            if passing_test in tests_by_name:
+                del tests_by_name[passing_test]
 
     failed_tests: List[str] = []
 

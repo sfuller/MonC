@@ -1,0 +1,14 @@
+
+int test(int& x) {
+    int& a = x;
+    if (1) {
+        int b = 42;
+        a = &b;
+    }
+    return *a;
+}
+
+int main() {
+    return 0;
+}
+

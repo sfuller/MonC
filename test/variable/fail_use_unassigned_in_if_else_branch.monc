@@ -1,0 +1,12 @@
+void test2() {
+    int a;
+    if (1) {
+    } else {
+        a = 42;
+    }
+    return a;
+}
+
+int main() {
+    return 0;
+}
