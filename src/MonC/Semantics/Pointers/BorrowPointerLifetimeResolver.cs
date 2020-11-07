@@ -11,14 +11,12 @@ namespace MonC.Semantics.Pointers
 {
     public class BorrowPointerLifetimeResolver : IExpressionVisitor, IBasicExpressionVisitor
     {
-        private TypeManager _typeManager;
         private ScopeManager _scopeManager;
 
         public Scope? Lifetime { get; private set; }
 
-        public BorrowPointerLifetimeResolver(TypeManager typeManager, ScopeManager scopeManager)
+        public BorrowPointerLifetimeResolver(ScopeManager scopeManager)
         {
-            _typeManager = typeManager;
             _scopeManager = scopeManager;
         }
 
@@ -34,7 +32,7 @@ namespace MonC.Semantics.Pointers
 
         public void VisitUnaryOperation(IUnaryOperationNode node)
         {
-            if (node is BorrowUnaryOpNode borrowNode) {
+            if (node is BorrowUnaryOpNode) {
                 node.RHS.AcceptExpressionVisitor(this);
             }
         }

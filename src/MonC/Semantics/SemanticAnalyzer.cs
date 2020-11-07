@@ -184,8 +184,9 @@ namespace MonC.Semantics
             new TranslateAccessVisitor(this, expressionTypeManager).Process(function, replacementHandler);
             new AssignmentAnalyzer(this, _context).Process(function, replacementHandler);
             new LValuesAssignedBeforeUseValidator(this).Process(function);
+            new ReturnPresentValidator(this).Process(function);
             new BorrowOperatorValidator(this).Process(function);
-            new BorrowAssignmentLifetimeValidator(function, this, _typeManager, scopes).Process();
+            new BorrowAssignmentLifetimeValidator(function, this, expressionTypeManager, scopes).Process();
             new TypeCheckVisitor(_context, _typeManager, this, expressionTypeManager).Process(function);
         }
 
