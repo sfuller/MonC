@@ -7,5 +7,7 @@ namespace MonC.SyntaxTree.Nodes.Expressions
         void VisitNegateUnaryOp(NegateUnaryOpNode node);
         void VisitLogicalNotUnaryOp(LogicalNotUnaryOpNode node);
         void VisitCastUnaryOp(CastUnaryOpNode node);
+        void VisitBorrowUnaryOp(BorrowUnaryOpNode node);
+        void VisitDereferenceUnaryOp(DereferenceUnaryOpNode node);
     }
 }

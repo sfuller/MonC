@@ -91,6 +91,12 @@ def main():
 
             test.files.append(os.path.join(dirpath, filename))
 
+    # Remove tests that are passing if we've asked to test non-passing tests only.
+    if args.non_passing:
+        for passing_test in passing_tests:
+            if passing_test in tests_by_name:
+                del tests_by_name[passing_test]
+
     any_tool_fail = False
 
     for tool_name, tool, extra_args in (("frontend", FRONTEND_BINARY, ()), ("driver", DRIVER_BINARY, ()),

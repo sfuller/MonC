@@ -1,0 +1,17 @@
+
+struct Foo {
+    Foo &other;
+}
+
+struct Bar {
+    Bar *other;
+}
+
+struct Tar {
+    Tar ^other;
+}
+
+int main() {
+    return 0;
+}
+

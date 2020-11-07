@@ -1,32 +1,51 @@
 using System.Collections.Generic;
-using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes.Statements;
 
 namespace MonC.Semantics.Scoping
 {
-    public struct Scope
+    public class Scope
     {
-        public List<DeclarationNode> Variables;
+        public readonly Scope? Parent;
+        public readonly int ParentDeclarationIndex;
+        public readonly List<DeclarationNode> Variables = new List<DeclarationNode>();
 
-        public static Scope New()
+        public Scope()
         {
-            return new Scope {
-                Variables = new List<DeclarationNode>()
-            };
         }
 
-        public static Scope New(FunctionDefinitionNode function)
+        public Scope(Scope parent, int parentDeclarationIndex)
         {
-            return new Scope {
-                Variables = new List<DeclarationNode>(function.Parameters)
-            };
+            Parent = parent;
+            ParentDeclarationIndex = parentDeclarationIndex;
         }
 
-        public readonly Scope Copy()
+        public DeclarationNode? FindNearestDeclaration(string identifier, int declarationIndex)
         {
-            return new Scope {
-                Variables = new List<DeclarationNode>(Variables)
-            };
+            int foundIndex = Variables.FindIndex(d => d.Name == identifier);
+            if (foundIndex >= 0) {
+                if (declarationIndex > foundIndex) {
+                    return Variables[foundIndex];
+                }
+            }
+
+            if (Parent != null) {
+                return Parent.FindNearestDeclaration(identifier, ParentDeclarationIndex);
+            }
+            return null;
+        }
+
+        public bool Outlives(Scope other)
+        {
+            Scope? scope = other.Parent;
+
+            while (scope != null) {
+                if (scope == this) {
+                    return true;
+                }
+                scope = scope.Parent;
+            }
+
+            return false;
         }
 
     }

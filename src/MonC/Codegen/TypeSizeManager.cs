@@ -23,7 +23,7 @@ namespace MonC.Codegen
         {
             return type switch {
                 IPrimitiveType primitiveType => GetSize(primitiveType),
-                IPointerType pointerType => sizeof(int),
+                IPointerType pointerType => IntPtr.Size,
                 StructType structType => GetSize(structType),
                 _ => throw new NotSupportedException()
             };

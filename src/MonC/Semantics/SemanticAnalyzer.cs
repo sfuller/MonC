@@ -2,12 +2,14 @@ using System;
 using System.Collections.Generic;
 using MonC.Parsing;
 using MonC.Semantics.Pointers;
+using MonC.Semantics.Scoping;
 using MonC.Semantics.Structs;
 using MonC.Semantics.TypeChecks;
 using MonC.TypeSystem;
 using MonC.SyntaxTree;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
+using MonC.SyntaxTree.Util.ReplacementVisitors;
 using MonC.TypeSystem.Types;
 using MonC.TypeSystem.Types.Impl;
 
@@ -172,11 +174,19 @@ namespace MonC.Semantics
 
         private void AnalyzeFunction(FunctionDefinitionNode function, ExpressionTypeManager expressionTypeManager)
         {
-            new DuplicateVariableDeclarationAnalyzer(this).Process(function);
-            new TypeSpecifierResolver(_typeManager, this).Process(function);
-            new TranslateIdentifiersVisitor(_context, this).Process(function);
-            new TranslateAccessVisitor(this, expressionTypeManager).Process(function);
-            new AssignmentAnalyzer(this, _context).Process(function);
+            ScopeManager scopes = new ScopeManager();
+            FunctionReplacementHandler replacementHandler = new FunctionReplacementHandler(scopes);
+
+            new ScopeAnalyzer(scopes).Analyze(function);
+            new DuplicateVariableDeclarationAnalyzer(this, scopes).Process(function);
+            new TypeSpecifierResolver(_typeManager, this).Process(function, replacementHandler);
+            new TranslateIdentifiersVisitor(_context, this, scopes).Process(function, replacementHandler);
+            new TranslateAccessVisitor(this, expressionTypeManager).Process(function, replacementHandler);
+            new AssignmentAnalyzer(this, _context).Process(function, replacementHandler);
+            new LValuesAssignedBeforeUseValidator(this).Process(function);
+            new ReturnPresentValidator(this).Process(function);
+            new BorrowOperatorValidator(this).Process(function);
+            new BorrowAssignmentLifetimeValidator(function, this, expressionTypeManager, scopes).Process();
             new TypeCheckVisitor(_context, _typeManager, this, expressionTypeManager).Process(function);
         }
 
@@ -190,7 +200,7 @@ namespace MonC.Semantics
             }
 
             foreach (StructNode structNode in _context.Structs.Values) {
-                typeSpecifierResolver.Process(structNode);
+                typeSpecifierResolver.Process(structNode, NoOpReplacementListener.Instance);
             }
         }
 

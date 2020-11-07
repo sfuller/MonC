@@ -42,13 +42,13 @@ namespace MonC.Semantics
         public bool ShouldReplace { get; private set; }
         public ISyntaxTreeNode NewNode { get; private set; }
 
-        public void Process(FunctionDefinitionNode function)
+        public void Process(FunctionDefinitionNode function, IReplacementListener listener)
         {
-            ProcessReplacementsVisitorChain visitorChain = new ProcessReplacementsVisitorChain(this, isPostOrder: true);
+            ProcessReplacementsVisitorChain visitorChain = new ProcessReplacementsVisitorChain(this, listener, isPostOrder: true);
             ParseTreeChildrenVisitor parseTreeChildrenVisitor
                 = new ParseTreeChildrenVisitor(null, visitorChain.ReplacementVisitor, visitorChain.ChildrenVisitor);
             ProcessParseTreeReplacementsVisitor parseTreeReplacementsVisitor
-                = new ProcessParseTreeReplacementsVisitor(this);
+                = new ProcessParseTreeReplacementsVisitor(this, listener);
             visitorChain.ExpressionChildrenVisitor.ExtensionChildrenVisitor = new ParseTreeVisitorExtension(parseTreeChildrenVisitor);
             visitorChain.ExpressionReplacementsVisitor.ExtensionVisitor = new ParseTreeVisitorExtension(parseTreeReplacementsVisitor);
             visitorChain.ProcessReplacements(function);

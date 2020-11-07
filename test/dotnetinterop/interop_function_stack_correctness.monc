@@ -1,0 +1,12 @@
+//@args -l CoreLib
+//@expected_output Hello, world!
+
+int main() {
+    int a = 42;
+    int str = "Hello, world!";
+    print(str);
+    if (a == 42) {
+        return 0;
+    }
+    return 1;
+}

@@ -1,0 +1,17 @@
+
+int use_borrowed(int& borrowed) {
+    return *borrowed;
+}
+
+int test(int& borrowed) {
+    return use_borrowed(borrowed);
+}
+
+int main() {
+    int foo = 42;
+    int result = test(&foo);
+    if (result == 42) {
+        return 0;
+    }
+    return 1;
+}

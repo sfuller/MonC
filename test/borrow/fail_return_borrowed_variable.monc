@@ -1,0 +1,12 @@
+
+int& test() {
+    int foo = 42;
+    int& borrowed_foo = &foo;
+    return borrowed_foo;
+}
+
+int main() {
+    test();
+    return 0;
+}
+

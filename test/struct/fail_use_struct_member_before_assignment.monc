@@ -1,0 +1,28 @@
+
+struct Foo {
+    int a;
+    int b;
+}
+
+struct Bar {
+    int a;
+    Foo b;
+}
+
+int test1() {
+    Foo foo;
+    return foo.a;
+}
+
+int test2() {
+    Bar bar;
+    bar.a = 42;
+    return bar.b.a;
+}
+
+int main() {
+    test1();
+    test2();
+    return 0;
+}
+

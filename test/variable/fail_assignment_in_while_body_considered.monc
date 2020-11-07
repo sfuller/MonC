@@ -1,0 +1,12 @@
+
+int test() {
+    int a;
+    while (0) {
+        a = 42;
+    }
+    return a;
+}
+
+int main() {
+    return 0;
+}

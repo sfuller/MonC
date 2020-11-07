@@ -9,9 +9,9 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
         private readonly ReplacementProcessor _processor;
         public IVisitor<IExpressionNode>? ExtensionVisitor;
 
-        public ProcessExpressionReplacementsVisitor(IReplacementSource replacementSource)
+        public ProcessExpressionReplacementsVisitor(IReplacementSource replacementSource, IReplacementListener listener)
         {
-            _processor = new ReplacementProcessor(replacementSource);
+            _processor = new ReplacementProcessor(replacementSource, listener);
         }
 
         public void VisitVoid(VoidExpressionNode node)
@@ -56,6 +56,14 @@ namespace MonC.SyntaxTree.Util.ReplacementVisitors
         public void VisitCastUnaryOp(CastUnaryOpNode node)
         {
             node.ToType = _processor.ProcessReplacement(node.ToType);
+        }
+
+        public void VisitBorrowUnaryOp(BorrowUnaryOpNode node)
+        {
+        }
+
+        public void VisitDereferenceUnaryOp(DereferenceUnaryOpNode node)
+        {
         }
 
         public void VisitBinaryOperation(IBinaryOperationNode node)
