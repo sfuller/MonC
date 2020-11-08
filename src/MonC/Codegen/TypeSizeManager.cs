@@ -5,11 +5,16 @@ using MonC.TypeSystem.Types.Impl;
 
 namespace MonC.Codegen
 {
-    public class TypeSizeManager
+    public interface ITypeSizeManager
+    {
+        public int GetSize(IType type);
+    }
+
+    public class ILTypeSizeManager : ITypeSizeManager
     {
         private readonly StructLayoutManager _structLayoutManager;
 
-        public TypeSizeManager(StructLayoutManager structLayoutManager)
+        public ILTypeSizeManager(StructLayoutManager structLayoutManager)
         {
             _structLayoutManager = structLayoutManager;
         }
@@ -38,5 +43,10 @@ namespace MonC.Codegen
             return _structLayoutManager.GetLayout(structType).Size;
         }
 
+    }
+
+    public class IndexTypeSizeManager : ITypeSizeManager
+    {
+        public int GetSize(IType type) => 1;
     }
 }

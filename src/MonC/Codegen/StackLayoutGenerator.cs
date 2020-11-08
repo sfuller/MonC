@@ -9,14 +9,14 @@ namespace MonC.Codegen
 {
     public class StackLayoutGenerator : IStatementVisitor
     {
-        private readonly TypeSizeManager _typeSizeManager;
+        private readonly ITypeSizeManager _typeSizeManager;
 
         public Dictionary<DeclarationNode, int> _variables = new Dictionary<DeclarationNode, int>();
         private int _returnValueSize;
         private int _argumentsSize;
         private int _currentOffset;
 
-        public StackLayoutGenerator(TypeSizeManager typeSizeManager)
+        public StackLayoutGenerator(ITypeSizeManager typeSizeManager)
         {
             _typeSizeManager = typeSizeManager;
         }

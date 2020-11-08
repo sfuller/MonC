@@ -14,10 +14,11 @@ namespace MonC
     public interface IModuleArtifact : IArtifact
     {
         public void WriteListing(TextWriter writer);
+        public void WriteRelocatable(BinaryWriter writer);
     }
 
     /// <summary>
     /// Abstract compiler artifact intended to be used as VM input
     /// </summary>
-    public interface IExecutableArtifact : IArtifact { }
+    public interface IVMModuleArtifact : IArtifact { }
 }

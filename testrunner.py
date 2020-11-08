@@ -4,12 +4,14 @@ import argparse
 import os
 import subprocess
 import sys
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Iterable
 
 REPOSITORY_DIR = os.path.dirname(__file__)
 TEST_DIR = os.path.normpath(os.path.join(REPOSITORY_DIR, 'test'))
 FRONTEND_BINARY = os.path.normpath(
     os.path.join(REPOSITORY_DIR, 'src', 'Frontend', 'bin', 'Debug', 'netcoreapp3.1', 'Frontend'))
+DRIVER_BINARY = os.path.normpath(
+    os.path.join(REPOSITORY_DIR, 'src', 'Driver', 'bin', 'Debug', 'netcoreapp3.1', 'Driver'))
 CORELIB_DLL_SEARCH_PATH = os.path.normpath(
     os.path.join(REPOSITORY_DIR, 'src', 'CoreLib', 'bin', 'Debug', 'netstandard2.1'))
 
@@ -25,6 +27,19 @@ TERM_TEXT_PARTIAL_PASS = f'{TERM_COLOR_YELLOW}PARTIAL PASS{TERM_COLOR_CLEAR}'
 
 ANNOTATION_STARTING_TOKEN = '//@'
 TEST_OUTPUT_PREFIX = 'monctest:'
+
+
+class ImplConfiguration(object):
+    def __init__(self, binary: str, additional_args: Iterable[str]):
+        self.binary = binary
+        self.additional_args = additional_args
+
+
+IMPL_CONFIGURATIONS = {
+    'frontend': ImplConfiguration(FRONTEND_BINARY, ()),  # Probably going away
+    'driver_interpreter': ImplConfiguration(DRIVER_BINARY, ()),
+    'driver_llvm': ImplConfiguration(DRIVER_BINARY, ("-toolchain=llvm",))
+}
 
 if sys.platform == "win32":
     # Get ANSI codes working on newish windows consoles
@@ -89,11 +104,17 @@ def main():
 
             test.files.append(os.path.join(dirpath, filename))
 
-    passing_tests_path = os.path.normpath(os.path.join(__file__, '..', '.passing_tests'))
+    impl_name = os.environ.get('MONC_TESTRUNNER_IMPL', 'driver_interpreter')
+    print(f'Using {impl_name} implementation to run tests.')
+    print('(This can be changed with the MONC_TESTRUNNER_IMPL envrionment variable)')
+    print('')
+    impl = IMPL_CONFIGURATIONS[impl_name]
+
+    passing_tests_path = os.path.normpath(os.path.join(REPOSITORY_DIR, f'.passing_tests.{impl_name}.txt'))
     passing_tests: Set[str]
     if os.path.isfile(passing_tests_path):
         with open(passing_tests_path) as f:
-            passing_tests = set(path for path in f.read().split('\n') if path)
+            passing_tests = set(path for path in f.read().splitlines() if path)
     else:
         passing_tests = set()
 
@@ -106,7 +127,7 @@ def main():
     failed_tests: List[str] = []
 
     for test_name, test in tests_by_name.items():
-        if not run_test(test, args, args_to_pass):
+        if not run_test(test, impl, args, args_to_pass):
             failed_tests.append(test_name)
         else:
             passing_tests.add(test_name)
@@ -137,7 +158,7 @@ def main():
         sys.exit(1)
 
 
-def run_test(test: Test, runner_args: Arguments, args_to_pass: List[str]) -> bool:
+def run_test(test: Test, impl: ImplConfiguration, runner_args: Arguments, args_to_pass: List[str]) -> bool:
     sys.stdout.write(f'Testing {test.name}...')
     sys.stdout.flush()
 
@@ -146,11 +167,12 @@ def run_test(test: Test, runner_args: Arguments, args_to_pass: List[str]) -> boo
     # TODO: Which file contains annotations for multi-file tests?
     annotations = parse_annotations(test.files[0])
 
-    args = [FRONTEND_BINARY]
+    args = [impl.binary]
     args.extend(test.files)
     args.extend(('-L', CORELIB_DLL_SEARCH_PATH))
     args.extend(annotations.args)
     args.extend(args_to_pass)
+    args.extend(impl.additional_args)
 
     stdout = ''
     stderr = ''
@@ -227,7 +249,7 @@ class Annotations(object):
 
 def parse_annotations(filename: str) -> Annotations:
     with open(filename) as f:
-        lines = f.read().split('\n')
+        lines = f.read().splitlines()
 
     annotations = Annotations()
 
@@ -246,7 +268,7 @@ def parse_annotations(filename: str) -> Annotations:
 
 
 def check_output(full_output: str, expected: str) -> bool:
-    full_lines = full_output.split('\n')
+    full_lines = full_output.splitlines()
     new_lines: List[str] = []
     for line in full_lines:
         if line.startswith(TEST_OUTPUT_PREFIX):

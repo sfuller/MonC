@@ -13,11 +13,11 @@ namespace MonC.Codegen
         private readonly FunctionBuilder _builder;
         private readonly IExpressionVisitor _expressionVisitor;
         private readonly SemanticModule _semanticModule;
-        private readonly TypeSizeManager _typeSizeManager;
+        private readonly ILTypeSizeManager _typeSizeManager;
         private readonly FunctionStackLayout _functionStackLayout;
         private readonly StructLayoutManager _structLayoutManager;
 
-        public UnaryOperationCodeGenVisitor(FunctionBuilder builder, IExpressionVisitor expressionVisitor, SemanticModule semanticModule, TypeSizeManager typeSizeManager, FunctionStackLayout functionStackLayout, StructLayoutManager structLayoutManager)
+        public UnaryOperationCodeGenVisitor(FunctionBuilder builder, IExpressionVisitor expressionVisitor, SemanticModule semanticModule, ILTypeSizeManager typeSizeManager, FunctionStackLayout functionStackLayout, StructLayoutManager structLayoutManager)
         {
             _builder = builder;
             _expressionVisitor = expressionVisitor;

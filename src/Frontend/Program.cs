@@ -161,7 +161,7 @@ namespace MonC.Frontend
                 semanticModules.Add(analyzer.Process(module));
 
                 if (showAst) {
-                    PrintTreeVisitor treeVisitor = new PrintTreeVisitor();
+                    PrintTreeVisitor treeVisitor = new PrintTreeVisitor(Console.Out);
                     foreach (StructNode structNode in module.Structs) {
                         structNode.AcceptTopLevelVisitor(treeVisitor);
                     }

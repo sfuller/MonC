@@ -20,7 +20,7 @@ namespace MonC.Codegen
         private readonly SemanticModule _module;
         private readonly SemanticContext _semanticContext;
         private readonly StructLayoutManager _structLayoutManager;
-        private readonly TypeSizeManager _typeSizeManager;
+        private readonly ILTypeSizeManager _typeSizeManager;
         private readonly List<string> _strings;
 
         private readonly Stack<int> _breaks = new Stack<int>();
@@ -33,7 +33,7 @@ namespace MonC.Codegen
             SemanticModule module,
             SemanticContext semanticContext,
             StructLayoutManager structLayoutManager,
-            TypeSizeManager typeSizeManager,
+            ILTypeSizeManager typeSizeManager,
             List<string> strings
         )
         {

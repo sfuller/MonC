@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using MonC.Parsing.ParseTree;
 using MonC.Parsing.ParseTree.Nodes;
 using MonC.SyntaxTree;
@@ -14,6 +15,12 @@ namespace MonC.Frontend
             IBasicExpressionVisitor, ISpecifierVisitor
     {
         private int _currentIndent;
+        private TextWriter _writer;
+
+        public PrintTreeVisitor(TextWriter writer)
+        {
+            _writer = writer;
+        }
 
         public void VisitTopLevelStatement(ITopLevelStatementNode node)
         {
@@ -268,7 +275,7 @@ namespace MonC.Frontend
 
         private void Print(string text)
         {
-            Console.WriteLine( new string(' ', _currentIndent * 2) + text);
+            _writer.WriteLine( new string(' ', _currentIndent * 2) + text);
         }
 
     }

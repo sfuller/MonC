@@ -7,9 +7,9 @@ namespace MonC.Codegen
 {
     public class StructLayoutGenerator
     {
-        private readonly TypeSizeManager _typeSizeManager;
+        private readonly ITypeSizeManager _typeSizeManager;
 
-        public StructLayoutGenerator(TypeSizeManager typeSizeManager)
+        public StructLayoutGenerator(ITypeSizeManager typeSizeManager)
         {
             _typeSizeManager = typeSizeManager;
         }
