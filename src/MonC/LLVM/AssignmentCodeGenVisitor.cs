@@ -6,7 +6,7 @@ namespace MonC.LLVM
 {
     using StructLayout = Codegen.StructLayout;
 
-    internal class AssignmentCodeGenVisitor : IAssignableVisitor
+    internal class AssignmentCodeGenVisitor : IAddressableVisitor
     {
         private readonly Builder _builder;
         private readonly CodeGeneratorContext _genContext;
@@ -31,8 +31,8 @@ namespace MonC.LLVM
 
         public void VisitAccess(AccessNode node)
         {
-            IAssignableNode assignableLhs = (IAssignableNode) node.Lhs;
-            assignableLhs.AcceptAssignableVisitor(this);
+            IAddressableNode addressableNode = (IAddressableNode) node.Lhs;
+            addressableNode.AcceptAddressableVisitor(this);
 
             StructType structType = (StructType) _genContext.SemanticModule.ExpressionResultTypes[node.Lhs];
             Type llvmStructType = _genContext.LookupType(structType)!.Value;

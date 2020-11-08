@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+sourcedir=`dirname $0`
+dotnet run -p "$sourcedir/src/Driver/Driver.csproj" -- "$@"
+

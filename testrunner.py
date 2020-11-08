@@ -4,7 +4,7 @@ import argparse
 import os
 import subprocess
 import sys
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Iterable
 
 REPOSITORY_DIR = os.path.dirname(__file__)
 TEST_DIR = os.path.normpath(os.path.join(REPOSITORY_DIR, 'test'))
@@ -27,6 +27,19 @@ TERM_TEXT_PARTIAL_PASS = f'{TERM_COLOR_YELLOW}PARTIAL PASS{TERM_COLOR_CLEAR}'
 
 ANNOTATION_STARTING_TOKEN = '//@'
 TEST_OUTPUT_PREFIX = 'monctest:'
+
+
+class ImplConfiguration(object):
+    def __init__(self, binary: str, additional_args: Iterable[str]):
+        self.binary = binary
+        self.additional_args = additional_args
+
+
+IMPL_CONFIGURATIONS = {
+    'frontend': ImplConfiguration(FRONTEND_BINARY, ()),  # Probably going away
+    'driver_interpreter': ImplConfiguration(DRIVER_BINARY, ()),
+    'driver_llvm': ImplConfiguration(DRIVER_BINARY, ("-toolchain=llvm",))
+}
 
 if sys.platform == "win32":
     # Get ANSI codes working on newish windows consoles
@@ -91,69 +104,61 @@ def main():
 
             test.files.append(os.path.join(dirpath, filename))
 
+    impl_name = os.environ.get('MONC_TESTRUNNER_IMPL', 'driver_interpreter')
+    print(f'Using {impl_name} implementation to run tests.')
+    print('(This can be changed with the MONC_TESTRUNNER_IMPL envrionment variable)')
+    print('')
+    impl = IMPL_CONFIGURATIONS[impl_name]
+
+    passing_tests_path = os.path.normpath(os.path.join(REPOSITORY_DIR, f'.passing_tests.{impl_name}.txt'))
+    passing_tests: Set[str]
+    if os.path.isfile(passing_tests_path):
+        with open(passing_tests_path) as f:
+            passing_tests = set(path for path in f.read().splitlines() if path)
+    else:
+        passing_tests = set()
+
     # Remove tests that are passing if we've asked to test non-passing tests only.
     if args.non_passing:
         for passing_test in passing_tests:
             if passing_test in tests_by_name:
                 del tests_by_name[passing_test]
 
-    any_tool_fail = False
+    failed_tests: List[str] = []
 
-    for tool_name, tool, extra_args in (("frontend", FRONTEND_BINARY, ()), ("driver", DRIVER_BINARY, ()),
-                                        ("driver_llvm", DRIVER_BINARY, ("-toolchain=llvm",))):
-        print(f'Using {tool_name} to run tests')
-        tool_args_to_pass = args_to_pass.copy()
-        tool_args_to_pass.extend(extra_args)
-
-        passing_tests_path = os.path.normpath(os.path.join(REPOSITORY_DIR, f'.{tool_name}.passing_tests'))
-        passing_tests: Set[str]
-        if os.path.isfile(passing_tests_path):
-            with open(passing_tests_path) as f:
-                passing_tests = set(path for path in f.read().splitlines() if path)
+    for test_name, test in tests_by_name.items():
+        if not run_test(test, impl, args, args_to_pass):
+            failed_tests.append(test_name)
         else:
-            passing_tests = set()
+            passing_tests.add(test_name)
 
-        # Remove tests that are passing if we've asked to test non-passing tests only.
-        if args.non_passing:
-            for passing_test in passing_tests:
-                del tests_by_name[passing_test]
+    passing_tests.difference_update(failed_tests)
 
-        failed_tests: List[str] = []
+    with open(passing_tests_path, 'w') as f:
+        for passing_test in passing_tests:
+            f.write(passing_test)
+            f.write('\n')
 
-        for test_name, test in tests_by_name.items():
-            if not run_test(test, tool, args, tool_args_to_pass):
-                failed_tests.append(test_name)
-            else:
-                passing_tests.add(test_name)
+    print('=' * 80)
 
-        passing_tests.difference_update(failed_tests)
+    status = len(failed_tests) == 0
 
-        with open(passing_tests_path, 'w') as f:
-            for passing_test in passing_tests:
-                f.write(passing_test)
-                f.write('\n')
+    if status:
+        message = TERM_TEXT_PARTIAL_PASS if args.non_passing else TERM_TEXT_PASS
+        print(f' ** {message} **')
+    else:
+        print(f' ** {TERM_TEXT_FAIL} **')
+        print('Failed tests:')
+        for test_name in failed_tests:
+            print(test_name)
 
-        print('=' * 80)
+    print('=' * 80)
 
-        status = len(failed_tests) == 0
-
-        if status:
-            message = TERM_TEXT_PARTIAL_PASS if args.non_passing else TERM_TEXT_PASS
-            print(f' ** {message} **')
-        else:
-            any_tool_fail = True
-            print(f' ** {TERM_TEXT_FAIL} **')
-            print('Failed tests:')
-            for test_name in failed_tests:
-                print(test_name)
-
-        print('=' * 80)
-
-    if any_tool_fail:
+    if not status:
         sys.exit(1)
 
 
-def run_test(test: Test, tool: str, runner_args: Arguments, args_to_pass: List[str]) -> bool:
+def run_test(test: Test, impl: ImplConfiguration, runner_args: Arguments, args_to_pass: List[str]) -> bool:
     sys.stdout.write(f'Testing {test.name}...')
     sys.stdout.flush()
 
@@ -162,11 +167,12 @@ def run_test(test: Test, tool: str, runner_args: Arguments, args_to_pass: List[s
     # TODO: Which file contains annotations for multi-file tests?
     annotations = parse_annotations(test.files[0])
 
-    args = [tool]
+    args = [impl.binary]
     args.extend(test.files)
     args.extend(('-L', CORELIB_DLL_SEARCH_PATH))
     args.extend(annotations.args)
     args.extend(args_to_pass)
+    args.extend(impl.additional_args)
 
     stdout = ''
     stderr = ''

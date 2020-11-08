@@ -440,7 +440,7 @@ namespace MonC.LLVM
 
             AssignmentCodeGenVisitor assignmentCodeGenVisitor
                 = new AssignmentCodeGenVisitor(_builder, _genContext, _function);
-            node.Lhs.AcceptAssignableVisitor(assignmentCodeGenVisitor);
+            node.Lhs.AcceptAddressableVisitor(assignmentCodeGenVisitor);
             if (!assignmentCodeGenVisitor.AssignmentWritePointer.IsValid) {
                 throw new InvalidOperationException("assignment did not produce a usable lvalue");
             }

@@ -28,6 +28,16 @@ namespace MonC.LLVM
             _codeGenVisitor._visitedValue = _codeGenVisitor._builder.BuildCast(castOp, operand, destTp);
         }
 
+        public void VisitBorrowUnaryOp(BorrowUnaryOpNode node)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void VisitDereferenceUnaryOp(DereferenceUnaryOpNode node)
+        {
+            throw new NotImplementedException();
+        }
+
         private Value GetUnaryOperand(IUnaryOperationNode node)
         {
             node.RHS.AcceptExpressionVisitor(_codeGenVisitor);

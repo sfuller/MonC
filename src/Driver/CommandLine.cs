@@ -52,6 +52,8 @@ namespace Driver
         private readonly List<string> _positionalArguments = new List<string>();
         private readonly HashSet<string> _usedArguments = new HashSet<string>();
 
+        public bool HelpRequested => _printHelp;
+
         private void BuildKnownStringFlags()
         {
             foreach (Type clClass in CommandLineClasses) {
@@ -159,14 +161,18 @@ namespace Driver
 
         private static readonly int ColumnChars = 30;
 
-        private static readonly ConsoleColor[] GayColors =
+        public static readonly ConsoleColor[] GayColors =
             {ConsoleColor.Red, ConsoleColor.Yellow, ConsoleColor.Green, ConsoleColor.Blue, ConsoleColor.Magenta};
 
-        private static void WriteWithPride(string str)
+        // TODO: 256/24bit colors for supporting terminals.
+        public static readonly ConsoleColor[] TransColors =
+            {ConsoleColor.Cyan, ConsoleColor.Magenta, ConsoleColor.White, ConsoleColor.Magenta, ConsoleColor.Cyan};
+
+        public static void WriteWithPride(string str, ConsoleColor[] colors)
         {
             ConsoleColor oldConsoleColor = Console.ForegroundColor;
             for (int i = 0, iend = str.Length; i < iend; ++i) {
-                Console.ForegroundColor = GayColors[i % GayColors.Length];
+                Console.ForegroundColor = colors[i % colors.Length];
                 Console.Write(str[i]);
             }
 
@@ -198,50 +204,43 @@ namespace Driver
                 Console.Write(' ');
         }
 
-        public bool OutputHelpIfRequested(string versionString)
+        public void OutputHelp()
         {
-            if (_printHelp) {
-                WriteWithPride(versionString);
-                Console.WriteLine();
-                string processName = Process.GetCurrentProcess().ProcessName;
-                if (processName == "dotnet")
-                    processName = $"dotnet {System.IO.Path.GetFileName(Assembly.GetEntryAssembly()?.Location)}";
-                WriteWithColor($"Usage: {processName} [options] input-files...",
-                    ConsoleColor.White);
-                Console.WriteLine();
-                Console.WriteLine();
-                foreach (Type clClass in CommandLineClasses) {
-                    for (Type type = clClass; type != typeof(object); type = type.BaseType) {
-                        foreach (CommandLineCategoryAttribute cattribute in type
-                            .GetCustomAttributes<CommandLineCategoryAttribute>()) {
-                            WriteWithColor($"{cattribute.Category ?? type.Name} Options:", ConsoleColor.White);
-                            Console.WriteLine();
-                            foreach (FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.GetField |
-                                                                       BindingFlags.GetProperty | BindingFlags.Public |
-                                                                       BindingFlags.NonPublic |
-                                                                       BindingFlags.DeclaredOnly)) {
-                                foreach (CommandLineAttribute attribute in field
-                                    .GetCustomAttributes<CommandLineAttribute>()) {
-                                    if (field.FieldType == typeof(bool)) {
-                                        OutputOptionStr($"  {attribute.Prefix}");
-                                    } else {
-                                        OutputOptionStr($"  {attribute.Prefix}=<{attribute.Value ?? "value"}>");
-                                    }
-
-                                    Console.WriteLine($"{attribute.Doc ?? string.Empty}");
+            Console.WriteLine();
+            string processName = Process.GetCurrentProcess().ProcessName;
+            if (processName == "dotnet")
+                processName = $"dotnet {System.IO.Path.GetFileName(Assembly.GetEntryAssembly()?.Location)}";
+            WriteWithColor($"Usage: {processName} [options] input-files...",
+                ConsoleColor.White);
+            Console.WriteLine();
+            Console.WriteLine();
+            foreach (Type clClass in CommandLineClasses) {
+                for (Type type = clClass; type != typeof(object); type = type.BaseType) {
+                    foreach (CommandLineCategoryAttribute cattribute in type
+                        .GetCustomAttributes<CommandLineCategoryAttribute>()) {
+                        WriteWithColor($"{cattribute.Category ?? type.Name} Options:", ConsoleColor.White);
+                        Console.WriteLine();
+                        foreach (FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.GetField |
+                                                                   BindingFlags.GetProperty | BindingFlags.Public |
+                                                                   BindingFlags.NonPublic |
+                                                                   BindingFlags.DeclaredOnly)) {
+                            foreach (CommandLineAttribute attribute in field
+                                .GetCustomAttributes<CommandLineAttribute>()) {
+                                if (field.FieldType == typeof(bool)) {
+                                    OutputOptionStr($"  {attribute.Prefix}");
+                                } else {
+                                    OutputOptionStr($"  {attribute.Prefix}=<{attribute.Value ?? "value"}>");
                                 }
-                            }
 
-                            Console.WriteLine();
-                            break;
+                                Console.WriteLine($"{attribute.Doc ?? string.Empty}");
+                            }
                         }
+
+                        Console.WriteLine();
+                        break;
                     }
                 }
-
-                return true;
             }
-
-            return false;
         }
     }
 }
