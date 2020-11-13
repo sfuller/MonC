@@ -1,0 +1,23 @@
+
+struct Foo {
+    int a;
+    int b;
+}
+
+Foo^^ test(Foo& foo) {
+    return (Foo^^!) foo;
+}
+
+int transfer_foo(Foo^ foo) {
+    return 0;
+}
+
+int main() {
+    Foo foo_a;
+    foo_a.a = 0;
+    foo_a.b = 0;
+
+    Foo^^ foo_b = test(foo_a);
+    foo_b.a = 42;
+    return transfer_foo(foo_b);
+}

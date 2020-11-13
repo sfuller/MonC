@@ -1,0 +1,12 @@
+
+struct Foo {
+    int a;
+    int b;
+}
+
+int main() {
+    if (sizeof(Foo) == 8) {
+        return 0;
+    }
+    return 1;
+}

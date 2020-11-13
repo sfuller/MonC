@@ -1,0 +1,9 @@
+
+void^ test() {
+    return (void^!)0;
+}
+
+int main() {
+    return (int!) test();
+}
+
