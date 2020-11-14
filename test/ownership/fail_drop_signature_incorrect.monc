@@ -1,0 +1,12 @@
+
+struct Foo : drop_foo {
+    int a;
+    int b;
+}
+
+void drop_foo(Foo^ foo) drop {
+}
+
+int main() {
+    return 0;
+}

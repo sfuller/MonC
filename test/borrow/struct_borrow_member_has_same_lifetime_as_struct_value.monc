@@ -1,0 +1,19 @@
+
+struct Foo {
+    int& a;
+}
+
+int& test(Foo foo) {
+    return foo.a;
+}
+
+int test(Foo& foo) {
+    return foo.a;
+}
+
+int main() {
+    return 0;
+}
+
+
+

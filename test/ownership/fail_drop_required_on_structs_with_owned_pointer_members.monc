@@ -1,0 +1,13 @@
+
+struct Bar {
+    int a;
+    int b;
+}
+
+struct Foo {
+    Bar^ bar;
+}
+
+int main() {
+    return 0;
+}

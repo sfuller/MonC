@@ -1,0 +1,14 @@
+
+strcut Foo {
+    int& a;
+}
+
+void test(Foo& foo) {
+    int a = 42;
+    foo.a = &a;
+}
+
+int main() {
+    return 0;
+}
+

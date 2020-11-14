@@ -1,0 +1,27 @@
+//@args -l CoreLib
+//@expected_output drop
+
+
+struct Bar : drop=drop_bar {
+    int a;
+    int b;
+}
+
+
+struct Foo : drop=drop_foo {
+    Bar^ bar;
+}
+
+void drop_foo(Foo& foo) drop { 
+    print("drop");
+}
+
+Bar^ new_bar() {
+    return (Bar^!)0;
+}
+
+int main() {
+    Foo foo;
+    foo.bar = new_bar();
+    return 0;
+}
