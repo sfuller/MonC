@@ -1,14 +1,15 @@
 ﻿using System;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
     public abstract class PassManager : IDisposable
     {
-        protected CAPI.LLVMPassManagerRef _passManager;
+        protected LLVMPassManagerRef _passManager;
 
-        public static implicit operator CAPI.LLVMPassManagerRef(PassManager passManager) => passManager._passManager;
+        public static implicit operator LLVMPassManagerRef(PassManager passManager) => passManager._passManager;
 
-        protected PassManager(CAPI.LLVMPassManagerRef passManager) => _passManager = passManager;
+        protected PassManager(LLVMPassManagerRef passManager) => _passManager = passManager;
 
         public void Dispose()
         {
@@ -18,10 +19,7 @@ namespace MonC.LLVM
 
         private void DoDispose()
         {
-            if (_passManager.IsValid) {
-                CAPI.LLVMDisposePassManager(_passManager);
-                _passManager = new CAPI.LLVMPassManagerRef();
-            }
+            _passManager.Dispose();
         }
 
         ~PassManager() => DoDispose();
@@ -29,12 +27,12 @@ namespace MonC.LLVM
 
     public class ModulePassManager : PassManager
     {
-        public ModulePassManager() : base(CAPI.LLVMCreatePassManager()) { }
+        public ModulePassManager() : base(LLVMPassManagerRef.Create()) { }
 
-        public ModulePassManager(PassManagerBuilder optBuilder) : base(CAPI.LLVMCreatePassManager()) =>
+        public ModulePassManager(PassManagerBuilder optBuilder) : base(LLVMPassManagerRef.Create()) =>
             optBuilder.PopulateModulePassManager(this);
 
-        public bool Run(Module m) => CAPI.LLVMRunPassManager(_passManager, m);
+        public bool Run(Module m) => _passManager.Run(m);
     }
 
     public sealed class LTOPassManager : ModulePassManager
@@ -47,15 +45,15 @@ namespace MonC.LLVM
 
     public sealed class FunctionPassManager : PassManager
     {
-        public FunctionPassManager(Module module) : base(CAPI.LLVMCreateFunctionPassManagerForModule(module)) { }
+        public FunctionPassManager(Module module) : base(((LLVMModuleRef) module).CreateFunctionPassManager()) { }
 
-        public FunctionPassManager(Module module, PassManagerBuilder optBuilder) : base(
-            CAPI.LLVMCreateFunctionPassManagerForModule(module)) => optBuilder.PopulateFunctionPassManager(this);
+        public FunctionPassManager(Module module, PassManagerBuilder optBuilder) : base(((LLVMModuleRef) module)
+            .CreateFunctionPassManager()) => optBuilder.PopulateFunctionPassManager(this);
 
-        public bool Initialize() => CAPI.LLVMInitializeFunctionPassManager(_passManager);
+        public bool Initialize() => _passManager.InitializeFunctionPassManager();
 
-        public bool Run(Value f) => CAPI.LLVMRunFunctionPassManager(_passManager, f);
+        public bool Run(Value f) => _passManager.RunFunctionPassManager(f);
 
-        public bool FinalizeFunctionPassManager() => CAPI.LLVMFinalizeFunctionPassManager(_passManager);
+        public bool FinalizeFunctionPassManager() => _passManager.FinalizeFunctionPassManager();
     }
 }

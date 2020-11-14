@@ -1,19 +1,23 @@
 ﻿using System;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
     public struct Target
     {
-        private CAPI.LLVMTargetRef _target;
-        public bool IsValid => _target.IsValid;
+        private LLVMTargetRef _target;
+        public bool IsValid => _target.Handle != IntPtr.Zero;
 
-        private Target(CAPI.LLVMTargetRef target) => _target = target;
+        private Target(LLVMTargetRef target) => _target = target;
 
-        public static Target FromTriple(string triple)
+        public static unsafe Target FromTriple(string triple)
         {
-            if (CAPI.LLVMGetTargetFromTriple(triple, out CAPI.LLVMTargetRef target, out string? errorMessage)) {
-                if (errorMessage != null)
-                    throw new InvalidOperationException(errorMessage);
+            using var marshaledTriple = new MarshaledString(triple.AsSpan());
+            LLVMTargetRef target;
+            sbyte* errMsg = null;
+            if (LLVMSharp.Interop.LLVM.GetTargetFromTriple(marshaledTriple, (LLVMTarget**) &target, &errMsg) != 0) {
+                if (errMsg != null)
+                    throw new InvalidOperationException(MarshaledString.NativeToManagedDispose(errMsg));
                 throw new InvalidOperationException($"unable to make target of {triple}");
             }
 
@@ -22,21 +26,35 @@ namespace MonC.LLVM
 
         public static Target FromDefaultTriple() => FromTriple(DefaultTargetTriple);
 
-        public static implicit operator CAPI.LLVMTargetRef(Target target) => target._target;
-        public static implicit operator Target(CAPI.LLVMTargetRef target) => new Target(target);
+        public static implicit operator LLVMTargetRef(Target target) => target._target;
+        public static implicit operator Target(LLVMTargetRef target) => new Target(target);
 
-        public TargetMachine CreateTargetMachine(string triple, string cpu, string features,
-            CAPI.LLVMCodeGenOptLevel level, CAPI.LLVMRelocMode reloc, CAPI.LLVMCodeModel codeModel)
-            => new TargetMachine(CAPI.LLVMCreateTargetMachine(_target, triple, cpu, features, level, reloc, codeModel));
+        public TargetMachine CreateTargetMachine(string triple, string cpu, string features, LLVMCodeGenOptLevel level,
+            LLVMRelocMode reloc, LLVMCodeModel codeModel) =>
+            new TargetMachine(_target.CreateTargetMachine(triple, cpu, features, level, reloc, codeModel));
 
-        public static string DefaultTargetTriple => CAPI.LLVMGetDefaultTargetTripleString();
+        public static unsafe string DefaultTargetTriple =>
+            MarshaledString.NativeToManagedDispose(LLVMSharp.Interop.LLVM.GetDefaultTargetTriple());
 
-        public static string NormalizeTargetTriple(string triple) => CAPI.LLVMNormalizeTargetTripleString(triple);
+        public static unsafe string NormalizeTargetTriple(string triple)
+        {
+            using var marshaledTriple = new MarshaledString(triple.AsSpan());
+            return MarshaledString.NativeToManagedDispose(
+                LLVMSharp.Interop.LLVM.NormalizeTargetTriple(marshaledTriple));
+        }
 
-        public static string HostCPUName => CAPI.LLVMGetHostCPUNameString();
+        public static unsafe string HostCPUName =>
+            MarshaledString.NativeToManagedDispose(LLVMSharp.Interop.LLVM.GetHostCPUName());
 
-        public static string HostCPUFeatures => CAPI.LLVMGetHostCPUFeaturesString();
+        public static unsafe string HostCPUFeatures =>
+            MarshaledString.NativeToManagedDispose(LLVMSharp.Interop.LLVM.GetHostCPUFeatures());
 
-        public static void InitializeAllTargets() => CAPIGEN.LLVMInitializeAllTargets();
+        public static void InitializeAllTargets()
+        {
+            LLVMSharp.Interop.LLVM.InitializeAllTargetInfos();
+            LLVMSharp.Interop.LLVM.InitializeAllTargets();
+            LLVMSharp.Interop.LLVM.InitializeAllTargetMCs();
+            LLVMSharp.Interop.LLVM.InitializeAllAsmPrinters();
+        }
     }
 }

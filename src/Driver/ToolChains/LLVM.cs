@@ -1,6 +1,7 @@
 ﻿using System;
 using MonC.LLVM;
 using MonC.Semantics;
+using LLVMSharp.Interop;
 
 namespace Driver.ToolChains
 {
@@ -42,7 +43,7 @@ namespace Driver.ToolChains
 
         private Context _context;
         private PassManagerBuilder _optBuilder;
-        private CAPI.LLVMCodeGenOptLevel _optLevel;
+        private LLVMCodeGenOptLevel _optLevel;
 
         public override Phase SelectRelocTargetPhase(Phase outputFilePhase)
         {
@@ -68,26 +69,26 @@ namespace Driver.ToolChains
             _targetTriple = Target.NormalizeTargetTriple(_targetTriple);
 
             _optBuilder ??= _O0 || _O1 || _O2 || _Os || _Oz || _O3 ? new PassManagerBuilder() : null;
-            _optLevel = CAPI.LLVMCodeGenOptLevel.None;
+            _optLevel = LLVMCodeGenOptLevel.LLVMCodeGenLevelNone;
             if (_optBuilder != null) {
                 if (_O0) {
                     _optBuilder.SetOptLevels(0, 0);
-                    _optLevel = CAPI.LLVMCodeGenOptLevel.None;
+                    _optLevel = LLVMCodeGenOptLevel.LLVMCodeGenLevelNone;
                 } else if (_O1) {
                     _optBuilder.SetOptLevels(1, 0);
-                    _optLevel = CAPI.LLVMCodeGenOptLevel.Less;
+                    _optLevel = LLVMCodeGenOptLevel.LLVMCodeGenLevelLess;
                 } else if (_O2) {
                     _optBuilder.SetOptLevels(2, 0);
-                    _optLevel = CAPI.LLVMCodeGenOptLevel.Default;
+                    _optLevel = LLVMCodeGenOptLevel.LLVMCodeGenLevelDefault;
                 } else if (_Os) {
                     _optBuilder.SetOptLevels(2, 1);
-                    _optLevel = CAPI.LLVMCodeGenOptLevel.Default;
+                    _optLevel = LLVMCodeGenOptLevel.LLVMCodeGenLevelDefault;
                 } else if (_Oz) {
                     _optBuilder.SetOptLevels(2, 2);
-                    _optLevel = CAPI.LLVMCodeGenOptLevel.Default;
+                    _optLevel = LLVMCodeGenOptLevel.LLVMCodeGenLevelDefault;
                 } else if (_O3) {
                     _optBuilder.SetOptLevels(3, 0);
-                    _optLevel = CAPI.LLVMCodeGenOptLevel.Aggressive;
+                    _optLevel = LLVMCodeGenOptLevel.LLVMCodeGenLevelAggressive;
                 }
             }
 
@@ -96,7 +97,7 @@ namespace Driver.ToolChains
             if (_native) {
                 _target = Target.FromTriple(_targetTriple);
                 TargetMachine = _target.CreateTargetMachine(_targetTriple, "", "", _optLevel,
-                    CAPI.LLVMRelocMode.Default, CAPI.LLVMCodeModel.Default);
+                    LLVMRelocMode.LLVMRelocDefault, LLVMCodeModel.LLVMCodeModelDefault);
                 TargetMachine.SetAsmVerbosity(true);
             }
         }

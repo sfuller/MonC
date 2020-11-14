@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using MonC.TypeSystem;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
@@ -19,23 +20,22 @@ namespace MonC.LLVM
 
     public sealed class Context : IDisposable
     {
-        private CAPI.LLVMContextRef _context;
+        private LLVMContextRef _context;
 
         private GCHandle _diagnosticHandlerHandle;
         private uint _childModuleCount;
 
-        public static implicit operator CAPI.LLVMContextRef(Context context) => context._context;
+        public static implicit operator LLVMContextRef(Context context) => context._context;
 
         public Context()
         {
-            _context = CAPI.LLVMContextCreate();
-            VoidType = CAPI.LLVMVoidTypeInContext(_context);
-            Int1Type = CAPI.LLVMInt1TypeInContext(_context);
-            Int8Type = CAPI.LLVMInt8TypeInContext(_context);
-            Int16Type = CAPI.LLVMInt16TypeInContext(_context);
-            Int32Type = CAPI.LLVMInt32TypeInContext(_context);
-            Int64Type = CAPI.LLVMInt64TypeInContext(_context);
-            Int128Type = CAPI.LLVMInt128TypeInContext(_context);
+            _context = LLVMContextRef.Create();
+            VoidType = _context.VoidType;
+            Int1Type = _context.Int1Type;
+            Int8Type = _context.Int8Type;
+            Int16Type = _context.Int16Type;
+            Int32Type = _context.Int32Type;
+            Int64Type = _context.Int64Type;
             SetDiagnosticHandler(diagnosticInfo =>
                 Console.WriteLine($"LLVM {diagnosticInfo.Severity}: {diagnosticInfo.DescriptionString}"));
         }
@@ -48,7 +48,7 @@ namespace MonC.LLVM
 
         private void DoDispose()
         {
-            if (_context.IsValid) {
+            if (_context.Handle != IntPtr.Zero) {
                 if (_childModuleCount != 0) {
                     throw new InvalidOperationException("Live child modules are still present");
                 }
@@ -56,8 +56,7 @@ namespace MonC.LLVM
                 if (_diagnosticHandlerHandle.IsAllocated)
                     _diagnosticHandlerHandle.Free();
 
-                CAPI.LLVMContextDispose(_context);
-                _context = new CAPI.LLVMContextRef();
+                _context.Dispose();
             }
         }
 
@@ -68,19 +67,17 @@ namespace MonC.LLVM
 
         public Module ParseIR(MemoryBuffer memBuf)
         {
-            bool err = CAPI.LLVMParseIRInContext(_context, memBuf, out CAPI.LLVMModuleRef moduleOut,
-                out string? outMessage);
-            // LLVMParseIRInContext always deletes memory buffer in for some reason
-            memBuf.Release();
-            if (err) {
-                throw new InvalidOperationException(outMessage);
+            try {
+                LLVMModuleRef moduleOut = _context.ParseIR(memBuf);
+                return new Module(moduleOut, this);
+            } finally {
+                // LLVMParseIRInContext always deletes memory buffer in for some reason
+                memBuf.Release();
             }
-
-            return new Module(moduleOut, this);
         }
 
         public Metadata DebugMetadataVersion =>
-            Metadata.FromValue(Value.ConstInt(Int32Type, CAPI.LLVMDebugMetadataVersion(), false));
+            Metadata.FromValue(Value.ConstInt(Int32Type, LLVMSharp.Interop.LLVM.DebugMetadataVersion(), false));
 
         public Type VoidType;
         public Type Int1Type;
@@ -88,15 +85,13 @@ namespace MonC.LLVM
         public Type Int16Type;
         public Type Int32Type;
         public Type Int64Type;
-        public Type Int128Type;
-        public Type IntType(uint numBits) => CAPI.LLVMIntTypeInContext(_context, numBits);
+        public Type IntType(uint numBits) => _context.GetIntType(numBits);
 
-        public Type FunctionType(Type returnType, Type[] paramTypes,
-            bool isVarArg) => CAPI.LLVMFunctionType(returnType,
-            Array.ConvertAll(paramTypes, tp => (CAPI.LLVMTypeRef) tp), (uint) paramTypes.Length, isVarArg);
+        public Type FunctionType(Type returnType, Type[] paramTypes, bool isVarArg) =>
+            LLVMTypeRef.CreateFunction(returnType, Array.ConvertAll(paramTypes, tp => (LLVMTypeRef) tp), isVarArg);
 
         public Metadata CreateDebugLocation(uint line, uint column, Metadata scope, Metadata inlinedAt) =>
-            CAPI.LLVMDIBuilderCreateDebugLocation(_context, line, column, scope, inlinedAt);
+            _context.CreateDebugLocation(line, column, scope, inlinedAt);
 
         private readonly Dictionary<string, Type> _structs = new Dictionary<string, Type>();
 
@@ -120,49 +115,51 @@ namespace MonC.LLVM
         {
             if (_structs.ContainsKey(name))
                 throw new InvalidOperationException($"struct '{name}' is already defined");
-            Type type = CAPI.LLVMStructCreateNamed(_context, name);
-            CAPI.LLVMStructSetBody(type, Array.ConvertAll(elementTypes, tp => (CAPI.LLVMTypeRef) tp), packed);
-            _structs.Add(name, type);
-            return type;
+            LLVMTypeRef type = _context.CreateNamedStruct(name);
+            type.StructSetBody(Array.ConvertAll(elementTypes, tp => (LLVMTypeRef) tp), packed);
+            Type castType = type;
+            _structs.Add(name, castType);
+            return castType;
         }
 
-        public BasicBlock CreateBasicBlock(string name = "") => CAPI.LLVMCreateBasicBlockInContext(_context, name);
+        public BasicBlock CreateBasicBlock(string name = "") => _context.CreateBasicBlock(name);
 
         public BasicBlock AppendBasicBlock(Value fn, string name = "") =>
-            CAPI.LLVMAppendBasicBlockInContext(_context, fn, name);
+            _context.AppendBasicBlock(fn, name);
 
         public BasicBlock InsertBasicBlock(BasicBlock before, string name = "") =>
-            CAPI.LLVMInsertBasicBlockInContext(_context, before, name);
+            _context.InsertBasicBlock(before, name);
 
-        public Value MetadataAsValue(Metadata md) => CAPI.LLVMMetadataAsValue(_context, md);
+        public Value MetadataAsValue(Metadata md) => _context.MetadataAsValue(md);
 
         public struct DiagnosticInfo
         {
-            public CAPI.LLVMDiagnosticSeverity Severity;
+            public LLVMDiagnosticSeverity Severity;
             public string DescriptionString;
         }
 
         public delegate void DiagnosticHandler(DiagnosticInfo diagnosticInfo);
 
-        public void SetDiagnosticHandler(DiagnosticHandler handler)
+        public unsafe void SetDiagnosticHandler(DiagnosticHandler handler)
         {
             if (_diagnosticHandlerHandle.IsAllocated)
                 _diagnosticHandlerHandle.Free();
 
-            CAPI.LLVMDiagnosticHandler internalHandler = (diagnosticInfo, diagnosticContext) => {
+            LLVMDiagnosticHandler internalHandler = (diagnosticInfo, diagnosticContext) => {
                 DiagnosticInfo info;
-                info.Severity = CAPI.LLVMGetDiagInfoSeverity(diagnosticInfo);
-                info.DescriptionString = CAPI.LLVMGetDiagInfoDescriptionString(diagnosticInfo);
+                info.Severity = LLVMSharp.Interop.LLVM.GetDiagInfoSeverity(diagnosticInfo);
+                info.DescriptionString = MarshaledString.NativeToManaged(
+                    LLVMSharp.Interop.LLVM.GetDiagInfoDescription(diagnosticInfo));
                 handler(info);
-                if (info.Severity == CAPI.LLVMDiagnosticSeverity.Error)
+                if (info.Severity == LLVMDiagnosticSeverity.LLVMDSError)
                     throw new LLVMException(info.DescriptionString);
             };
             _diagnosticHandlerHandle = GCHandle.Alloc(internalHandler);
 
-            CAPI.LLVMContextSetDiagnosticHandler(_context, internalHandler, IntPtr.Zero);
+            _context.SetDiagnosticHandler(internalHandler, IntPtr.Zero);
 
             // Also set this handler in the global context for APIs that do not use a specific context
-            CAPI.LLVMContextSetDiagnosticHandler(CAPI.LLVMGetGlobalContext(), internalHandler, IntPtr.Zero);
+            LLVMContextRef.Global.SetDiagnosticHandler(internalHandler, IntPtr.Zero);
         }
 
         internal void IncrementModule() => ++_childModuleCount;

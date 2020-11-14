@@ -1,15 +1,16 @@
 ﻿using System;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
     public class TargetMachine : IDisposable
     {
-        private CAPI.LLVMTargetMachineRef _targetMachine;
+        private LLVMTargetMachineRef _targetMachine;
 
-        public static implicit operator CAPI.LLVMTargetMachineRef(TargetMachine targetMachine) =>
+        public static implicit operator LLVMTargetMachineRef(TargetMachine targetMachine) =>
             targetMachine._targetMachine;
 
-        internal TargetMachine(CAPI.LLVMTargetMachineRef targetMachine) => _targetMachine = targetMachine;
+        internal TargetMachine(LLVMTargetMachineRef targetMachine) => _targetMachine = targetMachine;
 
         public void Dispose()
         {
@@ -17,48 +18,49 @@ namespace MonC.LLVM
             GC.SuppressFinalize(this);
         }
 
-        private void DoDispose()
+        private unsafe void DoDispose()
         {
-            if (_targetMachine.IsValid) {
-                CAPI.LLVMDisposeTargetMachine(_targetMachine);
-                _targetMachine = new CAPI.LLVMTargetMachineRef();
+            if (_targetMachine.Handle != IntPtr.Zero) {
+                LLVMSharp.Interop.LLVM.DisposeTargetMachine(_targetMachine);
+                _targetMachine = new LLVMTargetMachineRef();
             }
         }
 
         ~TargetMachine() => DoDispose();
 
-        public Target TargetMachineTarget => CAPI.LLVMGetTargetMachineTarget(_targetMachine);
+        public unsafe Target TargetMachineTarget =>
+            (LLVMTargetRef) LLVMSharp.Interop.LLVM.GetTargetMachineTarget(_targetMachine);
 
-        public string TargetMachineTriple => CAPI.LLVMGetTargetMachineTriple(_targetMachine);
+        public unsafe string TargetMachineTriple => MarshaledString.NativeToManagedDispose(
+            LLVMSharp.Interop.LLVM.GetTargetMachineTriple(_targetMachine));
 
-        public string TargetMachineCPU => CAPI.LLVMGetTargetMachineCPU(_targetMachine);
+        public unsafe string TargetMachineCPU => MarshaledString.NativeToManagedDispose(
+            LLVMSharp.Interop.LLVM.GetTargetMachineCPU(_targetMachine));
 
-        public string TargetMachineFeatureString => CAPI.LLVMGetTargetMachineFeatureString(_targetMachine);
+        public unsafe string TargetMachineFeatureString => MarshaledString.NativeToManagedDispose(
+            LLVMSharp.Interop.LLVM.GetTargetMachineFeatureString(_targetMachine));
 
-        public void SetAsmVerbosity(bool verboseAsm) =>
-            CAPI.LLVMSetTargetMachineAsmVerbosity(_targetMachine, verboseAsm);
+        public unsafe void SetAsmVerbosity(bool verboseAsm) =>
+            LLVMSharp.Interop.LLVM.SetTargetMachineAsmVerbosity(_targetMachine, verboseAsm ? 1 : 0);
 
-        public void EmitToFile(Module m, string filename, CAPI.LLVMCodeGenFileType codegen)
+        public void EmitToFile(Module m, string filename, LLVMCodeGenFileType codegen) =>
+            _targetMachine.EmitToFile(m, filename, codegen);
+
+        public unsafe MemoryBuffer EmitToMemoryBuffer(Module m, LLVMCodeGenFileType codegen)
         {
-            if (CAPI.LLVMTargetMachineEmitToFile(_targetMachine, m, filename, codegen, out string? errorMessage)) {
-                if (errorMessage != null)
-                    throw new InvalidOperationException(errorMessage);
-                throw new InvalidOperationException($"unable to emit to {filename}");
-            }
-        }
-
-        public MemoryBuffer EmitToMemoryBuffer(Module m, CAPI.LLVMCodeGenFileType codegen)
-        {
-            if (CAPI.LLVMTargetMachineEmitToMemoryBuffer(_targetMachine, m, codegen, out string? errorMessage,
-                out CAPI.LLVMMemoryBufferRef outMemBuf)) {
-                if (errorMessage != null)
-                    throw new InvalidOperationException(errorMessage);
+            sbyte* errMsg = null;
+            LLVMMemoryBufferRef memBuf;
+            if (LLVMSharp.Interop.LLVM.TargetMachineEmitToMemoryBuffer(_targetMachine, (LLVMModuleRef) m, codegen,
+                &errMsg, (LLVMOpaqueMemoryBuffer**) &memBuf) != 0) {
+                if (errMsg != null)
+                    throw new InvalidOperationException(MarshaledString.NativeToManagedDispose(errMsg));
                 throw new InvalidOperationException($"unable to emit to memory buffer");
             }
 
-            return new MemoryBuffer(outMemBuf);
+            return new MemoryBuffer(memBuf);
         }
 
-        public TargetData CreateTargetDataLayout() => new TargetData(CAPI.LLVMCreateTargetDataLayout(_targetMachine));
+        public unsafe TargetData CreateTargetDataLayout() =>
+            new TargetData(LLVMSharp.Interop.LLVM.CreateTargetDataLayout(_targetMachine));
     }
 }

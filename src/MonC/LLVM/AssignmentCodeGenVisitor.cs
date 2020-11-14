@@ -14,9 +14,7 @@ namespace MonC.LLVM
 
         public Value AssignmentWritePointer { get; private set; }
 
-        public AssignmentCodeGenVisitor(
-            Builder builder,
-            CodeGeneratorContext genContext,
+        public AssignmentCodeGenVisitor(Builder builder, CodeGeneratorContext genContext,
             CodeGeneratorContext.Function function)
         {
             _builder = builder;
@@ -24,10 +22,8 @@ namespace MonC.LLVM
             _function = function;
         }
 
-        public void VisitVariable(VariableNode node)
-        {
+        public void VisitVariable(VariableNode node) =>
             AssignmentWritePointer = _function.VariableValues[node.Declaration];
-        }
 
         public void VisitAccess(AccessNode node)
         {
@@ -35,14 +31,12 @@ namespace MonC.LLVM
             addressableNode.AcceptAddressableVisitor(this);
 
             StructType structType = (StructType) _genContext.SemanticModule.ExpressionResultTypes[node.Lhs];
-            Type llvmStructType = _genContext.LookupType(structType)!.Value;
             StructLayout layout = _genContext.StructLayoutManager.GetLayout(structType);
             if (!layout.MemberOffsets.TryGetValue(node.Rhs, out int index)) {
                 throw new InvalidOperationException();
             }
 
-            AssignmentWritePointer =
-                _builder.BuildStructGEP(llvmStructType, AssignmentWritePointer, (uint) index);
+            AssignmentWritePointer = _builder.BuildStructGEP(AssignmentWritePointer, (uint) index);
         }
     }
 }

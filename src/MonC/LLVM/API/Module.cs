@@ -1,33 +1,34 @@
 ﻿using System;
 using System.IO;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
     public sealed class Module : IModuleArtifact
     {
-        private CAPI.LLVMModuleRef _module;
+        private LLVMModuleRef _module;
         private Context _parent;
         public DIBuilder DiBuilder { get; }
-        public bool IsValid => _module.IsValid;
+        public bool IsValid => _module.Handle != IntPtr.Zero;
 
         internal void Release()
         {
             DiBuilder.Dispose();
-            _module = new CAPI.LLVMModuleRef();
+            _module = new LLVMModuleRef();
             _parent.DecrementModule();
         }
 
-        public static implicit operator CAPI.LLVMModuleRef(Module module) => module._module;
+        public static implicit operator LLVMModuleRef(Module module) => module._module;
 
         internal Module(string name, Context context)
         {
-            _module = CAPI.LLVMModuleCreateWithNameInContext(name, context);
+            _module = ((LLVMContextRef) context).CreateModuleWithName(name);
             _parent = context;
             DiBuilder = new DIBuilder(_module);
             _parent.IncrementModule();
         }
 
-        internal Module(CAPI.LLVMModuleRef module, Context context)
+        internal Module(LLVMModuleRef module, Context context)
         {
             _module = module;
             _parent = context;
@@ -43,46 +44,48 @@ namespace MonC.LLVM
 
         private void DoDispose(bool disposing)
         {
-            if (_module.IsValid) {
+            if (_module.Handle != IntPtr.Zero) {
                 if (disposing) {
                     DiBuilder.Dispose();
                 }
 
-                CAPI.LLVMDisposeModule(_module);
-                _module = new CAPI.LLVMModuleRef();
+                _module.Dispose();
                 _parent.DecrementModule();
             }
         }
 
         ~Module() => DoDispose(false);
 
-        public void AddModuleFlag(CAPI.LLVMModuleFlagBehavior behavior, string key, Metadata val) =>
-            CAPI.LLVMAddModuleFlag(_module, behavior, key, val);
-
-        public string Target => IsValid ? CAPI.LLVMGetTarget(_module) : string.Empty;
-
-        public void SetTarget(string triple) => CAPI.LLVMSetTarget(_module, triple);
-
-        public Value AddFunction(string name, Type functionTy) => CAPI.LLVMAddFunction(_module, name, functionTy);
-
-        public bool LinkInModule(Module other)
+        public unsafe void AddModuleFlag(LLVMModuleFlagBehavior behavior, string key, Metadata val)
         {
-            bool error = CAPI.LLVMLinkModules2(_module, other);
+            using var marshaledKey = new MarshaledString(key.AsSpan());
+            LLVMSharp.Interop.LLVM.AddModuleFlag(_module, behavior, marshaledKey, (UIntPtr) key.Length,
+                (LLVMMetadataRef) val);
+        }
+
+        public string Target => _module.Target;
+
+        public void SetTarget(string triple) => _module.Target = triple;
+
+        public Value AddFunction(string name, Type functionTy) => _module.AddFunction(name, functionTy);
+
+        public unsafe bool LinkInModule(Module other)
+        {
+            bool error = LLVMSharp.Interop.LLVM.LinkModules2(_module, (LLVMModuleRef) other) != 0;
             other.Release();
             return error;
         }
 
-        public void Dump() => CAPI.LLVMDumpModule(_module);
+        public void Dump() => _module.Dump();
 
-        public bool PrintToFile(string filename, out string? errorMessage) =>
-            CAPI.LLVMPrintModuleToFile(_module, filename, out errorMessage);
+        public void PrintToFile(string filename) => _module.PrintToFile(filename);
 
-        public string PrintToString() => CAPI.LLVMPrintModuleToStringPublic(_module);
+        public string PrintToString() => _module.PrintToString();
 
-        public int WriteBitcodeToFile(string path) => CAPI.LLVMWriteBitcodeToFile(_module, path);
+        public int WriteBitcodeToFile(string path) => _module.WriteBitcodeToFile(path);
 
         public MemoryBuffer WriteBitcodeToMemoryBuffer() =>
-            new MemoryBuffer(CAPI.LLVMWriteBitcodeToMemoryBuffer(_module));
+            new MemoryBuffer(_module.WriteBitcodeToMemoryBuffer());
 
         public void WriteListing(TextWriter writer)
         {
@@ -91,7 +94,7 @@ namespace MonC.LLVM
                 if (streamWriter.BaseStream is FileStream fileStream) {
                     string path = fileStream.Name;
                     writer.Close();
-                    PrintToFile(path, out string? errorMessage);
+                    PrintToFile(path);
                     return;
                 }
             }
@@ -112,7 +115,8 @@ namespace MonC.LLVM
 
             // Otherwise write a giant buffer
             using MemoryBuffer memBuf = WriteBitcodeToMemoryBuffer();
-            writer.Write(memBuf.Bytes);
+            // TODO: Remove ToArray when adoping .net standard 2.1
+            writer.Write(memBuf.Bytes.ToArray());
         }
     }
 }

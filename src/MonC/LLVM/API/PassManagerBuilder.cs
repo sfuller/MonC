@@ -1,15 +1,16 @@
 ﻿using System;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
     public class PassManagerBuilder : IDisposable
     {
-        private CAPI.LLVMPassManagerBuilderRef _passManagerBuilder;
+        private LLVMPassManagerBuilderRef _passManagerBuilder;
 
-        public static implicit operator CAPI.LLVMPassManagerBuilderRef(PassManagerBuilder passManagerBuilder) =>
+        public static implicit operator LLVMPassManagerBuilderRef(PassManagerBuilder passManagerBuilder) =>
             passManagerBuilder._passManagerBuilder;
 
-        public PassManagerBuilder() => _passManagerBuilder = CAPI.LLVMPassManagerBuilderCreate();
+        public unsafe PassManagerBuilder() => _passManagerBuilder = LLVMSharp.Interop.LLVM.PassManagerBuilderCreate();
 
         public void Dispose()
         {
@@ -19,24 +20,18 @@ namespace MonC.LLVM
 
         private void DoDispose()
         {
-            if (_passManagerBuilder.IsValid) {
-                CAPI.LLVMPassManagerBuilderDispose(_passManagerBuilder);
-                _passManagerBuilder = new CAPI.LLVMPassManagerBuilderRef();
-            }
+            _passManagerBuilder.Dispose();
         }
 
         ~PassManagerBuilder() => DoDispose();
 
-        public void SetOptLevel(uint optLevel) => CAPI.LLVMPassManagerBuilderSetOptLevel(_passManagerBuilder, optLevel);
+        public void SetOptLevel(uint optLevel) => _passManagerBuilder.SetOptLevel(optLevel);
 
-        public void SetSizeLevel(uint sizeLevel) =>
-            CAPI.LLVMPassManagerBuilderSetSizeLevel(_passManagerBuilder, sizeLevel);
+        public void SetSizeLevel(uint sizeLevel) => _passManagerBuilder.SetSizeLevel(sizeLevel);
 
-        public void SetDisableUnrollLoops(bool value) =>
-            CAPI.LLVMPassManagerBuilderSetDisableUnrollLoops(_passManagerBuilder, value);
+        public void SetDisableUnrollLoops(bool value) => _passManagerBuilder.SetDisableUnrollLoops(value ? 1 : 0);
 
-        public void UseInlinerWithThreshold(uint threshold) =>
-            CAPI.LLVMPassManagerBuilderUseInlinerWithThreshold(_passManagerBuilder, threshold);
+        public void UseInlinerWithThreshold(uint threshold) => _passManagerBuilder.UseInlinerWithThreshold(threshold);
 
         private uint ComputeThresholdFromOptLevels(uint optLevel, uint sizeLevel)
         {
@@ -60,12 +55,12 @@ namespace MonC.LLVM
         }
 
         public void PopulateFunctionPassManager(FunctionPassManager pm) =>
-            CAPI.LLVMPassManagerBuilderPopulateFunctionPassManager(_passManagerBuilder, pm);
+            _passManagerBuilder.PopulateFunctionPassManager(pm);
 
         public void PopulateModulePassManager(ModulePassManager pm) =>
-            CAPI.LLVMPassManagerBuilderPopulateModulePassManager(_passManagerBuilder, pm);
+            _passManagerBuilder.PopulateModulePassManager(pm);
 
         public void PopulateLTOPassManager(LTOPassManager pm, bool internalize, bool runInliner) =>
-            CAPI.LLVMPassManagerBuilderPopulateLTOPassManager(_passManagerBuilder, pm, internalize, runInliner);
+            _passManagerBuilder.PopulateLTOPassManager(pm, internalize ? 1 : 0, runInliner ? 1 : 0);
     }
 }

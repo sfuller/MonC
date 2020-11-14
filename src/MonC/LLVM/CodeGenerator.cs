@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using LLVMSharp.Interop;
 using MonC.Parsing;
 using MonC.Semantics;
 using MonC.SyntaxTree;
@@ -53,17 +54,17 @@ namespace MonC.LLVM
 
             // Debug compile unit is always emitted even if debug info is not requested
             // This provides a standardized way to export enums in the module
-            Module.AddModuleFlag(CAPI.LLVMModuleFlagBehavior.Warning, "Debug Info Version",
+            Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorWarning, "Debug Info Version",
                 Context.DebugMetadataVersion);
             if (targetTriple.Contains("-msvc")) {
-                Module.AddModuleFlag(CAPI.LLVMModuleFlagBehavior.Warning, "CodeView",
+                Module.AddModuleFlag(LLVMModuleFlagBehavior.LLVMModuleFlagBehaviorWarning, "CodeView",
                     Metadata.FromValue(Value.ConstInt(Context.Int32Type, 1, false)));
             }
 
             DiFile = DiBuilder.CreateFile(fileName, dirName);
             // Just say that MonC is C89; hopefully debuggers won't care
-            Metadata diCompileUnit = DiBuilder.CreateCompileUnit(CAPI.LLVMDWARFSourceLanguage.C89, DiFile,
-                "MonC", optimized, "", 0, "", CAPI.LLVMDWARFEmissionKind.Full, 0, false, false, "", "");
+            Metadata diCompileUnit = DiBuilder.CreateCompileUnit(LLVMDWARFSourceLanguage.LLVMDWARFSourceLanguageC89,
+                DiFile, "MonC", optimized, "", 0, "", LLVMDWARFEmissionKind.LLVMDWARFEmissionFull, 0, false, false);
             DiModule = DiBuilder.CreateModule(diCompileUnit, fileName, "", "", "");
 
             DebugInfo = debugInfo;
@@ -75,7 +76,8 @@ namespace MonC.LLVM
             // Struct sizes need to be resolved for debug info (which is target-dependent)
             Target target = Target.FromTriple(targetTriple);
             TargetMachine machine = target.CreateTargetMachine(targetTriple, "", "",
-                CAPI.LLVMCodeGenOptLevel.Default, CAPI.LLVMRelocMode.Default, CAPI.LLVMCodeModel.Default);
+                LLVMCodeGenOptLevel.LLVMCodeGenLevelDefault, LLVMRelocMode.LLVMRelocDefault,
+                LLVMCodeModel.LLVMCodeModelDefault);
             TargetDataLayout = machine.CreateTargetDataLayout();
         }
 
@@ -190,12 +192,14 @@ namespace MonC.LLVM
                 FunctionValue = genContext.Module.AddFunction(leaf.Name, FunctionType);
 
                 // Process the static keyword in the same manner as clang
-                FunctionValue.SetLinkage(leaf.IsExported ? CAPI.LLVMLinkage.External : CAPI.LLVMLinkage.Internal);
+                FunctionValue.SetLinkage(leaf.IsExported
+                    ? LLVMLinkage.LLVMExternalLinkage
+                    : LLVMLinkage.LLVMInternalLinkage);
 
                 genContext.TryGetNodeSymbol(leaf, out Symbol range);
                 DiFwdDecl = genContext.DiBuilder.CreateReplaceableCompositeType(
-                    CAPI.LLVMDWARFTag.subroutine_type, leaf.Name, genContext.DiFile, genContext.DiFile,
-                    range.LLVMLine, 0, 0, 0, CAPI.LLVMDIFlags.FwdDecl, "");
+                    LLVMDWARFTag.subroutine_type, leaf.Name, genContext.DiFile, genContext.DiFile,
+                    range.LLVMLine, 0, 0, 0, LLVMDIFlags.LLVMDIFlagFwdDecl, "");
             }
 
             public readonly Dictionary<DeclarationNode, Value>
@@ -215,7 +219,7 @@ namespace MonC.LLVM
 
                 // Build return value storage if necessary
                 Type returnType = FunctionType.ReturnType;
-                if (returnType.Kind != CAPI.LLVMTypeKind.Void) {
+                if (returnType.Kind != LLVMTypeKind.LLVMVoidTypeKind) {
                     ReturnBlock = genContext.Context.CreateBasicBlock("return");
                     RetvalStorage = builder.BuildAlloca(returnType, "retval");
                 }
@@ -250,14 +254,14 @@ namespace MonC.LLVM
                 genContext.TryGetNodeSymbol(_leaf, out Symbol range);
                 Metadata subroutineType = genContext.DiBuilder.CreateSubroutineType(genContext.DiFile,
                     Array.ConvertAll(_leaf.Parameters, param => genContext.LookupDiType(param.Type)!.Value),
-                    CAPI.LLVMDIFlags.Zero);
+                    LLVMDIFlags.LLVMDIFlagZero);
                 Metadata funcLocation = genContext.Context.CreateDebugLocation(range.LLVMLine,
                     genContext.ColumnInfo ? range.LLVMColumn : 0, DiFwdDecl, Metadata.Null);
 
                 // Create subroutine debug info and substitute over forward declaration
                 DiFunctionDef = genContext.DiBuilder.CreateFunction(genContext.DiFile, _leaf.Name, _leaf.Name,
                     genContext.DiFile, range.LLVMLine, subroutineType, true, true, range.LLVMLine,
-                    CAPI.LLVMDIFlags.Zero, false);
+                    LLVMDIFlags.LLVMDIFlagZero, false);
                 DiFwdDecl.ReplaceAllUsesWith(DiFunctionDef);
 
                 // Create llvm.dbg.declare calls for each parameter's storage
@@ -269,7 +273,7 @@ namespace MonC.LLVM
                         Metadata paramType = genContext.LookupDiType(parameter.Type)!.Value;
                         Metadata paramMetadata = genContext.DiBuilder.CreateParameterVariable(DiFunctionDef,
                             parameter.Name, (uint) i + 1, genContext.DiFile, paramRange.LLVMLine, paramType, true,
-                            CAPI.LLVMDIFlags.Zero);
+                            LLVMDIFlags.LLVMDIFlagZero);
                         VariableValues.TryGetValue(parameter, out Value varStorage);
                         genContext.DiBuilder.InsertDeclareAtEnd(varStorage, paramMetadata, paramExpression,
                             funcLocation, basicBlock);
@@ -408,8 +412,7 @@ namespace MonC.LLVM
                 if (ctxFunction.ReturnBlock != null && ctxFunction.RetvalStorage != null) {
                     ctxFunction.FunctionValue.AppendExistingBasicBlock(ctxFunction.ReturnBlock.Value);
                     builder.PositionAtEnd(ctxFunction.ReturnBlock.Value);
-                    Value retVal = builder.BuildLoad(ctxFunction.FunctionType.ReturnType,
-                        ctxFunction.RetvalStorage.Value);
+                    Value retVal = builder.BuildLoad(ctxFunction.RetvalStorage.Value);
                     builder.BuildRet(retVal);
                 }
             }

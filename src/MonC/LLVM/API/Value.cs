@@ -1,72 +1,65 @@
 ﻿using System;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
     public struct Value
     {
-        private CAPI.LLVMValueRef _value;
-        public bool IsValid => _value.IsValid;
+        private LLVMValueRef _value;
+        public bool IsValid => _value.Handle != IntPtr.Zero;
 
-        internal Value(CAPI.LLVMValueRef value) => _value = value;
+        internal Value(LLVMValueRef value) => _value = value;
 
-        public static implicit operator CAPI.LLVMValueRef(Value value) => value._value;
-        public static implicit operator Value(CAPI.LLVMValueRef value) => new Value(value);
+        public static implicit operator LLVMValueRef(Value value) => value._value;
+        public static implicit operator Value(LLVMValueRef value) => new Value(value);
 
-        public CAPI.LLVMValueKind Kind => IsValid ? CAPI.LLVMGetValueKind(_value) : CAPI.LLVMValueKind.Invalid;
+        public LLVMValueKind Kind => _value.Kind;
 
         public bool IsGlobalValue()
         {
-            CAPI.LLVMValueKind kind = Kind;
-            return kind == CAPI.LLVMValueKind.Function ||
-                   kind == CAPI.LLVMValueKind.GlobalAlias ||
-                   kind == CAPI.LLVMValueKind.GlobalIFunc ||
-                   kind == CAPI.LLVMValueKind.GlobalVariable;
+            LLVMValueKind kind = Kind;
+            return kind == LLVMValueKind.LLVMFunctionValueKind || kind == LLVMValueKind.LLVMGlobalAliasValueKind ||
+                   kind == LLVMValueKind.LLVMGlobalIFuncValueKind || kind == LLVMValueKind.LLVMGlobalVariableValueKind;
         }
 
-        public Type TypeOf => IsValid ? CAPI.LLVMTypeOf(_value) : new CAPI.LLVMTypeRef();
+        public Type TypeOf => _value.TypeOf;
 
-        public static Value ConstInt(Type intTy, ulong n, bool signExtend) => CAPI.LLVMConstInt(intTy, n, signExtend);
+        public static Value ConstInt(Type intTy, ulong n, bool signExtend) =>
+            LLVMValueRef.CreateConstInt(intTy, n, signExtend);
 
-        public static Value ConstReal(Type fltTy, double n) => CAPI.LLVMConstReal(fltTy, n);
+        public static Value ConstReal(Type fltTy, double n) => LLVMValueRef.CreateConstReal(fltTy, n);
 
-        public BasicBlock FirstBasicBlock =>
-            IsValid && Kind == CAPI.LLVMValueKind.Function
-                ? CAPI.LLVMGetFirstBasicBlock(_value)
-                : new CAPI.LLVMBasicBlockRef();
+        public BasicBlock FirstBasicBlock => _value.FirstBasicBlock;
 
-        public BasicBlock LastBasicBlock => IsValid && Kind == CAPI.LLVMValueKind.Function
-            ? CAPI.LLVMGetLastBasicBlock(_value)
-            : new CAPI.LLVMBasicBlockRef();
+        public BasicBlock LastBasicBlock => _value.LastBasicBlock;
 
-        public CAPI.LLVMOpcode InstructionOpcode =>
-            IsValid && Kind == CAPI.LLVMValueKind.Instruction
-                ? CAPI.LLVMGetInstructionOpcode(_value)
-                : CAPI.LLVMOpcode.Invalid;
+        public LLVMOpcode InstructionOpcode => _value.InstructionOpcode;
 
-        public void SetFuncSubprogram(Metadata sp) => CAPI.LLVMSetSubprogram(_value, sp);
+        public unsafe void SetFuncSubprogram(Metadata sp) =>
+            LLVMSharp.Interop.LLVM.SetSubprogram(_value, (LLVMMetadataRef) sp);
 
-        public bool IsDeclaration => IsValid && IsGlobalValue() && CAPI.LLVMIsDeclaration(_value);
-        public bool IsUndef => IsValid && CAPI.LLVMIsUndef(_value);
+        public bool IsDeclaration => _value.IsDeclaration;
+        public bool IsUndef => _value.IsUndef;
 
-        public CAPI.LLVMLinkage Linkage =>
-            IsValid && IsGlobalValue() ? CAPI.LLVMGetLinkage(_value) : CAPI.LLVMLinkage.External;
+        public LLVMLinkage Linkage => _value.Linkage;
 
-        public void SetLinkage(CAPI.LLVMLinkage linkage) => CAPI.LLVMSetLinkage(_value, linkage);
+        public void SetLinkage(LLVMLinkage linkage) => _value.Linkage = linkage;
 
-        public string Name => IsValid ? CAPI.LLVMGetValueName2(_value) : string.Empty;
-        public void SetName(string name) => CAPI.LLVMSetValueName2(_value, name);
+        public string Name => _value.Name;
+        public void SetName(string name) => _value.Name = name;
 
-        public uint NumParams => IsValid && Kind == CAPI.LLVMValueKind.Function ? CAPI.LLVMCountParams(_value) : 0;
+        public uint NumParams => _value.ParamsCount;
 
         public Value[] Params =>
-            IsValid && Kind == CAPI.LLVMValueKind.Function
-                ? Array.ConvertAll(CAPI.LLVMGetParams(_value), param => (Value) param)
+            IsValid && Kind == LLVMValueKind.LLVMFunctionValueKind
+                ? Array.ConvertAll(_value.Params, param => (Value) param)
                 : new Value[] { };
 
         public void AddIncoming(Value[] incomingValues, BasicBlock[] incomingBlocks) =>
-            CAPI.LLVMAddIncoming(_value, Array.ConvertAll(incomingValues, val => (CAPI.LLVMValueRef) val),
-                Array.ConvertAll(incomingBlocks, block => (CAPI.LLVMBasicBlockRef) block));
+            _value.AddIncoming(Array.ConvertAll(incomingValues, val => (LLVMValueRef) val),
+                Array.ConvertAll(incomingBlocks, block => (LLVMBasicBlockRef) block), (uint) incomingValues.Length);
 
-        public void AppendExistingBasicBlock(BasicBlock bb) => CAPI.LLVMAppendExistingBasicBlock(_value, bb);
+        public unsafe void AppendExistingBasicBlock(BasicBlock bb) =>
+            LLVMSharp.Interop.LLVM.AppendExistingBasicBlock(_value, (LLVMBasicBlockRef) bb);
     }
 }

@@ -1,32 +1,36 @@
 ﻿using System;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
     public class GenericValue : IDisposable
     {
-        private CAPI.LLVMGenericValueRef _genericValue;
-        public bool IsValid => _genericValue.IsValid;
+        private LLVMGenericValueRef _genericValue;
+        public bool IsValid => _genericValue.Handle != IntPtr.Zero;
 
-        public static implicit operator CAPI.LLVMGenericValueRef(GenericValue genericValue) =>
+        public static implicit operator LLVMGenericValueRef(GenericValue genericValue) =>
             genericValue._genericValue;
 
-        internal GenericValue(CAPI.LLVMGenericValueRef genericValue) => _genericValue = genericValue;
+        internal GenericValue(LLVMGenericValueRef genericValue) => _genericValue = genericValue;
 
-        public static GenericValue FromInt(Type ty, ulong n, bool isSigned) =>
-            new GenericValue(CAPI.LLVMCreateGenericValueOfInt(ty, n, isSigned));
+        public static unsafe GenericValue FromInt(Type ty, ulong n, bool isSigned) =>
+            new GenericValue(LLVMSharp.Interop.LLVM.CreateGenericValueOfInt((LLVMTypeRef) ty, n, isSigned ? 1 : 0));
 
-        public static GenericValue FromPointer(IntPtr p) => new GenericValue(CAPI.LLVMCreateGenericValueOfPointer(p));
+        public static unsafe GenericValue FromPointer(IntPtr p) =>
+            new GenericValue(LLVMSharp.Interop.LLVM.CreateGenericValueOfPointer((void*) p));
 
-        public static GenericValue FromFloat(Type ty, double n) =>
-            new GenericValue(CAPI.LLVMCreateGenericValueOfFloat(ty, n));
+        public static unsafe GenericValue FromFloat(Type ty, double n) =>
+            new GenericValue(LLVMSharp.Interop.LLVM.CreateGenericValueOfFloat((LLVMTypeRef) ty, n));
 
-        public uint IntWidth => CAPI.LLVMGenericValueIntWidth(_genericValue);
+        public unsafe uint IntWidth => LLVMSharp.Interop.LLVM.GenericValueIntWidth(_genericValue);
 
-        public ulong IntValue(bool isSigned) => CAPI.LLVMGenericValueToInt(_genericValue, isSigned);
+        public unsafe ulong IntValue(bool isSigned) =>
+            LLVMSharp.Interop.LLVM.GenericValueToInt(_genericValue, isSigned ? 1 : 0);
 
-        public IntPtr PointerValue => CAPI.LLVMGenericValueToPointer(_genericValue);
+        public unsafe IntPtr PointerValue => (IntPtr) LLVMSharp.Interop.LLVM.GenericValueToPointer(_genericValue);
 
-        public double FloatValue(Type ty) => CAPI.LLVMGenericValueToFloat(ty, _genericValue);
+        public unsafe double FloatValue(Type ty) =>
+            LLVMSharp.Interop.LLVM.GenericValueToFloat((LLVMTypeRef) ty, _genericValue);
 
         public void Dispose()
         {
@@ -34,11 +38,11 @@ namespace MonC.LLVM
             GC.SuppressFinalize(this);
         }
 
-        private void DoDispose()
+        private unsafe void DoDispose()
         {
-            if (_genericValue.IsValid) {
-                CAPI.LLVMDisposeGenericValue(_genericValue);
-                _genericValue = new CAPI.LLVMGenericValueRef();
+            if (_genericValue.Handle != IntPtr.Zero) {
+                LLVMSharp.Interop.LLVM.DisposeGenericValue(_genericValue);
+                _genericValue = new LLVMGenericValueRef();
             }
         }
 

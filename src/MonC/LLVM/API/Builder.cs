@@ -1,12 +1,13 @@
 ﻿using System;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
     public sealed class Builder : IDisposable
     {
-        private CAPI.LLVMBuilderRef _builder;
+        private LLVMBuilderRef _builder;
 
-        internal Builder(CAPI.LLVMContextRef context) => _builder = CAPI.LLVMCreateBuilderInContext(context);
+        internal Builder(LLVMContextRef context) => _builder = LLVMBuilderRef.Create(context);
 
         public void Dispose()
         {
@@ -16,172 +17,166 @@ namespace MonC.LLVM
 
         private void DoDispose()
         {
-            if (_builder.IsValid) {
-                CAPI.LLVMDisposeBuilder(_builder);
-                _builder = new CAPI.LLVMBuilderRef();
-            }
+            _builder.Dispose();
         }
 
         ~Builder() => DoDispose();
 
-        public void Position(BasicBlock block, Value instr) => CAPI.LLVMPositionBuilder(_builder, block, instr);
+        public void Position(BasicBlock block, Value instr) => _builder.Position(block, instr);
 
-        public void PositionBefore(Value instr) => CAPI.LLVMPositionBuilderBefore(_builder, instr);
+        public void PositionBefore(Value instr) => _builder.PositionBefore(instr);
 
-        public void PositionAtEnd(BasicBlock block) => CAPI.LLVMPositionBuilderAtEnd(_builder, block);
+        public void PositionAtEnd(BasicBlock block) => _builder.PositionAtEnd(block);
 
-        public BasicBlock InsertBlock => CAPI.LLVMGetInsertBlock(_builder);
+        public BasicBlock InsertBlock => _builder.InsertBlock;
 
-        public void InsertExistingBasicBlockAfterInsertBlock(BasicBlock bb) =>
-            CAPI.LLVMInsertExistingBasicBlockAfterInsertBlock(_builder, bb);
+        public unsafe void InsertExistingBasicBlockAfterInsertBlock(BasicBlock bb) =>
+            LLVMSharp.Interop.LLVM.InsertExistingBasicBlockAfterInsertBlock(_builder, (LLVMBasicBlockRef) bb);
 
-        public void ClearInsertionPosition() => CAPI.LLVMClearInsertionPosition(_builder);
+        public void ClearInsertionPosition() => _builder.ClearInsertionPosition();
 
-        public void Insert(Value instr) => CAPI.LLVMInsertIntoBuilder(_builder, instr);
+        public void Insert(Value instr) => _builder.Insert(instr);
 
-        public void InsertWithName(Value instr, string name) =>
-            CAPI.LLVMInsertIntoBuilderWithName(_builder, instr, name);
+        public void InsertWithName(Value instr, string name) => _builder.InsertWithName(instr, name);
 
-        public Value BuildRetVoid() => CAPI.LLVMBuildRetVoid(_builder);
+        public Value BuildRetVoid() => _builder.BuildRetVoid();
 
-        public Value BuildRet(Value value) => CAPI.LLVMBuildRet(_builder, value);
+        public Value BuildRet(Value value) => _builder.BuildRet(value);
 
-        public Value BuildAggregateRet(Value[] retVals) =>
-            CAPI.LLVMBuildAggregateRet(_builder, Array.ConvertAll(retVals, val => (CAPI.LLVMValueRef) val));
+        public Value BuildAggregateRet(Value[] retVals) => _builder.BuildAggregateRet(
+            Array.ConvertAll(retVals, val => (LLVMValueRef) val));
 
-        public Value BuildBr(BasicBlock dest) => CAPI.LLVMBuildBr(_builder, dest);
+        public Value BuildBr(BasicBlock dest) => _builder.BuildBr(dest);
 
         public Value BuildCondBr(Value ifVal, BasicBlock thenBlock, BasicBlock elseBlock) =>
-            CAPI.LLVMBuildCondBr(_builder, ifVal, thenBlock, elseBlock);
+            _builder.BuildCondBr(ifVal, thenBlock, elseBlock);
 
         public Value BuildSwitch(Value val, BasicBlock elseBlock, uint numCases) =>
-            CAPI.LLVMBuildSwitch(_builder, val, elseBlock, numCases);
+            _builder.BuildSwitch(val, elseBlock, numCases);
 
-        public Value BuildIndirectBr(Value addr, uint numDests) => CAPI.LLVMBuildIndirectBr(_builder, addr, numDests);
+        public Value BuildIndirectBr(Value addr, uint numDests) => _builder.BuildIndirectBr(addr, numDests);
 
-        public Value BuildAdd(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildAdd(_builder, lhs, rhs, name);
+        public Value BuildAdd(Value lhs, Value rhs, string name = "") => _builder.BuildAdd(lhs, rhs, name);
 
         public Value BuildNSWAdd(Value lhs, Value rhs, string name = "") =>
-            CAPI.LLVMBuildNSWAdd(_builder, lhs, rhs, name);
+            _builder.BuildNSWAdd(lhs, rhs, name);
 
         public Value BuildNUWAdd(Value lhs, Value rhs, string name = "") =>
-            CAPI.LLVMBuildNUWAdd(_builder, lhs, rhs, name);
+            _builder.BuildNUWAdd(lhs, rhs, name);
 
-        public Value BuildFAdd(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildFAdd(_builder, lhs, rhs, name);
+        public Value BuildFAdd(Value lhs, Value rhs, string name = "") => _builder.BuildFAdd(lhs, rhs, name);
 
-        public Value BuildSub(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildSub(_builder, lhs, rhs, name);
+        public Value BuildSub(Value lhs, Value rhs, string name = "") => _builder.BuildSub(lhs, rhs, name);
 
         public Value BuildNSWSub(Value lhs, Value rhs, string name = "") =>
-            CAPI.LLVMBuildNSWSub(_builder, lhs, rhs, name);
+            _builder.BuildNSWSub(lhs, rhs, name);
 
         public Value BuildNUWSub(Value lhs, Value rhs, string name = "") =>
-            CAPI.LLVMBuildNUWSub(_builder, lhs, rhs, name);
+            _builder.BuildNUWSub(lhs, rhs, name);
 
-        public Value BuildFSub(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildFSub(_builder, lhs, rhs, name);
+        public Value BuildFSub(Value lhs, Value rhs, string name = "") => _builder.BuildFSub(lhs, rhs, name);
 
-        public Value BuildMul(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildMul(_builder, lhs, rhs, name);
+        public Value BuildMul(Value lhs, Value rhs, string name = "") => _builder.BuildMul(lhs, rhs, name);
 
         public Value BuildNSWMul(Value lhs, Value rhs, string name = "") =>
-            CAPI.LLVMBuildNSWMul(_builder, lhs, rhs, name);
+            _builder.BuildNSWMul(lhs, rhs, name);
 
         public Value BuildNUWMul(Value lhs, Value rhs, string name = "") =>
-            CAPI.LLVMBuildNUWMul(_builder, lhs, rhs, name);
+            _builder.BuildNUWMul(lhs, rhs, name);
 
-        public Value BuildFMul(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildFMul(_builder, lhs, rhs, name);
+        public Value BuildFMul(Value lhs, Value rhs, string name = "") => _builder.BuildFMul(lhs, rhs, name);
 
-        public Value BuildUDiv(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildUDiv(_builder, lhs, rhs, name);
+        public Value BuildUDiv(Value lhs, Value rhs, string name = "") => _builder.BuildUDiv(lhs, rhs, name);
 
-        public Value BuildExactUDiv(Value lhs, Value rhs, string name = "") =>
-            CAPI.LLVMBuildExactUDiv(_builder, lhs, rhs, name);
-
-        public Value BuildSDiv(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildSDiv(_builder, lhs, rhs, name);
+        public Value BuildSDiv(Value lhs, Value rhs, string name = "") => _builder.BuildSDiv(lhs, rhs, name);
 
         public Value BuildExactSDiv(Value lhs, Value rhs, string name = "") =>
-            CAPI.LLVMBuildExactSDiv(_builder, lhs, rhs, name);
+            _builder.BuildExactSDiv(lhs, rhs, name);
 
-        public Value BuildFDiv(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildFDiv(_builder, lhs, rhs, name);
+        public Value BuildFDiv(Value lhs, Value rhs, string name = "") => _builder.BuildFDiv(lhs, rhs, name);
 
-        public Value BuildURem(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildURem(_builder, lhs, rhs, name);
+        public Value BuildURem(Value lhs, Value rhs, string name = "") => _builder.BuildURem(lhs, rhs, name);
 
-        public Value BuildSRem(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildSRem(_builder, lhs, rhs, name);
+        public Value BuildSRem(Value lhs, Value rhs, string name = "") => _builder.BuildSRem(lhs, rhs, name);
 
-        public Value BuildFRem(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildFRem(_builder, lhs, rhs, name);
+        public Value BuildFRem(Value lhs, Value rhs, string name = "") => _builder.BuildFRem(lhs, rhs, name);
 
-        public Value BuildShl(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildShl(_builder, lhs, rhs, name);
+        public Value BuildShl(Value lhs, Value rhs, string name = "") => _builder.BuildShl(lhs, rhs, name);
 
-        public Value BuildLShr(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildLShr(_builder, lhs, rhs, name);
+        public Value BuildLShr(Value lhs, Value rhs, string name = "") => _builder.BuildLShr(lhs, rhs, name);
 
-        public Value BuildAShr(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildAShr(_builder, lhs, rhs, name);
+        public Value BuildAShr(Value lhs, Value rhs, string name = "") => _builder.BuildAShr(lhs, rhs, name);
 
-        public Value BuildAnd(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildAnd(_builder, lhs, rhs, name);
+        public Value BuildAnd(Value lhs, Value rhs, string name = "") => _builder.BuildAnd(lhs, rhs, name);
 
-        public Value BuildOr(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildOr(_builder, lhs, rhs, name);
+        public Value BuildOr(Value lhs, Value rhs, string name = "") => _builder.BuildOr(lhs, rhs, name);
 
-        public Value BuildXor(Value lhs, Value rhs, string name = "") => CAPI.LLVMBuildXor(_builder, lhs, rhs, name);
+        public Value BuildXor(Value lhs, Value rhs, string name = "") => _builder.BuildXor(lhs, rhs, name);
 
-        public Value BuildBinOp(CAPI.LLVMOpcode op, Value lhs, Value rhs, string name = "") =>
-            CAPI.LLVMBuildBinOp(_builder, op, lhs, rhs, name);
+        public Value BuildBinOp(LLVMOpcode op, Value lhs, Value rhs, string name = "") =>
+            _builder.BuildBinOp(op, lhs, rhs, name);
 
-        public Value BuildNeg(Value v, string name = "") => CAPI.LLVMBuildNeg(_builder, v, name);
+        public Value BuildNeg(Value v, string name = "") => _builder.BuildNeg(v, name);
 
-        public Value BuildNSWNeg(Value v, string name = "") => CAPI.LLVMBuildNSWNeg(_builder, v, name);
+        public Value BuildNSWNeg(Value v, string name = "") => _builder.BuildNSWNeg(v, name);
 
-        public Value BuildNUWNeg(Value v, string name = "") => CAPI.LLVMBuildNUWNeg(_builder, v, name);
+        public Value BuildNUWNeg(Value v, string name = "") => _builder.BuildNUWNeg(v, name);
 
-        public Value BuildFNeg(Value v, string name = "") => CAPI.LLVMBuildFNeg(_builder, v, name);
+        public Value BuildFNeg(Value v, string name = "") => _builder.BuildFNeg(v, name);
 
-        public Value BuildNot(Value v, string name = "") => CAPI.LLVMBuildNot(_builder, v, name);
+        public Value BuildNot(Value v, string name = "") => _builder.BuildNot(v, name);
 
-        public Value BuildCast(CAPI.LLVMOpcode op, Value val, Type destTy, string name = "") =>
-            CAPI.LLVMBuildCast(_builder, op, val, destTy, name);
+        public Value BuildCast(LLVMOpcode op, Value val, Type destTy, string name = "") =>
+            _builder.BuildCast(op, val, destTy, name);
 
         public Value BuildPointerCast(Value val, Type destTy, string name = "") =>
-            CAPI.LLVMBuildPointerCast(_builder, val, destTy, name);
+            _builder.BuildPointerCast(val, destTy, name);
 
-        public Value BuildICmp(CAPI.LLVMIntPredicate op, Value lhs, Value rhs, string name = "") =>
-            CAPI.LLVMBuildICmp(_builder, op, lhs, rhs, name);
+        public Value BuildICmp(LLVMIntPredicate op, Value lhs, Value rhs, string name = "") =>
+            _builder.BuildICmp(op, lhs, rhs, name);
 
-        public Value BuildFCmp(CAPI.LLVMRealPredicate op, Value lhs, Value rhs, string name = "") =>
-            CAPI.LLVMBuildFCmp(_builder, op, lhs, rhs, name);
+        public Value BuildFCmp(LLVMRealPredicate op, Value lhs, Value rhs, string name = "") =>
+            _builder.BuildFCmp(op, lhs, rhs, name);
 
-        public Value BuildPhi(Type ty, string name = "") => CAPI.LLVMBuildPhi(_builder, ty, name);
+        public Value BuildPhi(Type ty, string name = "") => _builder.BuildPhi(ty, name);
 
-        public Value BuildCall(Type ty, Value fn, Value[] args, string name = "") => CAPI.LLVMBuildCall2(_builder, ty,
-            fn, Array.ConvertAll(args, a => (CAPI.LLVMValueRef) a), name);
+        public Value BuildCall(Value fn, Value[] args, string name = "") => _builder.BuildCall(
+            fn, Array.ConvertAll(args, a => (LLVMValueRef) a), name);
 
         public Value BuildSelect(Value _if, Value then, Value _else, string name = "") =>
-            CAPI.LLVMBuildSelect(_builder, _if, then, _else, name);
+            _builder.BuildSelect(_if, then, _else, name);
 
-        public Value BuildAlloca(Type ty, string name = "") => CAPI.LLVMBuildAlloca(_builder, ty, name);
+        public Value BuildAlloca(Type ty, string name = "") => _builder.BuildAlloca(ty, name);
 
         public Value BuildArrayAlloca(Type ty, Value val, string name = "") =>
-            CAPI.LLVMBuildArrayAlloca(_builder, ty, val, name);
+            _builder.BuildArrayAlloca(ty, val, name);
 
-        public Value BuildLoad(Type ty, Value ptr, string name = "") => CAPI.LLVMBuildLoad2(_builder, ty, ptr, name);
+        public Value BuildLoad(Value ptr, string name = "") => _builder.BuildLoad(ptr, name);
 
-        public Value BuildStore(Value val, Value ptr) => CAPI.LLVMBuildStore(_builder, val, ptr);
+        public Value BuildStore(Value val, Value ptr) => _builder.BuildStore(val, ptr);
 
-        public Value BuildStructGEP(Type ty, Value pointer, uint idx, string name = "") =>
-            CAPI.LLVMBuildStructGEP2(_builder, ty, pointer, idx, name);
+        public Value BuildStructGEP(Value pointer, uint idx, string name = "") =>
+            _builder.BuildStructGEP(pointer, idx, name);
 
         public Value BuildExtractValue(Value aggVal, uint index, string name = "") =>
-            CAPI.LLVMBuildExtractValue(_builder, aggVal, index, name);
+            _builder.BuildExtractValue(aggVal, index, name);
 
         public Value BuildInsertValue(Value aggVal, Value eltVal, uint index, string name = "") =>
-            CAPI.LLVMBuildInsertValue(_builder, aggVal, eltVal, index, name);
+            _builder.BuildInsertValue(aggVal, eltVal, index, name);
 
-        public Value BuildGlobalString(string str, string name = "") => CAPI.LLVMBuildGlobalString(_builder, str, name);
+        public Value BuildGlobalString(string str, string name = "") => _builder.BuildGlobalString(str, name);
 
         public Value BuildGlobalStringPtr(string str, string name = "") =>
-            CAPI.LLVMBuildGlobalStringPtr(_builder, str, name);
+            _builder.BuildGlobalStringPtr(str, name);
 
-        public void SetCurrentDebugLocation(Metadata loc) => CAPI.LLVMSetCurrentDebugLocation2(_builder, loc);
+        public unsafe void SetCurrentDebugLocation(Metadata loc) =>
+            LLVMSharp.Interop.LLVM.SetCurrentDebugLocation2(_builder, (LLVMMetadataRef) loc);
 
         /// <summary>
         /// Port of CastInst::getCastOpcode
         /// </summary>
         /// <exception cref="InvalidCastException"></exception>
-        public static CAPI.LLVMOpcode GetCastOpcode(Value src, bool srcIsSigned, Type destTy, bool destIsSigned)
+        public static LLVMOpcode GetCastOpcode(Value src, bool srcIsSigned, Type destTy, bool destIsSigned)
         {
             Type srcTy = src.TypeOf;
 
@@ -189,11 +184,11 @@ namespace MonC.LLVM
                 throw new InvalidCastException("Only first class types are castable!");
 
             if (srcTy == destTy)
-                return CAPI.LLVMOpcode.BitCast;
+                return LLVMOpcode.LLVMBitCast;
 
             // FIXME: Check address space sizes here
-            if (srcTy.Kind == CAPI.LLVMTypeKind.Vector)
-                if (destTy.Kind == CAPI.LLVMTypeKind.Vector)
+            if (srcTy.Kind == LLVMTypeKind.LLVMVectorTypeKind)
+                if (destTy.Kind == LLVMTypeKind.LLVMVectorTypeKind)
                     if (srcTy.VectorSize == destTy.VectorSize) {
                         // An element by element cast.  Find the appropriate opcode based on the
                         // element types.
@@ -206,72 +201,72 @@ namespace MonC.LLVM
             uint destBits = destTy.GetPrimitiveSizeInBits(); // 0 for ptr
 
             // Run through the possibilities ...
-            if (destTy.Kind == CAPI.LLVMTypeKind.Integer) { // Casting to integral
-                if (srcTy.Kind == CAPI.LLVMTypeKind.Integer) { // Casting from integral
+            if (destTy.Kind == LLVMTypeKind.LLVMIntegerTypeKind) { // Casting to integral
+                if (srcTy.Kind == LLVMTypeKind.LLVMIntegerTypeKind) { // Casting from integral
                     if (destBits < srcBits)
-                        return CAPI.LLVMOpcode.Trunc; // int -> smaller int
+                        return LLVMOpcode.LLVMTrunc; // int -> smaller int
                     else if (destBits > srcBits) { // its an extension
                         if (srcIsSigned)
-                            return CAPI.LLVMOpcode.SExt; // signed -> SEXT
+                            return LLVMOpcode.LLVMSExt; // signed -> SEXT
                         else
-                            return CAPI.LLVMOpcode.ZExt; // unsigned -> ZEXT
+                            return LLVMOpcode.LLVMZExt; // unsigned -> ZEXT
                     } else {
-                        return CAPI.LLVMOpcode.BitCast; // Same size, No-op cast
+                        return LLVMOpcode.LLVMBitCast; // Same size, No-op cast
                     }
                 } else if (srcTy.IsFloatingPointType()) { // Casting from floating pt
                     if (destIsSigned)
-                        return CAPI.LLVMOpcode.FPToSI; // FP -> sint
+                        return LLVMOpcode.LLVMFPToSI; // FP -> sint
                     else
-                        return CAPI.LLVMOpcode.FPToUI; // FP -> uint
-                } else if (srcTy.Kind == CAPI.LLVMTypeKind.Vector) {
+                        return LLVMOpcode.LLVMFPToUI; // FP -> uint
+                } else if (srcTy.Kind == LLVMTypeKind.LLVMVectorTypeKind) {
                     if (destBits != srcBits)
                         throw new InvalidCastException("Casting vector to integer of different width");
-                    return CAPI.LLVMOpcode.BitCast; // Same size, no-op cast
+                    return LLVMOpcode.LLVMBitCast; // Same size, no-op cast
                 } else {
-                    if (srcTy.Kind != CAPI.LLVMTypeKind.Pointer)
+                    if (srcTy.Kind != LLVMTypeKind.LLVMPointerTypeKind)
                         throw new InvalidCastException("Casting from a value that is not first-class type");
-                    return CAPI.LLVMOpcode.PtrToInt; // ptr -> int
+                    return LLVMOpcode.LLVMPtrToInt; // ptr -> int
                 }
             } else if (srcTy.IsFloatingPointType()) { // Casting to floating pt
-                if (srcTy.Kind == CAPI.LLVMTypeKind.Integer) { // Casting from integral
+                if (srcTy.Kind == LLVMTypeKind.LLVMIntegerTypeKind) { // Casting from integral
                     if (srcIsSigned)
-                        return CAPI.LLVMOpcode.SIToFP; // sint -> FP
+                        return LLVMOpcode.LLVMSIToFP; // sint -> FP
                     else
-                        return CAPI.LLVMOpcode.UIToFP; // uint -> FP
+                        return LLVMOpcode.LLVMUIToFP; // uint -> FP
                 } else if (srcTy.IsFloatingPointType()) { // Casting from floating pt
                     if (destBits < srcBits) {
-                        return CAPI.LLVMOpcode.FPTrunc; // FP -> smaller FP
+                        return LLVMOpcode.LLVMFPTrunc; // FP -> smaller FP
                     } else if (destBits > srcBits) {
-                        return CAPI.LLVMOpcode.FPExt; // FP -> larger FP
+                        return LLVMOpcode.LLVMFPExt; // FP -> larger FP
                     } else {
-                        return CAPI.LLVMOpcode.BitCast; // same size, no-op cast
+                        return LLVMOpcode.LLVMBitCast; // same size, no-op cast
                     }
-                } else if (srcTy.Kind == CAPI.LLVMTypeKind.Vector) {
+                } else if (srcTy.Kind == LLVMTypeKind.LLVMVectorTypeKind) {
                     if (destBits != srcBits)
                         throw new InvalidCastException("Casting vector to floating point of different width");
-                    return CAPI.LLVMOpcode.BitCast; // same size, no-op cast
+                    return LLVMOpcode.LLVMBitCast; // same size, no-op cast
                 }
 
                 throw new InvalidCastException("Casting pointer or non-first class to float");
-            } else if (destTy.Kind == CAPI.LLVMTypeKind.Vector) {
+            } else if (destTy.Kind == LLVMTypeKind.LLVMVectorTypeKind) {
                 if (destBits != srcBits)
                     throw new InvalidCastException("Illegal cast to vector (wrong type or size)");
-                return CAPI.LLVMOpcode.BitCast;
-            } else if (destTy.Kind == CAPI.LLVMTypeKind.Pointer) {
-                if (srcTy.Kind == CAPI.LLVMTypeKind.Pointer) {
+                return LLVMOpcode.LLVMBitCast;
+            } else if (destTy.Kind == LLVMTypeKind.LLVMPointerTypeKind) {
+                if (srcTy.Kind == LLVMTypeKind.LLVMPointerTypeKind) {
                     if (destTy.PointerAddressSpace != srcTy.PointerAddressSpace)
-                        return CAPI.LLVMOpcode.AddrSpaceCast;
-                    return CAPI.LLVMOpcode.BitCast; // ptr -> ptr
-                } else if (srcTy.Kind == CAPI.LLVMTypeKind.Integer) {
-                    return CAPI.LLVMOpcode.IntToPtr; // int -> ptr
+                        return LLVMOpcode.LLVMAddrSpaceCast;
+                    return LLVMOpcode.LLVMBitCast; // ptr -> ptr
+                } else if (srcTy.Kind == LLVMTypeKind.LLVMIntegerTypeKind) {
+                    return LLVMOpcode.LLVMIntToPtr; // int -> ptr
                 }
 
                 throw new InvalidCastException("Casting pointer to other than pointer or int");
-            } else if (destTy.Kind == CAPI.LLVMTypeKind.X86_MMX) {
-                if (srcTy.Kind == CAPI.LLVMTypeKind.Vector) {
+            } else if (destTy.Kind == LLVMTypeKind.LLVMX86_MMXTypeKind) {
+                if (srcTy.Kind == LLVMTypeKind.LLVMVectorTypeKind) {
                     if (destBits != srcBits)
                         throw new InvalidCastException("Casting vector of wrong width to X86_MMX");
-                    return CAPI.LLVMOpcode.BitCast; // 64-bit vector to MMX
+                    return LLVMOpcode.LLVMBitCast; // 64-bit vector to MMX
                 }
 
                 throw new InvalidCastException("Illegal cast to X86_MMX");

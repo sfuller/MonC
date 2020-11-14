@@ -1,18 +1,21 @@
-﻿namespace MonC.LLVM
+﻿using System;
+using LLVMSharp.Interop;
+
+namespace MonC.LLVM
 {
     public struct BasicBlock
     {
-        private CAPI.LLVMBasicBlockRef _basicBlock;
-        public bool IsValid => _basicBlock.IsValid;
+        private LLVMBasicBlockRef _basicBlock;
+        public bool IsValid => _basicBlock.Handle != IntPtr.Zero;
 
         public static BasicBlock Null => new BasicBlock();
 
-        internal BasicBlock(CAPI.LLVMBasicBlockRef basicBlock) => _basicBlock = basicBlock;
+        internal BasicBlock(LLVMBasicBlockRef basicBlock) => _basicBlock = basicBlock;
 
-        public static implicit operator CAPI.LLVMBasicBlockRef(BasicBlock basicBlock) => basicBlock._basicBlock;
-        public static implicit operator BasicBlock(CAPI.LLVMBasicBlockRef basicBlock) => new BasicBlock(basicBlock);
+        public static implicit operator LLVMBasicBlockRef(BasicBlock basicBlock) => basicBlock._basicBlock;
+        public static implicit operator BasicBlock(LLVMBasicBlockRef basicBlock) => new BasicBlock(basicBlock);
 
-        public Value FirstInstruction => IsValid ? CAPI.LLVMGetFirstInstruction(_basicBlock) : new CAPI.LLVMValueRef();
-        public Value LastInstruction => IsValid ? CAPI.LLVMGetLastInstruction(_basicBlock) : new CAPI.LLVMValueRef();
+        public Value FirstInstruction => _basicBlock.FirstInstruction;
+        public Value LastInstruction => _basicBlock.LastInstruction;
     }
 }
