@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -8,8 +8,7 @@ namespace MonC.LLVM
     {
         public static string NativeToManaged(sbyte* ptr)
         {
-            var span = new ReadOnlySpan<byte>(ptr, int.MaxValue);
-            return span.Slice(0, span.IndexOf((byte) '\0')).ToString();
+            return new string(ptr);
         }
 
         public static string NativeToManagedDispose(sbyte* ptr)

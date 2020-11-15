@@ -76,7 +76,7 @@ namespace MonC.LLVM
 
         public Value BuildFSub(Value lhs, Value rhs, string name = "") => _builder.BuildFSub(lhs, rhs, name);
 
-        public Value BuildMul(Value lhs, Value rhs, string name = "") => _builder.BuildMul(lhs, rhs, name);
+        public Value BuildMul(Value lhs, Value rhs, string name = "") => _builder.BuildMul(lhs, rhs, name.AsSpan());
 
         public Value BuildNSWMul(Value lhs, Value rhs, string name = "") =>
             _builder.BuildNSWMul(lhs, rhs, name);

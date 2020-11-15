@@ -4,9 +4,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.30503.244
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MonC", "src\MonC\MonC.csproj", "{2983562A-BD28-4066-A744-0C258947F0E7}"
-	ProjectSection(ProjectDependencies) = postProject
-		{030CA3E3-A765-459D-ADEE-C6508CC30C45} = {030CA3E3-A765-459D-ADEE-C6508CC30C45}
-	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Frontend", "src\Frontend\Frontend.csproj", "{82CC4C25-9B9C-4D66-AD5B-44438071FA3F}"
 EndProject
