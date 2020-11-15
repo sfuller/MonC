@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using LLVMSharp.Interop;
 
@@ -115,8 +115,7 @@ namespace MonC.LLVM
 
             // Otherwise write a giant buffer
             using MemoryBuffer memBuf = WriteBitcodeToMemoryBuffer();
-            // TODO: Remove ToArray when adoping .net standard 2.1
-            writer.Write(memBuf.Bytes.ToArray());
+            writer.Write(memBuf.Bytes);
         }
     }
 }

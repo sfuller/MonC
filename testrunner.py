@@ -32,9 +32,9 @@ class ImplConfiguration(object):
 
 
 IMPL_CONFIGURATIONS = {
-    'frontend': ImplConfiguration('src/Frontend', ()),  # Probably going away
-    'driver_interpreter': ImplConfiguration('src/Driver', ()),
-    'driver_llvm': ImplConfiguration('src/Driver', ("-toolchain=llvm",))
+    'frontend': ImplConfiguration('src/Frontend/Frontend.csproj', ()),  # Probably going away
+    'driver_interpreter': ImplConfiguration('src/Driver/Driver.csproj', ()),
+    'driver_llvm': ImplConfiguration('src/Driver/Driver.csproj', ("-toolchain=llvm",))
 }
 
 if sys.platform == "win32":

@@ -3,11 +3,13 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>netcoreapp3.1</TargetFramework>
+        <!-- Enables platform-dependent targeting to select matching libLLVM library -->
         <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
     </PropertyGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\Frontend\Frontend.csproj" />
+      <ProjectReference Include="..\LLVM\LLVM.csproj" />
       <ProjectReference Include="..\MonC\MonC.csproj" />
     </ItemGroup>
 
