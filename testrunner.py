@@ -8,10 +8,6 @@ from typing import List, Dict, Set, Iterable
 
 REPOSITORY_DIR = os.path.dirname(__file__)
 TEST_DIR = os.path.normpath(os.path.join(REPOSITORY_DIR, 'test'))
-FRONTEND_BINARY = os.path.normpath(
-    os.path.join(REPOSITORY_DIR, 'src', 'Frontend', 'bin', 'Debug', 'netcoreapp3.1', 'Frontend'))
-DRIVER_BINARY = os.path.normpath(
-    os.path.join(REPOSITORY_DIR, 'src', 'Driver', 'bin', 'Debug', 'netcoreapp3.1', 'Driver'))
 CORELIB_DLL_SEARCH_PATH = os.path.normpath(
     os.path.join(REPOSITORY_DIR, 'src', 'CoreLib', 'bin', 'Debug', 'netstandard2.1'))
 
@@ -30,15 +26,15 @@ TEST_OUTPUT_PREFIX = 'monctest:'
 
 
 class ImplConfiguration(object):
-    def __init__(self, binary: str, additional_args: Iterable[str]):
-        self.binary = binary
+    def __init__(self, project: str, additional_args: Iterable[str]):
+        self.project = project
         self.additional_args = additional_args
 
 
 IMPL_CONFIGURATIONS = {
-    'frontend': ImplConfiguration(FRONTEND_BINARY, ()),  # Probably going away
-    'driver_interpreter': ImplConfiguration(DRIVER_BINARY, ()),
-    'driver_llvm': ImplConfiguration(DRIVER_BINARY, ("-toolchain=llvm",))
+    'frontend': ImplConfiguration('src/Frontend', ()),  # Probably going away
+    'driver_interpreter': ImplConfiguration('src/Driver', ()),
+    'driver_llvm': ImplConfiguration('src/Driver', ("-toolchain=llvm",))
 }
 
 if sys.platform == "win32":
@@ -167,7 +163,7 @@ def run_test(test: Test, impl: ImplConfiguration, runner_args: Arguments, args_t
     # TODO: Which file contains annotations for multi-file tests?
     annotations = parse_annotations(test.files[0])
 
-    args = [impl.binary]
+    args = ['dotnet', 'run', '-p', impl.project, '--no-build', '--']
     args.extend(test.files)
     args.extend(('-L', CORELIB_DLL_SEARCH_PATH))
     args.extend(annotations.args)
