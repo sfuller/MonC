@@ -1,4 +1,5 @@
 ﻿using System;
+using LLVMSharp.Interop;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Expressions.UnaryOperations;
 
@@ -24,7 +25,7 @@ namespace MonC.LLVM
         {
             Value operand = GetUnaryOperand(node);
             Type destTp = _codeGenVisitor._genContext.LookupType(node.ToType)!.Value;
-            CAPI.LLVMOpcode castOp = _codeGenVisitor.GetCastOpcode(operand, destTp);
+            LLVMOpcode castOp = _codeGenVisitor.GetCastOpcode(operand, destTp);
             _codeGenVisitor._visitedValue = _codeGenVisitor._builder.BuildCast(castOp, operand, destTp);
         }
 

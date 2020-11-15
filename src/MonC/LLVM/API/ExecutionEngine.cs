@@ -1,24 +1,21 @@
 ﻿using System;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
     public class ExecutionEngine : IVMModuleArtifact
     {
-        private CAPI.LLVMExecutionEngineRef _executionEngine;
+        private LLVMExecutionEngineRef _executionEngine;
 
-        private ExecutionEngine(CAPI.LLVMExecutionEngineRef executionEngine) => _executionEngine = executionEngine;
+        private ExecutionEngine(LLVMExecutionEngineRef executionEngine) => _executionEngine = executionEngine;
 
         public static ExecutionEngine CreateForModule(Module m)
         {
-            if (CAPI.LLVMCreateExecutionEngineForModule(out CAPI.LLVMExecutionEngineRef outEE, m,
-                out string? errorMessage))
-                throw new InvalidOperationException(errorMessage);
-            return new ExecutionEngine(outEE);
+            return new ExecutionEngine(((LLVMModuleRef) m).CreateExecutionEngine());
         }
 
         public GenericValue RunFunction(Value f, GenericValue[] args) =>
-            new GenericValue(CAPI.LLVMRunFunction(_executionEngine, f,
-                Array.ConvertAll(args, a => (CAPI.LLVMGenericValueRef) a)));
+            new GenericValue(_executionEngine.RunFunction(f, Array.ConvertAll(args, a => (LLVMGenericValueRef) a)));
 
         public void Dispose()
         {
@@ -28,17 +25,14 @@ namespace MonC.LLVM
 
         private void DoDispose()
         {
-            if (_executionEngine.IsValid) {
-                CAPI.LLVMDisposeExecutionEngine(_executionEngine);
-                _executionEngine = new CAPI.LLVMExecutionEngineRef();
-            }
+            _executionEngine.Dispose();
         }
 
         ~ExecutionEngine() => DoDispose();
 
         public Value FindFunction(string name)
         {
-            if (!CAPI.LLVMFindFunction(_executionEngine, name, out CAPI.LLVMValueRef outFnRef))
+            if (_executionEngine.TryFindFunction(name, out LLVMValueRef outFnRef))
                 return outFnRef;
             return new Value();
         }

@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using MonC;
 using MonC.LLVM;
+using LLVMSharp.Interop;
 
 namespace Driver.ToolChains
 {
@@ -22,14 +23,14 @@ namespace Driver.ToolChains
                 if (streamWriter.BaseStream is FileStream fileStream) {
                     string path = fileStream.Name;
                     writer.Close();
-                    _toolchain.TargetMachine.EmitToFile(_input, path, CAPI.LLVMCodeGenFileType.AssemblyFile);
+                    _toolchain.TargetMachine.EmitToFile(_input, path, LLVMCodeGenFileType.LLVMAssemblyFile);
                     return;
                 }
             }
 
             // Otherwise write a giant string
             using MemoryBuffer memBuf =
-                _toolchain.TargetMachine.EmitToMemoryBuffer(_input, CAPI.LLVMCodeGenFileType.AssemblyFile);
+                _toolchain.TargetMachine.EmitToMemoryBuffer(_input, LLVMCodeGenFileType.LLVMAssemblyFile);
             writer.Write(memBuf.GetAsString());
         }
 
@@ -39,13 +40,13 @@ namespace Driver.ToolChains
             if (writer.BaseStream is FileStream fileStream) {
                 string path = fileStream.Name;
                 writer.Close();
-                _toolchain.TargetMachine.EmitToFile(_input, path, CAPI.LLVMCodeGenFileType.ObjectFile);
+                _toolchain.TargetMachine.EmitToFile(_input, path, LLVMCodeGenFileType.LLVMObjectFile);
                 return;
             }
 
             // Otherwise write a giant string
             using MemoryBuffer memBuf =
-                _toolchain.TargetMachine.EmitToMemoryBuffer(_input, CAPI.LLVMCodeGenFileType.ObjectFile);
+                _toolchain.TargetMachine.EmitToMemoryBuffer(_input, LLVMCodeGenFileType.LLVMObjectFile);
             writer.Write(memBuf.Bytes);
         }
 

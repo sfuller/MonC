@@ -1,6 +1,7 @@
 ﻿using System;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Expressions.BinaryOperations;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
@@ -12,22 +13,22 @@ namespace MonC.LLVM
             _codeGenVisitor = codeGenVisitor;
 
         public void VisitCompareLTBinOp(CompareLtBinOpNode node) =>
-            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntSLT, CAPI.LLVMRealPredicate.RealOLT);
+            GenerateRelationalComparison(node, LLVMIntPredicate.LLVMIntSLT, LLVMRealPredicate.LLVMRealOLT);
 
         public void VisitCompareLTEBinOp(CompareLteBinOpNode node) =>
-            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntSLE, CAPI.LLVMRealPredicate.RealOLE);
+            GenerateRelationalComparison(node, LLVMIntPredicate.LLVMIntSLE, LLVMRealPredicate.LLVMRealOLE);
 
         public void VisitCompareGTBinOp(CompareGtBinOpNode node) =>
-            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntSGT, CAPI.LLVMRealPredicate.RealOGT);
+            GenerateRelationalComparison(node, LLVMIntPredicate.LLVMIntSGT, LLVMRealPredicate.LLVMRealOGT);
 
         public void VisitCompareGTEBinOp(CompareGteBinOpNode node) =>
-            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntSGE, CAPI.LLVMRealPredicate.RealOGE);
+            GenerateRelationalComparison(node, LLVMIntPredicate.LLVMIntSGE, LLVMRealPredicate.LLVMRealOGE);
 
         public void VisitCompareEqualityBinOp(CompareEqualityBinOpNode node) =>
-            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntEQ, CAPI.LLVMRealPredicate.RealUEQ);
+            GenerateRelationalComparison(node, LLVMIntPredicate.LLVMIntEQ, LLVMRealPredicate.LLVMRealUEQ);
 
         public void VisitCompareInequalityBinOp(CompareInequalityBinOpNode node) =>
-            GenerateRelationalComparison(node, CAPI.LLVMIntPredicate.IntNE, CAPI.LLVMRealPredicate.RealUNE);
+            GenerateRelationalComparison(node, LLVMIntPredicate.LLVMIntNE, LLVMRealPredicate.LLVMRealUNE);
 
         public void VisitLogicalAndBinOp(LogicalAndBinOpNode node)
         {
@@ -174,21 +175,21 @@ namespace MonC.LLVM
             }
 
             // TODO: support unsigned values
-            CAPI.LLVMOpcode lhsCastOp = _codeGenVisitor.GetCastOpcode(lhs, rhsTp);
-            if (lhsCastOp != CAPI.LLVMOpcode.Trunc && lhsCastOp != CAPI.LLVMOpcode.FPTrunc) {
+            LLVMOpcode lhsCastOp = _codeGenVisitor.GetCastOpcode(lhs, rhsTp);
+            if (lhsCastOp != LLVMOpcode.LLVMTrunc && lhsCastOp != LLVMOpcode.LLVMFPTrunc) {
                 lhs = _codeGenVisitor._builder.BuildCast(lhsCastOp, lhs, rhsTp);
                 isFloat = rhsTp.IsFloatingPointType();
                 return;
             }
 
             // TODO: support unsigned values
-            CAPI.LLVMOpcode rhsCastOp = _codeGenVisitor.GetCastOpcode(rhs, lhsTp);
+            LLVMOpcode rhsCastOp = _codeGenVisitor.GetCastOpcode(rhs, lhsTp);
             rhs = _codeGenVisitor._builder.BuildCast(rhsCastOp, rhs, lhsTp);
             isFloat = lhsTp.IsFloatingPointType();
         }
 
-        private void GenerateRelationalComparison(IBinaryOperationNode node, CAPI.LLVMIntPredicate intPred,
-            CAPI.LLVMRealPredicate realPred)
+        private void GenerateRelationalComparison(IBinaryOperationNode node, LLVMIntPredicate intPred,
+            LLVMRealPredicate realPred)
         {
             node.LHS.AcceptExpressionVisitor(_codeGenVisitor);
             Value lhs = _codeGenVisitor._visitedValue;

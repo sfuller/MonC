@@ -1,4 +1,5 @@
 using System;
+using LLVMSharp.Interop;
 using MonC.SyntaxTree.Nodes;
 using MonC.SyntaxTree.Nodes.Expressions;
 using MonC.SyntaxTree.Nodes.Statements;
@@ -54,27 +55,27 @@ namespace MonC.LLVM
         {
             // TODO: Support pointers
             Type valType = val.TypeOf;
-            if (valType.Kind == CAPI.LLVMTypeKind.Integer) {
+            if (valType.Kind == LLVMTypeKind.LLVMIntegerTypeKind) {
                 if (valType.IntTypeWidth == 1) {
                     return val;
                 }
 
-                return _builder.BuildICmp(invert ? CAPI.LLVMIntPredicate.IntEQ : CAPI.LLVMIntPredicate.IntNE, val,
+                return _builder.BuildICmp(invert ? LLVMIntPredicate.LLVMIntEQ : LLVMIntPredicate.LLVMIntNE, val,
                     Value.ConstInt(valType, 0, true), "tobool");
             } else if (valType.IsFloatingPointType()) {
-                return _builder.BuildFCmp(invert ? CAPI.LLVMRealPredicate.RealUEQ : CAPI.LLVMRealPredicate.RealUNE, val,
+                return _builder.BuildFCmp(invert ? LLVMRealPredicate.LLVMRealUEQ : LLVMRealPredicate.LLVMRealUNE, val,
                     Value.ConstReal(valType, 0.0), "tobool");
             }
 
             throw new InvalidOperationException("only integers and floating point values can be converted to bool");
         }
 
-        internal CAPI.LLVMOpcode GetCastOpcode(Value val, Type tp)
+        internal LLVMOpcode GetCastOpcode(Value val, Type tp)
         {
             Type valType = val.TypeOf;
 
             // TODO: This is a hack to not sign-extend bools; Make a better way to track signedness
-            bool sext = valType.Kind == CAPI.LLVMTypeKind.Integer && valType.IntTypeWidth != 1;
+            bool sext = valType.Kind == LLVMTypeKind.LLVMIntegerTypeKind && valType.IntTypeWidth != 1;
 
             // TODO: support unsigned values
             return Builder.GetCastOpcode(val, sext, tp, true);
@@ -86,7 +87,7 @@ namespace MonC.LLVM
                 return val;
             }
 
-            CAPI.LLVMOpcode castOp = GetCastOpcode(val, tp);
+            LLVMOpcode castOp = GetCastOpcode(val, tp);
             return _builder.BuildCast(castOp, val, tp);
         }
 
@@ -147,7 +148,7 @@ namespace MonC.LLVM
                 _genContext.TryGetNodeSymbol(node, out Symbol varRange);
                 Metadata varType = _genContext.LookupDiType(node.Type)!.Value;
                 Metadata varMetadata = _genContext.DiBuilder.CreateAutoVariable(_lexicalScope, node.Name,
-                    _genContext.DiFile, varRange.LLVMLine, varType, true, CAPI.LLVMDIFlags.Zero,
+                    _genContext.DiFile, varRange.LLVMLine, varType, true, LLVMDIFlags.LLVMDIFlagZero,
                     varType.GetTypeAlignInBits());
                 _genContext.DiBuilder.InsertDeclareAtEnd(varStorage, varMetadata,
                     _genContext.DiBuilder.CreateExpression(), dbgLocation, _builder.InsertBlock);
@@ -242,7 +243,7 @@ namespace MonC.LLVM
 
             // Force debug location on call instructions to make ExecutionEngine happy
             SetCurrentDebugLocation(node, true);
-            _visitedValue = _builder.BuildCall(func.FunctionType, func.FunctionValue, args);
+            _visitedValue = _builder.BuildCall(func.FunctionValue, args);
             _builder.SetCurrentDebugLocation(Metadata.Null);
         }
 
@@ -254,8 +255,7 @@ namespace MonC.LLVM
 
             SetCurrentDebugLocation(node);
             _function.VariableValues.TryGetValue(node.Declaration, out Value varStorage);
-            Type declType = _genContext.LookupType(node.Declaration.Type)!.Value;
-            _visitedValue = _builder.BuildLoad(declType, varStorage);
+            _visitedValue = _builder.BuildLoad(varStorage);
         }
 
         public void VisitIfElse(IfElseNode node)
@@ -438,8 +438,8 @@ namespace MonC.LLVM
             if (!_builder.InsertBlock.IsValid)
                 return;
 
-            AssignmentCodeGenVisitor assignmentCodeGenVisitor
-                = new AssignmentCodeGenVisitor(_builder, _genContext, _function);
+            AssignmentCodeGenVisitor assignmentCodeGenVisitor =
+                new AssignmentCodeGenVisitor(_builder, _genContext, _function);
             node.Lhs.AcceptAddressableVisitor(assignmentCodeGenVisitor);
             if (!assignmentCodeGenVisitor.AssignmentWritePointer.IsValid) {
                 throw new InvalidOperationException("assignment did not produce a usable lvalue");

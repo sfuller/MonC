@@ -1,38 +1,49 @@
 ﻿using System;
+using LLVMSharp.Interop;
 
 namespace MonC.LLVM
 {
     public class MemoryBuffer : IDisposable
     {
-        private CAPI.LLVMMemoryBufferRef _memoryBuffer;
+        private LLVMMemoryBufferRef _memoryBuffer;
 
-        internal void Release() => _memoryBuffer = new CAPI.LLVMMemoryBufferRef();
+        internal void Release() => _memoryBuffer = new LLVMMemoryBufferRef();
 
-        public static implicit operator CAPI.LLVMMemoryBufferRef(MemoryBuffer memoryBuffer) =>
+        public static implicit operator LLVMMemoryBufferRef(MemoryBuffer memoryBuffer) =>
             memoryBuffer._memoryBuffer;
 
-        internal MemoryBuffer(CAPI.LLVMMemoryBufferRef memoryBuffer) => _memoryBuffer = memoryBuffer;
+        internal MemoryBuffer(LLVMMemoryBufferRef memoryBuffer) => _memoryBuffer = memoryBuffer;
 
-        public static MemoryBuffer WithContentsOfFile(string path)
+        public static unsafe MemoryBuffer WithContentsOfFile(string path)
         {
-            if (CAPI.LLVMCreateMemoryBufferWithContentsOfFile(path, out CAPI.LLVMMemoryBufferRef buffer,
-                out string? message)) {
+            using var marshaledPath = new MarshaledString(path.AsSpan());
+            LLVMMemoryBufferRef buffer;
+            sbyte* message;
+            if (LLVMSharp.Interop.LLVM.CreateMemoryBufferWithContentsOfFile(marshaledPath,
+                (LLVMOpaqueMemoryBuffer**) &buffer, &message) != 0) {
                 throw new InvalidOperationException(message != null
-                    ? message
+                    ? MarshaledString.NativeToManagedDispose(message)
                     : $"Cannot create memory buffer from {path}");
             }
 
             return new MemoryBuffer(buffer);
         }
 
-        public static MemoryBuffer WithBytes(byte[] bytes, string bufferName) =>
-            new MemoryBuffer(CAPI.LLVMCreateMemoryBufferWithMemoryRangeCopy(bytes, bufferName));
+        public static unsafe MemoryBuffer WithBytes(byte[] bytes, string bufferName)
+        {
+            using var marshaledName = new MarshaledString(bufferName.AsSpan());
+            fixed (byte* dataPtr = bytes.AsSpan()) {
+                return new MemoryBuffer(LLVMSharp.Interop.LLVM.CreateMemoryBufferWithMemoryRangeCopy((sbyte*) dataPtr,
+                    (UIntPtr) bytes.Length, marshaledName));
+            }
+        }
 
-        public int Length => (int) CAPI.LLVMGetBufferSize(_memoryBuffer);
+        public unsafe int Length => (int) LLVMSharp.Interop.LLVM.GetBufferSize(_memoryBuffer);
 
-        public byte[] Bytes => CAPI.LLVMGetBufferStartBytes(_memoryBuffer);
+        public unsafe ReadOnlySpan<byte> Bytes => new ReadOnlySpan<byte>(
+            LLVMSharp.Interop.LLVM.GetBufferStart(_memoryBuffer), Length);
 
-        public string GetAsString() => CAPI.LLVMGetBufferString(_memoryBuffer);
+        public string GetAsString() => Bytes.ToString();
 
         public void Dispose()
         {
@@ -40,11 +51,11 @@ namespace MonC.LLVM
             GC.SuppressFinalize(this);
         }
 
-        private void DoDispose()
+        private unsafe void DoDispose()
         {
-            if (_memoryBuffer.IsValid) {
-                CAPI.LLVMDisposeMemoryBuffer(_memoryBuffer);
-                _memoryBuffer = new CAPI.LLVMMemoryBufferRef();
+            if (_memoryBuffer.Handle != IntPtr.Zero) {
+                LLVMSharp.Interop.LLVM.DisposeMemoryBuffer(_memoryBuffer);
+                _memoryBuffer = new LLVMMemoryBufferRef();
             }
         }
 
