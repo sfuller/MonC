@@ -4,6 +4,8 @@ void^ test() {
 }
 
 int main() {
-    return (int!) test();
+    danger {
+        return (int!) test();
+    }
 }
 

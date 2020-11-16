@@ -321,6 +321,12 @@ namespace MonC
 
         private BodyNode? ParseBody(ref TokenSource tokens)
         {
+            BodyType bodyType = BodyType.Standard;
+
+            if (tokens.TryNext(TokenType.Identifier, Syntax.BODY_TYPE_DANGEROUS, out _)) {
+                bodyType = BodyType.Dangerous;
+            }
+
             if (!tokens.Next(TokenType.Syntax, Syntax.OPENING_BRACKET, out Token bodyOpening)) {
                 return null;
             }
@@ -338,7 +344,7 @@ namespace MonC
                 }
             }
 
-            return NewNode(new BodyNode(statements), bodyOpening, tokens.Peek(-1));
+            return NewNode(new BodyNode(bodyType, statements), bodyOpening, tokens.Peek(-1));
         }
 
         private IStatementNode? ParseStatement(ref TokenSource tokens)
@@ -356,6 +362,12 @@ namespace MonC
                 statement = ParseFlow(ref tokensToConsume);
                 if (statement != null) {
                     return statement;
+                }
+
+                tokensToConsume = tokens.Fork();
+                BodyNode? body = ParseBody(ref tokensToConsume);
+                if (body != null) {
+                    return body;
                 }
 
                 tokensToConsume = tokens.Fork();
@@ -843,6 +855,8 @@ namespace MonC
                 return null;
             }
 
+            bool reinterpret = tokens.TryNext(TokenType.Syntax, Syntax.CAST_REINTERPRET, out _);
+
             tokens.Next(TokenType.Syntax, Syntax.CLOSING_PAREN, out Token endToken);
 
             IExpressionNode? rhs = ParseExpression(ref tokens, TOKEN_PRECEDENCE_UNARY);
@@ -850,7 +864,7 @@ namespace MonC
                 return null;
             }
 
-            return NewNode(new CastUnaryOpNode(typeSpecifier, rhs), startToken, endToken);
+            return NewNode(new CastUnaryOpNode(typeSpecifier, rhs, reinterpret), startToken, endToken);
         }
 
         private IdentifierParseNode? ParseIdentifierExpression(ref TokenSource tokens)

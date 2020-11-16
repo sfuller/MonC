@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Text;
 
 namespace MonC
@@ -11,12 +12,12 @@ namespace MonC
             public bool ConsumedFirstQuote;
             public bool IsEscaping;
         }
-        
+
         private string _sourceString = "";
         private int _sourceIndex;
         private uint _currentLine;
         private uint _currentColumn;
-        
+
         private TokenType _currentTokenType;
         private readonly StringBuilder _valueBuffer = new StringBuilder();
         private StringLexState _stringState;
@@ -28,7 +29,7 @@ namespace MonC
         {
             _sourceString = source;
             _sourceIndex = 0;
-            
+
             while (Lex(tokens)) { }
         }
 
@@ -56,7 +57,7 @@ namespace MonC
             }
 
             bool canContinue;
-            
+
             switch (_currentTokenType) {
                 default:
                     canContinue = false;
@@ -88,7 +89,7 @@ namespace MonC
         {
             int next;
             char nextChar;
-            
+
             if (ignoreSpace) {
                 // Skip non-token characters
                 while ((next = Peek()) != -1) {
@@ -98,7 +99,7 @@ namespace MonC
                     } else {
                         break;
                     }
-                }    
+                }
             }
             else {
                 next = Peek();
@@ -109,7 +110,7 @@ namespace MonC
             }
 
             nextChar = (char)next;
-            
+
             if (IsIdentifierOpener(nextChar)) {
                 return TokenType.Identifier;
             }
@@ -123,7 +124,7 @@ namespace MonC
             if (IsNextTokenCommentOpener()) {
                 return TokenType.Comment;
             }
-            
+
             return TokenType.Syntax;
         }
 
@@ -172,21 +173,21 @@ namespace MonC
         {
             FileLocation location = GetCurrentLocation();
             int next;
-            
+
             while ((next = Peek()) != -1) {
                 char nextChar = (char)next;
-                                                    
+
                 if (!IsValidIdentifierCharacter(nextChar)) {
-                    // Token is finished. Determine whether it is a reserved keyword or a normal identifier. 
+                    // Token is finished. Determine whether it is a reserved keyword or a normal identifier.
                     string value = _valueBuffer.ToString();
                     TokenType type;
-                    
+
                     if (Keyword.IsKeyword(value)) {
                         type = TokenType.Keyword;
                     } else {
                         type = TokenType.Identifier;
                     }
-                    
+
                     // All done!
                     _valueBuffer.Length = 0;
                     tokens.Add(new Token(type, value, location));
@@ -220,11 +221,11 @@ namespace MonC
                 _valueBuffer.Append(nextChar);
                 Consume();
             }
-            
+
             // Incomplete.
             return false;
         }
-        
+
         private bool ProcessString(IList<Token> tokens)
         {
             FileLocation location = GetCurrentLocation();
@@ -234,7 +235,7 @@ namespace MonC
                 Consume();
                 _stringState.ConsumedFirstQuote = true;
             }
-            
+
             while ((next = Peek()) != -1) {
                 char nextChar = (char) next;
 
@@ -242,7 +243,7 @@ namespace MonC
                     _valueBuffer.Append(nextChar);
                     Consume();
                     _stringState.IsEscaping = false;
-                    
+
                 } else {
                     if (nextChar == '\\') {
                         _stringState.IsEscaping = true;
@@ -261,7 +262,7 @@ namespace MonC
                     }
                 }
             }
-            
+
             // Incomplete.
             return false;
         }
@@ -269,8 +270,8 @@ namespace MonC
         private bool ProcessSyntax(IList<Token> tokens)
         {
             StringBuilder blockBuilder = new StringBuilder();
-            List<FileLocation> blockTokenLocations = new List<FileLocation>(); 
-            
+            List<FileLocation> blockTokenLocations = new List<FileLocation>();
+
             while (GetNextTokenType(ignoreSpace: false) == TokenType.Syntax) {
                 int next = Peek();
                 char nextChar = (char) next;
@@ -281,10 +282,10 @@ namespace MonC
                 blockTokenLocations.Add(GetCurrentLocation());
                 Consume();
             }
-            
+
             string block = blockBuilder.ToString();
             int stubOffset = 0;
-            
+
             while (!string.IsNullOrEmpty(block)) {
                 Token token;
                 int offset = ProcessSyntaxBlock(blockTokenLocations[stubOffset], block, out token);
@@ -300,16 +301,16 @@ namespace MonC
         {
             for (int i = value.Length; i > 1; --i) {
                 string subValue = value.Substring(0, i);
-                string[] possibleValues = Syntax.GetTokensByLength(i);
-                
-                for (int j = 0, jlen = possibleValues.Length; j < jlen ; ++j) {
+                ReadOnlyCollection<string> possibleValues = Syntax.GetTokensByLength(i);
+
+                for (int j = 0, jlen = possibleValues.Count; j < jlen ; ++j) {
                     if (subValue == possibleValues[j]) {
                         lexedToken = new Token(TokenType.Syntax, subValue, location);
                         return i;
                     }
                 }
             }
-            
+
             lexedToken = new Token(TokenType.Syntax, value.Substring(0, 1), location);
             return 1;
         }
@@ -320,7 +321,7 @@ namespace MonC
                 _isCurrentCommentMultiline = IsNextTokenMultiLineOpener();
                 _isCurrentCommentTypeKnown = true;
             }
-            
+
             while (true) {
                 int val = Peek();
                 char c = (char)val;
@@ -333,7 +334,7 @@ namespace MonC
                         ConsumeMultiLineCloser();
                         break;
                     }
-                } else { 
+                } else {
                     if (c == '\n') {
                         Consume();
                         break;
@@ -346,7 +347,7 @@ namespace MonC
             _isCurrentCommentTypeKnown = false;
             return true;
         }
-        
+
         private void Consume()
         {
             ++_currentColumn;
@@ -354,7 +355,7 @@ namespace MonC
                 ++_currentLine;
                 _currentColumn = 0;
             }
-            
+
             ++_sourceIndex;
         }
 
@@ -374,7 +375,7 @@ namespace MonC
 //            };
 //        }
 
-        
+
 
         private FileLocation GetCurrentLocation()
         {

@@ -4,6 +4,7 @@ namespace MonC.SyntaxTree.Nodes.Statements
 {
     public class BodyNode : StatementNode
     {
+        public readonly BodyType Type;
         public readonly List<IStatementNode> Statements;
 
         public BodyNode()
@@ -11,8 +12,9 @@ namespace MonC.SyntaxTree.Nodes.Statements
             Statements = new List<IStatementNode>();
         }
 
-        public BodyNode(IEnumerable<IStatementNode> statements)
+        public BodyNode(BodyType type, IEnumerable<IStatementNode> statements)
         {
+            Type = type;
             Statements = new List<IStatementNode>(statements);
         }
 

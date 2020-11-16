@@ -1,4 +1,6 @@
-using System.Linq;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Reflection;
 
 namespace MonC
 {
@@ -39,31 +41,56 @@ namespace MonC
 
         public const string HEX_NUMERIC_PREFIX = "0x";
 
+        public const string CAST_REINTERPRET = "!";
+
         public const string STRUCT_FUNCTION_ASSOCIATION_STARTER = ":";
         public const string STRUCT_FUNCTION_ASSOCIATION_SEPARATOR = "=";
 
+        // TODO: Currently the lexer only recognizes tokens as syntax if they begin with a non alphabet character.
+        // Should these constants below be moved somewhere else? Should we change how the lexer works?
+
         public const string FUNCTION_ATTRIBUTE_DROP = "drop";
 
-        // TODO: Needs better name -- 2-character tokens are defined here for use by GetTokensByLength.
-        // TODO: It's easy for this to get out of date.. Use reflection, or later on use codegen to generate this.
-        private static readonly string[] SYNTAX_VALUES = {
-            BINOP_GREATER_THAN_OR_EQUAL_TO,
-            BINOP_LESS_THAN_OR_EQUAL_TO,
-            BINOP_EQUALS,
-            BINOP_NOT_EQUALS,
-            BINOP_LOGICAL_AND,
-            BINOP_LOGICAL_OR
-        };
+        public const string BODY_TYPE_DANGEROUS = "danger";
 
-        public static string[] GetTokensByLength(int length)
+
+        private static Dictionary<int, ReadOnlyCollection<string>>? _tokensByLength;
+
+        private static Dictionary<int, ReadOnlyCollection<string>> GetTokensByLength()
         {
-            // TODO: Performance
-
-            if (length == 2) {
-                return SYNTAX_VALUES.ToArray();
+            if (_tokensByLength != null) {
+                return _tokensByLength;
             }
 
-            return new string[0];
+            Dictionary<int, List<string>> tokensByLength = new Dictionary<int, List<string>>();
+
+            FieldInfo[] fields = typeof(Syntax).GetFields(BindingFlags.Static | BindingFlags.Public);
+            foreach (FieldInfo field in fields) {
+                if (field.FieldType == typeof(string) && field.IsLiteral) {
+                    string value = (string) field.GetValue(null);
+                    if (!tokensByLength.TryGetValue(value.Length, out List<string> tokenList)) {
+                        tokenList = new List<string>(1);
+                        tokensByLength[value.Length] = tokenList;
+                    }
+                    tokenList.Add(value);
+                }
+            }
+
+            _tokensByLength = new Dictionary<int, ReadOnlyCollection<string>>();
+            foreach (KeyValuePair<int, List<string>> kvp in tokensByLength) {
+                _tokensByLength[kvp.Key] = new ReadOnlyCollection<string>(kvp.Value);
+            }
+            return _tokensByLength;
+        }
+
+        public static ReadOnlyCollection<string> GetTokensByLength(int length)
+        {
+            if (GetTokensByLength().TryGetValue(length, out ReadOnlyCollection<string> tokens)) {
+                return tokens;
+            }
+
+            // TODO: Use a shared empty read only collection
+            return new ReadOnlyCollection<string>(new List<string>());
         }
 
     }

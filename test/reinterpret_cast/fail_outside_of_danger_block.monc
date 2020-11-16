@@ -1,0 +1,9 @@
+
+struct Foo {
+}
+
+int main() {
+    Foo foo;
+    int& a = (int&!)&foo;
+    return 0;
+}
